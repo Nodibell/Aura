@@ -1,6 +1,6 @@
 # Aura
 
-A native, premium macOS application for **AI-Powered Automated Exploratory Data Analysis (AutoEDA) & Machine Learning Modeling**. Built with a modern SwiftUI 6.0 frontend and a high-performance Python 3 subprocess pipeline backend, Aura helps you instantly profile, visualize, and model complex datasets directly on your machine.
+A native, premium macOS application for **AI-Powered Automated Exploratory Data Analysis (Aura) & Machine Learning Modeling**. Built with a modern SwiftUI 6.0 frontend and a high-performance Python 3 subprocess pipeline backend, Aura helps you instantly profile, visualize, and model complex datasets directly on your machine.
 
 ![Aura App Icon](Aura/Assets.xcassets/AppIcon.appiconset/icon_256x256.png)
 
