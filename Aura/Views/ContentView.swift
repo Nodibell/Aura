@@ -131,7 +131,11 @@ struct ContentView: View {
                     errorMessage = nil
                     result = nil
                     previewResult = nil
-                    analysisConfig.targetColumn = ""
+                    
+                    // Reset config for URL dataset
+                    analysisConfig = AnalysisConfig()
+                    trainColumns = []
+                    
                     fetchPreview(for: trimmed)
                 }
             }
@@ -991,6 +995,12 @@ struct ContentView: View {
         errorMessage = nil
         result = nil
         previewResult = nil
+        
+        // Reset configuration and columns for the new dataset
+        analysisConfig = AnalysisConfig()
+        analysisConfig.trainFilePath = url.path
+        trainColumns = []
+        
         if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
             let fmt = ByteCountFormatter()
             fmt.countStyle = .file
@@ -1003,7 +1013,6 @@ struct ContentView: View {
         } else {
             fileDetails = "Unknown size"
         }
-        analysisConfig.targetColumn = ""
         fetchPreview(for: url.path)
     }
 
