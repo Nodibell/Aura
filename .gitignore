@@ -42,3 +42,6 @@ xcuserdata/
 # Application logs
 *.log
 scratch_build*.log
+
+# Packaged binaries
+*.dmg
