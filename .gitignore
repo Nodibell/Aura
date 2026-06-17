@@ -19,9 +19,12 @@ Icon
 venv/
 __pycache__/
 *.pyc
+temp/
+scratch/
 
 # Xcode
 build/
+build_output/
 DerivedData/
 *.xcodeproj/*
 !*.xcodeproj/project.pbxproj

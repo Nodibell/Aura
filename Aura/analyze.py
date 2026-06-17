@@ -16,6 +16,57 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
+# If running in a flattened Xcode bundle where "utils" or "pipelines" subfolders don't exist,
+# we dynamically create namespace packages and map them in sys.modules to route imports correctly.
+if not os.path.isdir(os.path.join(script_dir, "utils")) and os.path.exists(os.path.join(script_dir, "helpers.py")):
+    import types
+    # 1. Register namespace package 'utils'
+    utils_mod = types.ModuleType("utils")
+    utils_mod.__path__ = []
+    sys.modules["utils"] = utils_mod
+    
+    # 2. Load and register helpers first (since loader, profiler, charts depend on it)
+    import helpers
+    sys.modules["utils.helpers"] = helpers
+    utils_mod.helpers = helpers
+    
+    # 3. Load others sequentially
+    import loader
+    sys.modules["utils.loader"] = loader
+    utils_mod.loader = loader
+    
+    import profiler
+    sys.modules["utils.profiler"] = profiler
+    utils_mod.profiler = profiler
+    
+    import charts
+    sys.modules["utils.charts"] = charts
+    utils_mod.charts = charts
+
+if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(os.path.join(script_dir, "timeseries.py")):
+    import types
+    # 1. Register namespace package 'pipelines'
+    pipelines_mod = types.ModuleType("pipelines")
+    pipelines_mod.__path__ = []
+    sys.modules["pipelines"] = pipelines_mod
+    
+    # 2. Load and register pipelines sequentially
+    import timeseries
+    sys.modules["pipelines.timeseries"] = timeseries
+    pipelines_mod.timeseries = timeseries
+    
+    import image
+    sys.modules["pipelines.image"] = image
+    pipelines_mod.image = image
+    
+    import nlp
+    sys.modules["pipelines.nlp"] = nlp
+    pipelines_mod.nlp = nlp
+    
+    import preview
+    sys.modules["pipelines.preview"] = preview
+    pipelines_mod.preview = preview
+
 # Import submodules
 from utils.helpers import print_progress, clean_nan, _generate_reproduction_code, _export_model_and_code
 from utils.loader import download_dataset, load_dataset, _infer_dataset_type
