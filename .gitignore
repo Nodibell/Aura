@@ -1,0 +1,41 @@
+# OS X
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Icon3
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear on external disk
+.Spotlight-V100
+.Trashes
+
+# Directories
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Xcode
+build/
+DerivedData/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+*.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+
+# VS Code
+.vscode/
+
+# Swift Package Manager
+.build/
+
+# Application logs
+*.log
+scratch_build*.log

@@ -1,0 +1,856 @@
+import SwiftUI
+
+struct AIChatPanel: View {
+    @Bindable var viewModel: ChatViewModel
+    let ollamaStatus: OllamaStatusChecker
+    let analysisResult: AnalysisResult?
+
+    @State private var selectedModel: String = ""
+    @State private var scrollProxy: ScrollViewProxy? = nil
+
+    // Retrieve settings
+    private var temperature: Double {
+        UserDefaults.standard.double(forKey: "Aura_OllamaTemp").clamped(to: 0.0...1.0).nonZeroOr(0.3)
+    }
+    private var maxTokens: Int {
+        let v = UserDefaults.standard.integer(forKey: "Aura_OllamaMaxTokens")
+        return v > 0 ? v : 2048
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header bar
+            panelHeader
+
+            Divider()
+
+            if !ollamaStatus.isAvailable {
+                // Ollama not running
+                OllamaSetupView {
+                    await ollamaStatus.refresh()
+                }
+            } else {
+                // Chat area
+                VStack(spacing: 0) {
+                    // Messages
+                    ScrollViewReader { proxy in
+                        ScrollView {
+                            LazyVStack(spacing: 12) {
+                                if viewModel.messages.isEmpty {
+                                    emptyState
+                                        .id("empty")
+                                } else {
+                                    ForEach(viewModel.messages) { message in
+                                        MessageBubble(message: message)
+                                            .id(message.id)
+                                    }
+                                }
+                            }
+                            .padding(12)
+                        }
+                        .onAppear { scrollProxy = proxy }
+                        .onChange(of: viewModel.messages.count) { _, _ in
+                            scrollToBottom(proxy: proxy)
+                        }
+                        .onChange(of: viewModel.messages.last?.content) { _, _ in
+                            scrollToBottom(proxy: proxy)
+                        }
+                    }
+
+                    // Quick action chips
+                    if let result = analysisResult, viewModel.messages.isEmpty {
+                        quickActionChips(for: result)
+                    }
+
+                    Divider()
+
+                    // Input bar
+                    inputBar
+                }
+            }
+        }
+        .onAppear {
+            resolveSelectedModel()
+        }
+        .onChange(of: ollamaStatus.availableModels) { _, models in
+            resolveSelectedModel()
+        }
+    }
+
+    private func resolveSelectedModel() {
+        let saved = UserDefaults.standard.string(forKey: "Aura_OllamaModel") ?? ""
+        let models = ollamaStatus.availableModels
+        if !saved.isEmpty && models.contains(where: { $0.name == saved }) {
+            selectedModel = saved
+        } else if let first = models.first {
+            selectedModel = first.name
+            UserDefaults.standard.set(first.name, forKey: "Aura_OllamaModel")
+        }
+    }
+
+    // MARK: - Subviews
+
+    private var panelHeader: some View {
+        HStack(spacing: 8) {
+            // Model status dot
+            Circle()
+                .fill(ollamaStatus.isAvailable ? Color.green : Color.red)
+                .frame(width: 8, height: 8)
+
+            Text("AI Analyst")
+                .font(.system(size: 13, weight: .semibold))
+
+            Spacer()
+
+            // Model picker (only when available and models exist)
+            if ollamaStatus.isAvailable && !ollamaStatus.availableModels.isEmpty && !selectedModel.isEmpty {
+                Picker("", selection: $selectedModel) {
+                    ForEach(ollamaStatus.availableModels) { m in
+                        Text(m.name).tag(m.name)
+                    }
+                }
+                .pickerStyle(.menu)
+                .font(.caption)
+                .frame(maxWidth: 130)
+                .onChange(of: selectedModel) { _, v in
+                    UserDefaults.standard.set(v, forKey: "Aura_OllamaModel")
+                }
+            }
+
+            if !viewModel.messages.isEmpty {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        viewModel.clearConversation()
+                    }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Clear conversation")
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 10) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 28))
+                .foregroundStyle(
+                    LinearGradient(colors: [.purple, .blue], startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+            Text("Ask anything about your data")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            Text("Use the quick actions below or type a custom question.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 40)
+    }
+
+    private func quickActionChips(for result: AnalysisResult) -> some View {
+        let actions = QuickAction.actionsFor(result: result)
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(actions) { action in
+                    Button {
+                        send(action.prompt)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(action.emoji)
+                            Text(action.label)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.05))
+                        .cornerRadius(20)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 20)
+                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var inputBar: some View {
+        HStack(spacing: 8) {
+            TextField("Ask about this dataset...", text: $viewModel.inputText, axis: .vertical)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .lineLimit(1...4)
+                .onSubmit { if !viewModel.isStreaming { send(viewModel.inputText) } }
+
+            if viewModel.isStreaming {
+                Button {
+                    viewModel.cancelGeneration()
+                } label: {
+                    Image(systemName: "stop.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(Color.red.gradient)
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button {
+                    send(viewModel.inputText)
+                } label: {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(
+                            viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                ? AnyShapeStyle(Color.secondary.opacity(0.3))
+                                : AnyShapeStyle(LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(12)
+    }
+
+    // MARK: - Helpers
+
+    private func send(_ text: String) {
+        let t = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else { return }
+        viewModel.sendMessage(
+            t,
+            model: selectedModel.isEmpty ? "llama3.2" : selectedModel,
+            temperature: temperature,
+            maxTokens: maxTokens
+        )
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        guard let last = viewModel.messages.last else { return }
+        withAnimation(.easeOut(duration: 0.15)) {
+            proxy.scrollTo(last.id, anchor: .bottom)
+        }
+    }
+}
+
+// MARK: - Message Bubble
+
+private struct MessageBubble: View {
+    let message: ChatMessage
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            if message.role == .user { Spacer(minLength: 40) }
+
+            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+                bubbleContent
+            }
+
+            if message.role == .assistant { Spacer(minLength: 40) }
+        }
+    }
+
+    @ViewBuilder
+    private var bubbleContent: some View {
+        if message.role == .user {
+            Text(message.content)
+                .font(.body)
+                .foregroundColor(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    LinearGradient(colors: [.purple, .blue.opacity(0.9)],
+                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        } else {
+            Group {
+                if message.state == .streaming && message.content.isEmpty {
+                    // Thinking indicator
+                    ThinkingDotsView()
+                } else {
+                    ZStack(alignment: .topTrailing) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            MarkdownMessageView(content: message.content.isEmpty ? " " : message.content)
+                                .foregroundColor(message.state == .error ? .red : .primary)
+                                .padding(.trailing, 24)
+
+                            if message.state == .streaming {
+                                // Streaming cursor
+                                Text("▌")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .opacity(0.7)
+                            }
+                        }
+                        
+                        if !message.content.isEmpty && message.state != .streaming {
+                            Button(action: {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(message.content, forType: .string)
+                            }) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.secondary.opacity(0.7))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, -2)
+                            .padding(.trailing, -4)
+                            .help("Copy message")
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.04))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(message.state == .error ? Color.red.opacity(0.3) : Color.white.opacity(0.07), lineWidth: 1)
+            )
+        }
+    }
+}
+
+// MARK: - Thinking Dots
+
+private struct ThinkingDotsView: View {
+    @State private var phase = 0
+
+    private let timer = Timer.publish(every: 0.45, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { i in
+                Circle()
+                    .fill(Color.secondary.opacity(i == phase ? 1.0 : 0.3))
+                    .frame(width: 7, height: 7)
+                    .scaleEffect(i == phase ? 1.2 : 1.0)
+                    .animation(.easeInOut(duration: 0.3), value: phase)
+            }
+        }
+        .padding(.vertical, 4)
+        .onReceive(timer) { _ in phase = (phase + 1) % 3 }
+    }
+}
+
+// MARK: - Extensions
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
+        min(max(self, range.lowerBound), range.upperBound)
+    }
+    func nonZeroOr(_ fallback: Double) -> Double {
+        self == 0.0 ? fallback : self
+    }
+}
+
+// MARK: - Markdown Rich Text View
+
+struct MarkdownMessageView: View {
+    let content: String
+    
+    var body: some View {
+        let blocks = parseBlocks(content)
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(blocks) { block in
+                switch block.type {
+                case .text(let text):
+                    renderTextBlock(text)
+                case .code(let lang, let code):
+                    renderCodeBlock(lang: lang, code: code)
+                case .table(let headers, let rows):
+                    renderTable(headers: headers, rows: rows)
+                case .formula(let formula):
+                    renderFormulaBlock(formula)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func renderTextBlock(_ text: String) -> some View {
+        let lines = text.components(separatedBy: .newlines)
+        VStack(alignment: .leading, spacing: 4) {
+            ForEach(0..<lines.count, id: \.self) { i in
+                let line = lines[i]
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                
+                if trimmed.isEmpty {
+                    Spacer().frame(height: 4)
+                } else if trimmed.hasPrefix("#### ") {
+                    let rawText = String(trimmed.dropFirst(5))
+                    Text(parseInlineMathAndMarkdown(rawText))
+                        .font(.system(.subheadline, design: .rounded))
+                        .fontWeight(.bold)
+                        .padding(.top, 2)
+                        .textSelection(.enabled)
+                } else if trimmed.hasPrefix("### ") {
+                    let rawText = String(trimmed.dropFirst(4))
+                    Text(parseInlineMathAndMarkdown(rawText))
+                        .font(.system(.headline, design: .rounded))
+                        .fontWeight(.bold)
+                        .padding(.top, 4)
+                        .textSelection(.enabled)
+                } else if trimmed.hasPrefix("## ") {
+                    let rawText = String(trimmed.dropFirst(3))
+                    Text(parseInlineMathAndMarkdown(rawText))
+                        .font(.system(.title3, design: .rounded))
+                        .fontWeight(.bold)
+                        .padding(.top, 6)
+                        .textSelection(.enabled)
+                } else if trimmed.hasPrefix("# ") {
+                    let rawText = String(trimmed.dropFirst(2))
+                    Text(parseInlineMathAndMarkdown(rawText))
+                        .font(.system(.title2, design: .rounded))
+                        .fontWeight(.bold)
+                        .padding(.top, 8)
+                        .textSelection(.enabled)
+                } else if trimmed.hasPrefix("* ") || trimmed.hasPrefix("- ") {
+                    let rawText = String(trimmed.dropFirst(2))
+                    HStack(alignment: .top, spacing: 6) {
+                        Text("•")
+                            .font(.body)
+                            .foregroundColor(.purple)
+                        Text(parseInlineMathAndMarkdown(rawText))
+                            .font(.body)
+                            .textSelection(.enabled)
+                    }
+                    .padding(.leading, 8)
+                } else if let numberMatch = parseNumberedList(trimmed) {
+                    HStack(alignment: .top, spacing: 6) {
+                        Text(numberMatch.prefix)
+                            .font(.body)
+                            .foregroundColor(.secondary)
+                        Text(parseInlineMathAndMarkdown(numberMatch.text))
+                            .font(.body)
+                            .textSelection(.enabled)
+                    }
+                    .padding(.leading, 8)
+                } else {
+                    Text(parseInlineMathAndMarkdown(line))
+                        .font(.body)
+                        .textSelection(.enabled)
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func renderCodeBlock(lang: String, code: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(lang.isEmpty ? "CODE" : lang.uppercased())
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(.secondary)
+                Spacer()
+                Button(action: {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(code, forType: .string)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc")
+                        Text("Copy")
+                    }
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.white.opacity(0.04))
+            
+            Divider().background(Color.white.opacity(0.06))
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                Text(code)
+                    .font(.system(.body, design: .monospaced))
+                    .foregroundColor(.primary.opacity(0.95))
+                    .textSelection(.enabled)
+                    .padding(12)
+            }
+        }
+        .background(Color.black.opacity(0.25))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+    
+    @ViewBuilder
+    private func renderTable(headers: [String], rows: [[String]]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ScrollView(.horizontal, showsIndicators: true) {
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                    // Header Row
+                    GridRow {
+                        ForEach(headers, id: \.self) { header in
+                            Text(header)
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .padding(.bottom, 4)
+                                .gridColumnAlignment(.leading)
+                        }
+                    }
+                    
+                    // Divider Row
+                    GridRow {
+                        ForEach(0..<headers.count, id: \.self) { _ in
+                            Divider()
+                        }
+                    }
+                    
+                    // Data Rows
+                    ForEach(0..<rows.count, id: \.self) { rowIndex in
+                        let row = rows[rowIndex]
+                        GridRow {
+                            ForEach(0..<headers.count, id: \.self) { colIndex in
+                                let text = colIndex < row.count ? row[colIndex] : ""
+                                Text(parseInlineMathAndMarkdown(text))
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                    }
+                }
+                .padding(12)
+            }
+            .background(Color.white.opacity(0.02))
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+            )
+        }
+        .padding(.vertical, 4)
+    }
+    
+    @ViewBuilder
+    private func renderFormulaBlock(_ formula: String) -> some View {
+        VStack(alignment: .center, spacing: 6) {
+            Text(parseMathString(formula))
+                .font(.system(size: 14, weight: .medium, design: .serif))
+                .foregroundColor(.purple)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 12)
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .background(Color.white.opacity(0.02))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.purple.opacity(0.15), lineWidth: 1)
+                )
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func parseNumberedList(_ line: String) -> (prefix: String, text: String)? {
+        let pattern = "^(\\d+\\.)\\s+(.*)$"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []),
+              let match = regex.firstMatch(in: line, options: [], range: NSRange(location: 0, length: line.utf16.count)) else {
+            return nil
+        }
+        
+        let prefixRange = match.range(at: 1)
+        let textRange = match.range(at: 2)
+        
+        guard let prefixRangeSpec = Range(prefixRange, in: line),
+              let textRangeSpec = Range(textRange, in: line) else {
+            return nil
+        }
+        
+        return (prefix: String(line[prefixRangeSpec]), text: String(line[textRangeSpec]))
+    }
+    
+    private func parseInlineMathAndMarkdown(_ line: String) -> AttributedString {
+        var result = AttributedString()
+        
+        // Let's also support \( and \) inline math
+        var cleanedLine = line
+        cleanedLine = cleanedLine.replacingOccurrences(of: "\\(", with: "$").replacingOccurrences(of: "\\)", with: "$")
+        
+        let parts = cleanedLine.components(separatedBy: "$")
+        for (index, part) in parts.enumerated() {
+            if index % 2 == 0 {
+                // Normal markdown text
+                if !part.isEmpty {
+                    if let attr = try? AttributedString(markdown: part, options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
+                        result.append(attr)
+                    } else {
+                        result.append(AttributedString(part))
+                    }
+                }
+            } else {
+                // Inline math!
+                if !part.isEmpty {
+                    result.append(parseMathString(part))
+                }
+            }
+        }
+        return result
+    }
+    
+    private func translateMathSymbols(_ text: String) -> String {
+        var result = text
+        let translations: [(String, String)] = [
+            // Greek letters
+            ("\\alpha", "α"), ("\\beta", "β"), ("\\gamma", "γ"), ("\\delta", "δ"),
+            ("\\epsilon", "ε"), ("\\zeta", "ζ"), ("\\eta", "η"), ("\\theta", "θ"),
+            ("\\iota", "ι"), ("\\kappa", "κ"), ("\\lambda", "λ"), ("\\mu", "μ"),
+            ("\\nu", "ν"), ("\\xi", "ξ"), ("\\pi", "π"), ("\\rho", "ρ"),
+            ("\\sigma", "σ"), ("\\tau", "τ"), ("\\upsilon", "υ"), ("\\phi", "φ"),
+            ("\\chi", "χ"), ("\\psi", "ψ"), ("\\omega", "ω"),
+            ("\\Delta", "Δ"), ("\\Theta", "Θ"), ("\\Lambda", "Λ"), ("\\Sigma", "Σ"),
+            ("\\Phi", "Φ"), ("\\Omega", "Ω"),
+            // Operators & Symbols
+            ("\\sum", "∑"), ("\\prod", "∏"), ("\\infty", "∞"), ("\\partial", "∂"),
+            ("\\nabla", "∇"), ("\\times", "×"), ("\\cdot", "·"), ("\\div", "÷"),
+            ("\\approx", "≈"), ("\\neq", "≠"), ("\\le", "≤"), ("\\ge", "≥"),
+            ("\\pm", "±"), ("\\mp", "∓"), ("\\propto", "∝"),
+            // LaTeX specific formatting
+            ("\\hat{y}", "ŷ"), ("\\hat{y}_i", "ŷ_i"), ("\\bar{x}", "x̄"),
+            ("\\hat", "^"), ("\\sqrt", "√"), ("\\text", ""),
+            ("{", ""), ("}", ""), // Remove remaining braces
+            ("\\left", ""), ("\\right", ""), // Remove brackets modifiers
+            ("\\,", " "), ("\\;", " ") // Spacing
+        ]
+        
+        for (latex, unicode) in translations {
+            result = result.replacingOccurrences(of: latex, with: unicode)
+        }
+        return result
+    }
+    
+    private func formatFractions(_ text: String) -> String {
+        var result = text
+        let pattern = "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}"
+        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
+            let nsString = result as NSString
+            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
+            for match in matches.reversed() {
+                let numRange = match.range(at: 1)
+                let denRange = match.range(at: 2)
+                let num = nsString.substring(with: numRange)
+                let den = nsString.substring(with: denRange)
+                let replacement = "(\(num)) / (\(den))"
+                result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
+            }
+        }
+        return result
+    }
+    
+    private func parseMathString(_ rawText: String) -> AttributedString {
+        let formattedText = translateMathSymbols(formatFractions(rawText))
+        var attrString = AttributedString()
+        var i = 0
+        let chars = Array(formattedText)
+        
+        while i < chars.count {
+            let char = chars[i]
+            
+            if char == "_" {
+                i += 1
+                if i < chars.count {
+                    if chars[i] == "{" {
+                        i += 1
+                        var subContent = ""
+                        while i < chars.count && chars[i] != "}" {
+                            subContent.append(chars[i])
+                            i += 1
+                        }
+                        i += 1 // skip '}'
+                        var subAttr = AttributedString(subContent)
+                        subAttr.font = .system(size: 8, weight: .regular, design: .serif)
+                        subAttr.baselineOffset = -3.0
+                        attrString.append(subAttr)
+                    } else {
+                        var subAttr = AttributedString(String(chars[i]))
+                        subAttr.font = .system(size: 8, weight: .regular, design: .serif)
+                        subAttr.baselineOffset = -3.0
+                        attrString.append(subAttr)
+                        i += 1
+                    }
+                }
+            } else if char == "^" {
+                i += 1
+                if i < chars.count {
+                    if chars[i] == "{" {
+                        i += 1
+                        var superContent = ""
+                        while i < chars.count && chars[i] != "}" {
+                            superContent.append(chars[i])
+                            i += 1
+                        }
+                        i += 1 // skip '}'
+                        var superAttr = AttributedString(superContent)
+                        superAttr.font = .system(size: 8, weight: .regular, design: .serif)
+                        superAttr.baselineOffset = 4.0
+                        attrString.append(superAttr)
+                    } else {
+                        var superAttr = AttributedString(String(chars[i]))
+                        superAttr.font = .system(size: 8, weight: .regular, design: .serif)
+                        superAttr.baselineOffset = 4.0
+                        attrString.append(superAttr)
+                        i += 1
+                    }
+                }
+            } else {
+                var charAttr = AttributedString(String(char))
+                charAttr.font = .system(size: 13, weight: .regular, design: .serif)
+                attrString.append(charAttr)
+                i += 1
+            }
+        }
+        return attrString
+    }
+    
+    enum BlockType {
+        case text(String)
+        case code(lang: String, code: String)
+        case table(headers: [String], rows: [[String]])
+        case formula(String)
+    }
+    
+    struct Block: Identifiable {
+        let id = UUID()
+        let type: BlockType
+    }
+    
+    private func parseBlocks(_ text: String) -> [Block] {
+        var blocks: [Block] = []
+        let parts = text.components(separatedBy: "```")
+        for (index, part) in parts.enumerated() {
+            if index % 2 == 0 {
+                // Parse tables and formulas in text parts
+                blocks.append(contentsOf: parseTextContent(part))
+            } else {
+                let lines = part.components(separatedBy: .newlines)
+                if let firstLine = lines.first, !firstLine.isEmpty && firstLine.count < 15 && !firstLine.contains(" ") {
+                    let code = lines.dropFirst().joined(separator: "\n")
+                    blocks.append(Block(type: .code(lang: firstLine, code: code)))
+                } else {
+                    blocks.append(Block(type: .code(lang: "", code: part)))
+                }
+            }
+        }
+        if blocks.isEmpty && !text.isEmpty {
+            blocks.append(Block(type: .text(text)))
+        }
+        return blocks
+    }
+    
+    private func parseTextContent(_ text: String) -> [Block] {
+        var blocks: [Block] = []
+        let parts = text.components(separatedBy: "$$")
+        for (index, part) in parts.enumerated() {
+            if index % 2 != 0 {
+                if !part.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    blocks.append(Block(type: .formula(part)))
+                }
+            } else {
+                blocks.append(contentsOf: parseBracketFormulasAndTables(part))
+            }
+        }
+        return blocks
+    }
+    
+    private func parseBracketFormulasAndTables(_ text: String) -> [Block] {
+        var blocks: [Block] = []
+        let parts = text.components(separatedBy: "\\[")
+        for (index, part) in parts.enumerated() {
+            if index == 0 {
+                blocks.append(contentsOf: parseTablesAndText(part))
+            } else {
+                let subParts = part.components(separatedBy: "\\]")
+                if let formula = subParts.first {
+                    blocks.append(Block(type: .formula(formula)))
+                }
+                if subParts.count > 1 {
+                    let remainingText = subParts.dropFirst().joined(separator: "\\]")
+                    blocks.append(contentsOf: parseTablesAndText(remainingText))
+                }
+            }
+        }
+        return blocks
+    }
+    
+    private func parseTablesAndText(_ text: String) -> [Block] {
+        let lines = text.components(separatedBy: .newlines)
+        var resultBlocks: [Block] = []
+        var currentTextLines: [String] = []
+        
+        var i = 0
+        while i < lines.count {
+            let line = lines[i]
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            
+            let hasPipe = trimmed.contains("|")
+            if hasPipe && i + 1 < lines.count {
+                let nextLine = lines[i + 1].trimmingCharacters(in: .whitespaces)
+                let isSeparator = nextLine.range(of: "^[|\\-:\\s]+$", options: .regularExpression) != nil && nextLine.contains("-") && nextLine.contains("|")
+                
+                if isSeparator {
+                    if !currentTextLines.isEmpty {
+                        resultBlocks.append(Block(type: .text(currentTextLines.joined(separator: "\n"))))
+                        currentTextLines.removeAll()
+                    }
+                    
+                    let rawHeaders = line.components(separatedBy: "|")
+                    var headers = rawHeaders.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    if line.hasPrefix("|") && !headers.isEmpty {
+                        headers.removeFirst()
+                    }
+                    if line.hasSuffix("|") && !headers.isEmpty {
+                        headers.removeLast()
+                    }
+                    
+                    i += 2
+                    
+                    var rows: [[String]] = []
+                    while i < lines.count {
+                        let dataLine = lines[i].trimmingCharacters(in: .whitespaces)
+                        if dataLine.contains("|") {
+                            let rawCells = dataLine.components(separatedBy: "|")
+                            var cells = rawCells.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                            if dataLine.hasPrefix("|") && !cells.isEmpty {
+                                cells.removeFirst()
+                            }
+                            if dataLine.hasSuffix("|") && !cells.isEmpty {
+                                cells.removeLast()
+                            }
+                            rows.append(cells)
+                            i += 1
+                        } else {
+                            break
+                        }
+                    }
+                    
+                    resultBlocks.append(Block(type: .table(headers: headers, rows: rows)))
+                    continue
+                }
+            }
+            
+            currentTextLines.append(line)
+            i += 1
+        }
+        
+        if !currentTextLines.isEmpty {
+            resultBlocks.append(Block(type: .text(currentTextLines.joined(separator: "\n"))))
+        }
+        
+        return resultBlocks
+    }
+}

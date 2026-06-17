@@ -1,0 +1,17 @@
+name: Aura
+options:
+  bundleIdPrefix: com.aura
+targets:
+  Aura:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources: 
+      - path: Aura
+    settings:
+      base:
+        PRODUCT_NAME: Aura
+        GENERATE_INFOPLIST_FILE: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: Aura/Aura.entitlements
+        ENABLE_HARDENED_RUNTIME: NO

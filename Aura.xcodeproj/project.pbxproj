@@ -1,0 +1,533 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */; };
+		085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8DF684009A48B39E26C67 /* OllamaService.swift */; };
+		09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5CD552B5F09360B5BCABC896 /* Assets.xcassets */; };
+		217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */; };
+		2243569E3F9ED5A56AA8F9C4 /* helpers.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */; };
+		240CE722F69C5BCF99EEAC6D /* loader.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */; };
+		29641D18C037C33B9C16F82E /* loader.py in Resources */ = {isa = PBXBuildFile; fileRef = 874A91E91B9041211A336B9F /* loader.py */; };
+		349314BDD5FFFAE9B7373062 /* OllamaStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */; };
+		4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */; };
+		4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F04E707B7135771590F783F /* AppLogger.swift */; };
+		5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */; };
+		677FE39A7C5C40F1BB87180B /* AIChatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */; };
+		6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */ = {isa = PBXBuildFile; fileRef = 801D45C07D300201200808EB /* helpers.py */; };
+		6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */; };
+		6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */; };
+		6D9368CDB7207045A93E27A7 /* HistoryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4718EA673E457067CA6C94BA /* HistoryItem.swift */; };
+		6E99C77956A059840571F2B5 /* PythonRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4964E50D792A7A2C0DAF554D /* PythonRunner.swift */; };
+		72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401068CD37570487457B1D3C /* ExportReportSheet.swift */; };
+		73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 2658715CABC6977191661349 /* nlp.cpython-311.pyc */; };
+		76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */ = {isa = PBXBuildFile; fileRef = 61100B2C70DCAB2960A65C01 /* timeseries.py */; };
+		7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */; };
+		93AB26B4B55D549635F9AAA9 /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FEE37BF68704248704A691D /* SummaryView.swift */; };
+		9A6F073BB849AE6DCE038137 /* image.py in Resources */ = {isa = PBXBuildFile; fileRef = D1EAB7206F26FEE6CA526B55 /* image.py */; };
+		9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */; };
+		9C799893B31E1D3DBA950DAD /* profiler.py in Resources */ = {isa = PBXBuildFile; fileRef = BFE0A9FA6A6821EF8D5A1728 /* profiler.py */; };
+		9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E79BF77BFF47CAD77B65137 /* ContentView.swift */; };
+		A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */; };
+		A3449C7392EA98857DB2606C /* preview.py in Resources */ = {isa = PBXBuildFile; fileRef = 909EAF01F877E18009244DF4 /* preview.py */; };
+		A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94A9C43791F93BBFF10727E /* KeychainService.swift */; };
+		AF0E0093DD138A984AE2AE07 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624F60BF44A6B0961B100408 /* SettingsView.swift */; };
+		B935576B41719E3EA7CDDC62 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0709C15E39493935E745814C /* OnboardingView.swift */; };
+		C30A9E774BE2C3E50294C4F1 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B775FC772BBB757874196464 /* ChatMessage.swift */; };
+		C41FB1B2B66DC70A3700C6DD /* charts.py in Resources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF49087F /* charts.py */; };
+		C8CDF47496C18A6FD7467217 /* ModelExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */; };
+		CC384032B2C8149A84B4ACAF /* charts.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */; };
+		CF308130471B42534BC18080 /* DragDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0748F80EDE9BE8E1331656E0 /* DragDropView.swift */; };
+		DAB7A5BFCC509E72B7C92EE1 /* analyze.py in Resources */ = {isa = PBXBuildFile; fileRef = 646E55D57E8224D22C2A2172 /* analyze.py */; };
+		DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */; };
+		E2210705A0114392408BC5E3 /* AuraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21ABEC5EF698C64577CDF3E /* AuraApp.swift */; };
+		E3848A6553A9A5C36EE709B5 /* image.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 817B08D312D42549D73441A9 /* image.cpython-311.pyc */; };
+		E625E1E6F17C0DCC99446421 /* AnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0296AD82546F1F9C92E1473F /* AnalysisResult.swift */; };
+		E66D5B62FF637E7829C89DBD /* nlp.py in Resources */ = {isa = PBXBuildFile; fileRef = E3FBB74FD6B5716449BF2ABB /* nlp.py */; };
+		F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E410A6F2A214865D1593E321 /* AnalysisConfig.swift */; };
+		F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		0296AD82546F1F9C92E1473F /* AnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisResult.swift; sourceTree = "<group>"; };
+		0709C15E39493935E745814C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		0748F80EDE9BE8E1331656E0 /* DragDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropView.swift; sourceTree = "<group>"; };
+		16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaSetupView.swift; sourceTree = "<group>"; };
+		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
+		26B8DF684009A48B39E26C67 /* OllamaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaService.swift; sourceTree = "<group>"; };
+		401068CD37570487457B1D3C /* ExportReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportReportSheet.swift; sourceTree = "<group>"; };
+		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
+		4718EA673E457067CA6C94BA /* HistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItem.swift; sourceTree = "<group>"; };
+		4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationMatrixView.swift; sourceTree = "<group>"; };
+		4964E50D792A7A2C0DAF554D /* PythonRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunner.swift; sourceTree = "<group>"; };
+		4A9E59AC258B2C2BA91E5EF7 /* Aura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aura.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatPanel.swift; sourceTree = "<group>"; };
+		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
+		5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTableView.swift; sourceTree = "<group>"; };
+		5CD552B5F09360B5BCABC896 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		61100B2C70DCAB2960A65C01 /* timeseries.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = timeseries.py; sourceTree = "<group>"; };
+		624F60BF44A6B0961B100408 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		646E55D57E8224D22C2A2172 /* analyze.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = analyze.py; sourceTree = "<group>"; };
+		7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		7FEE37BF68704248704A691D /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
+		801D45C07D300201200808EB /* helpers.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = helpers.py; sourceTree = "<group>"; };
+		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
+		874A91E91B9041211A336B9F /* loader.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = loader.py; sourceTree = "<group>"; };
+		8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsListView.swift; sourceTree = "<group>"; };
+		8E79BF77BFF47CAD77B65137 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		8F04E707B7135771590F783F /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
+		909EAF01F877E18009244DF4 /* preview.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = preview.py; sourceTree = "<group>"; };
+		938EA13730D79840F2FCBBA5 /* Aura.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aura.entitlements; sourceTree = "<group>"; };
+		9ED2F02669746860CF49087F /* charts.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = charts.py; sourceTree = "<group>"; };
+		A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryService.swift; sourceTree = "<group>"; };
+		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
+		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
+		B775FC772BBB757874196464 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		BFE0A9FA6A6821EF8D5A1728 /* profiler.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = profiler.py; sourceTree = "<group>"; };
+		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
+		D1EAB7206F26FEE6CA526B55 /* image.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = image.py; sourceTree = "<group>"; };
+		D21ABEC5EF698C64577CDF3E /* AuraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraApp.swift; sourceTree = "<group>"; };
+		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
+		D94A9C43791F93BBFF10727E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
+		E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelExportSheet.swift; sourceTree = "<group>"; };
+		E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullTableView.swift; sourceTree = "<group>"; };
+		E3FBB74FD6B5716449BF2ABB /* nlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = nlp.py; sourceTree = "<group>"; };
+		E410A6F2A214865D1593E321 /* AnalysisConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisConfig.swift; sourceTree = "<group>"; };
+		EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaStatusChecker.swift; sourceTree = "<group>"; };
+		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1A691351EBE1DD7961333418 = {
+			isa = PBXGroup;
+			children = (
+				B31AA8476739ED31C7CBAD21 /* Aura */,
+				FF88EA15285C2C6E8FC84561 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		2805FA4CC8DA0DE75010564C /* __pycache__ */ = {
+			isa = PBXGroup;
+			children = (
+				817B08D312D42549D73441A9 /* image.cpython-311.pyc */,
+				2658715CABC6977191661349 /* nlp.cpython-311.pyc */,
+				588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */,
+				D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */,
+			);
+			path = __pycache__;
+			sourceTree = "<group>";
+		};
+		36471513ADADC97BC10280B7 /* utils */ = {
+			isa = PBXGroup;
+			children = (
+				9ED2F02669746860CF49087F /* charts.py */,
+				801D45C07D300201200808EB /* helpers.py */,
+				874A91E91B9041211A336B9F /* loader.py */,
+				BFE0A9FA6A6821EF8D5A1728 /* profiler.py */,
+				71A4081307A2822F80F7EB54 /* __pycache__ */,
+			);
+			path = utils;
+			sourceTree = "<group>";
+		};
+		392542F8312EE21DD7354B2F /* __pycache__ */ = {
+			isa = PBXGroup;
+			children = (
+				A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */,
+			);
+			path = __pycache__;
+			sourceTree = "<group>";
+		};
+		52C92AE6DB80341EC0229D0F /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */,
+				8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */,
+				8E79BF77BFF47CAD77B65137 /* ContentView.swift */,
+				4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */,
+				0748F80EDE9BE8E1331656E0 /* DragDropView.swift */,
+				401068CD37570487457B1D3C /* ExportReportSheet.swift */,
+				E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */,
+				E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */,
+				16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */,
+				0709C15E39493935E745814C /* OnboardingView.swift */,
+				5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */,
+				624F60BF44A6B0961B100408 /* SettingsView.swift */,
+				7FEE37BF68704248704A691D /* SummaryView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		71A4081307A2822F80F7EB54 /* __pycache__ */ = {
+			isa = PBXGroup;
+			children = (
+				A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */,
+				CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */,
+				43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */,
+				FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */,
+			);
+			path = __pycache__;
+			sourceTree = "<group>";
+		};
+		7ECD212904A06E584926C9B0 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */,
+				8F04E707B7135771590F783F /* AppLogger.swift */,
+				7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */,
+				D94A9C43791F93BBFF10727E /* KeychainService.swift */,
+				26B8DF684009A48B39E26C67 /* OllamaService.swift */,
+				EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */,
+				4964E50D792A7A2C0DAF554D /* PythonRunner.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		B31AA8476739ED31C7CBAD21 /* Aura */ = {
+			isa = PBXGroup;
+			children = (
+				646E55D57E8224D22C2A2172 /* analyze.py */,
+				5CD552B5F09360B5BCABC896 /* Assets.xcassets */,
+				938EA13730D79840F2FCBBA5 /* Aura.entitlements */,
+				D21ABEC5EF698C64577CDF3E /* AuraApp.swift */,
+				392542F8312EE21DD7354B2F /* __pycache__ */,
+				CF8B789E1A9FBACB723B0A09 /* Models */,
+				B8FC08986204B9FC25427146 /* pipelines */,
+				7ECD212904A06E584926C9B0 /* Services */,
+				36471513ADADC97BC10280B7 /* utils */,
+				52C92AE6DB80341EC0229D0F /* Views */,
+			);
+			path = Aura;
+			sourceTree = "<group>";
+		};
+		B8FC08986204B9FC25427146 /* pipelines */ = {
+			isa = PBXGroup;
+			children = (
+				D1EAB7206F26FEE6CA526B55 /* image.py */,
+				E3FBB74FD6B5716449BF2ABB /* nlp.py */,
+				909EAF01F877E18009244DF4 /* preview.py */,
+				61100B2C70DCAB2960A65C01 /* timeseries.py */,
+				2805FA4CC8DA0DE75010564C /* __pycache__ */,
+			);
+			path = pipelines;
+			sourceTree = "<group>";
+		};
+		CF8B789E1A9FBACB723B0A09 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				E410A6F2A214865D1593E321 /* AnalysisConfig.swift */,
+				0296AD82546F1F9C92E1473F /* AnalysisResult.swift */,
+				B775FC772BBB757874196464 /* ChatMessage.swift */,
+				4718EA673E457067CA6C94BA /* HistoryItem.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		FF88EA15285C2C6E8FC84561 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4A9E59AC258B2C2BA91E5EF7 /* Aura.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		544833A0C6516D03E8600760 /* Aura */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2DA791177B86A5E946FD17AD /* Build configuration list for PBXNativeTarget "Aura" */;
+			buildPhases = (
+				74A1051E0E2F723FE993F5BC /* Sources */,
+				EF7572415AB9A34561EA7F0B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Aura;
+			packageProductDependencies = (
+			);
+			productName = Aura;
+			productReference = 4A9E59AC258B2C2BA91E5EF7 /* Aura.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		8BD77261975AF982E9387AD3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 5BE1483D97C2A0314A01DE80 /* Build configuration list for PBXProject "Aura" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 1A691351EBE1DD7961333418;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = FF88EA15285C2C6E8FC84561 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				544833A0C6516D03E8600760 /* Aura */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EF7572415AB9A34561EA7F0B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */,
+				217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */,
+				DAB7A5BFCC509E72B7C92EE1 /* analyze.py in Resources */,
+				CC384032B2C8149A84B4ACAF /* charts.cpython-311.pyc in Resources */,
+				C41FB1B2B66DC70A3700C6DD /* charts.py in Resources */,
+				2243569E3F9ED5A56AA8F9C4 /* helpers.cpython-311.pyc in Resources */,
+				6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */,
+				E3848A6553A9A5C36EE709B5 /* image.cpython-311.pyc in Resources */,
+				9A6F073BB849AE6DCE038137 /* image.py in Resources */,
+				240CE722F69C5BCF99EEAC6D /* loader.cpython-311.pyc in Resources */,
+				29641D18C037C33B9C16F82E /* loader.py in Resources */,
+				73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */,
+				E66D5B62FF637E7829C89DBD /* nlp.py in Resources */,
+				DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */,
+				A3449C7392EA98857DB2606C /* preview.py in Resources */,
+				7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */,
+				9C799893B31E1D3DBA950DAD /* profiler.py in Resources */,
+				4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */,
+				76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		74A1051E0E2F723FE993F5BC /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				677FE39A7C5C40F1BB87180B /* AIChatPanel.swift in Sources */,
+				F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */,
+				F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */,
+				E625E1E6F17C0DCC99446421 /* AnalysisResult.swift in Sources */,
+				4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */,
+				E2210705A0114392408BC5E3 /* AuraApp.swift in Sources */,
+				9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */,
+				C30A9E774BE2C3E50294C4F1 /* ChatMessage.swift in Sources */,
+				6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */,
+				9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */,
+				A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */,
+				CF308130471B42534BC18080 /* DragDropView.swift in Sources */,
+				72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */,
+				6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */,
+				6D9368CDB7207045A93E27A7 /* HistoryItem.swift in Sources */,
+				A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */,
+				C8CDF47496C18A6FD7467217 /* ModelExportSheet.swift in Sources */,
+				085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */,
+				0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */,
+				349314BDD5FFFAE9B7373062 /* OllamaStatusChecker.swift in Sources */,
+				B935576B41719E3EA7CDDC62 /* OnboardingView.swift in Sources */,
+				5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */,
+				6E99C77956A059840571F2B5 /* PythonRunner.swift in Sources */,
+				AF0E0093DD138A984AE2AE07 /* SettingsView.swift in Sources */,
+				93AB26B4B55D549635F9AAA9 /* SummaryView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		1AF98EADB6D93512BF1EE4FA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
+				PRODUCT_NAME = Aura;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		285729BD2F4393A23943EF8B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
+				PRODUCT_NAME = Aura;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		86832F75465E67ED3C92C09B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		C9706578557311FAF48F009D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2DA791177B86A5E946FD17AD /* Build configuration list for PBXNativeTarget "Aura" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1AF98EADB6D93512BF1EE4FA /* Debug */,
+				285729BD2F4393A23943EF8B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		5BE1483D97C2A0314A01DE80 /* Build configuration list for PBXProject "Aura" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C9706578557311FAF48F009D /* Debug */,
+				86832F75465E67ED3C92C09B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 8BD77261975AF982E9387AD3 /* Project object */;
+}
