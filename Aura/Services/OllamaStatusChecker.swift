@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import AppKit
 
 @MainActor
 @Observable
@@ -11,8 +12,28 @@ class OllamaStatusChecker {
     var isChecking: Bool = false
 
     private var pollTask: Task<Void, Never>?
+    private var observers: [NSObjectProtocol] = []
 
     init() {
+        // Pause polling when app resigns active (minimized / Cmd-Tabbed away)
+        let resign = NotificationCenter.default.addObserver(
+            forName: NSApplication.didResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.stopPolling() }
+        }
+
+        // Resume polling immediately when app becomes active again
+        let become = NotificationCenter.default.addObserver(
+            forName: NSApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.startPolling() }
+        }
+
+        observers = [resign, become]
         startPolling()
     }
 
@@ -24,6 +45,11 @@ class OllamaStatusChecker {
                 try? await Task.sleep(nanoseconds: 30_000_000_000) // 30 seconds
             }
         }
+    }
+
+    func stopPolling() {
+        pollTask?.cancel()
+        pollTask = nil
     }
 
     func refresh() async {
@@ -41,5 +67,6 @@ class OllamaStatusChecker {
     @MainActor
     deinit {
         pollTask?.cancel()
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
     }
 }

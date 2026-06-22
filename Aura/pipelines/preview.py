@@ -3,36 +3,79 @@ import sys
 import pandas as pd
 from utils.loader import download_dataset, load_dataset, _infer_dataset_type
 from utils.charts import get_image_preview
+from utils.helpers import print_progress
 
 def analyze_preview(file_path, dataset_type=None):
     try:
+        print_progress(0.01, "Initializing dataset preview...")
         # Check if URL input
         if file_path.startswith("http://") or file_path.startswith("https://"):
             try:
+                print_progress(0.05, "Downloading remote dataset...")
                 file_path = download_dataset(file_path)
             except Exception as download_err:
                 return {"error": f"Failed to download dataset: {str(download_err)}"}
 
-        # Determine if it's image dataset
-        is_image = False
-        if dataset_type == "image":
-            is_image = True
+        # Determine if it's object detection
+        print_progress(0.20, "Detecting dataset format...")
+        is_object_detection = False
+        resolved_path = file_path
+        if os.path.isfile(file_path):
+            parent = os.path.dirname(file_path)
+            has_direct_yolo = False
+            for name in ("dataset.yaml", "data.yaml", "yolo.yaml"):
+                if os.path.exists(os.path.join(parent, name)):
+                    has_direct_yolo = True
+                    break
+            if os.path.exists(os.path.join(parent, "images")) and os.path.exists(os.path.join(parent, "labels")):
+                has_direct_yolo = True
+            
+            if has_direct_yolo:
+                resolved_path = parent
+                is_object_detection = True
+
+        if dataset_type == "object_detection":
+            is_object_detection = True
+            if os.path.isfile(file_path):
+                file_path = os.path.dirname(file_path)
+        elif is_object_detection:
+            file_path = resolved_path
         elif not dataset_type or dataset_type == "tabular":
             if os.path.isdir(file_path):
-                is_image = True
-            else:
-                ext = os.path.splitext(file_path)[1].lower()
-                if ext == ".npz":
-                    is_image = True
+                from pipelines.object_detection import _find_yaml, _find_splits
+                if _find_yaml(file_path) is not None or _find_splits(file_path, {}):
+                    is_object_detection = True
 
-        if is_image:
+        # Determine if it's image dataset
+        is_image = False
+        if not is_object_detection:
+            if dataset_type == "image":
+                is_image = True
+            elif not dataset_type or dataset_type == "tabular":
+                if os.path.isdir(file_path):
+                    is_image = True
+                else:
+                    ext = os.path.splitext(file_path)[1].lower()
+                    if ext == ".npz":
+                        is_image = True
+
+        if is_object_detection:
+            print_progress(0.30, "Analyzing YOLO dataset structure...")
+            from pipelines.object_detection import preview_yolo
+            res = preview_yolo(file_path)
+            print_progress(0.95, "Finalizing YOLO preview...")
+        elif is_image:
+            print_progress(0.30, "Analyzing image files...")
             res = get_image_preview(file_path, nrows=15)
+            print_progress(0.95, "Finalizing image preview...")
         else:
+            print_progress(0.30, "Scanning files...")
             # Estimate or calculate total rows in the source file
             total_rows = None
             ext = os.path.splitext(file_path)[1].lower()
             if ext == ".parquet":
                 try:
+                    print_progress(0.40, "Reading Parquet metadata...")
                     import pyarrow.parquet as pq
                     meta = pq.read_metadata(file_path)
                     total_rows = int(meta.num_rows)
@@ -41,6 +84,7 @@ def analyze_preview(file_path, dataset_type=None):
             
             if total_rows is None and ext in [".csv", ".tsv"]:
                 try:
+                    print_progress(0.40, "Estimating file line count...")
                     with open(file_path, 'rb') as f:
                         lines = 0
                         buf_size = 1024 * 1024
@@ -55,19 +99,23 @@ def analyze_preview(file_path, dataset_type=None):
             
             if total_rows is None:
                 try:
+                    print_progress(0.50, "Loading full dataset...")
                     df_full = load_dataset(file_path)
                     total_rows = len(df_full)
                 except Exception:
                     total_rows = 15
             
+            print_progress(0.60, "Loading preview rows...")
             df = load_dataset(file_path, nrows=15)
 
             columns = list(df.columns)
-            # Convert df values to list of lists, handling NaN/None
-            df_preview = df.where(pd.notnull(df), None)
+            # Stringify all values and replace NaN/None with empty string so the
+            # output is always valid JSON (bare `NaN` is not valid JSON).
+            df_preview = df.fillna("").astype(str)
             preview_rows = df_preview.values.tolist()
 
             # Infer dataset type if not provided by caller
+            print_progress(0.85, "Inferring column types...")
             if not dataset_type or dataset_type == "tabular":
                 inferred = _infer_dataset_type(df, file_path)
             else:
@@ -80,6 +128,7 @@ def analyze_preview(file_path, dataset_type=None):
                 "local_path": file_path,
                 "total_rows": total_rows
             }
+            print_progress(0.95, "Finalizing tabular preview...")
 
         # Inject available_files
         if res and ("error" not in res or res.get("error") is None):

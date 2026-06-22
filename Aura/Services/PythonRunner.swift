@@ -195,20 +195,12 @@ final class PythonRunner: @unchecked Sendable {
             }
         }
     }
-    
-    private func executePythonScript(
-        pythonPath: String,
+    func buildArguments(
         scriptPath: String,
         csvPath: String,
         targetColumn: String?,
-        config: AnalysisConfig,
-        progress: @escaping @Sendable (Double, String) -> Void,
-        completion: @escaping @Sendable (Result<AnalysisResult, Error>) -> Void
-    ) {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonPath)
-        
-        // Build argument list with new config flags
+        config: AnalysisConfig
+    ) -> [String] {
         var arguments = [scriptPath, csvPath]
         if let target = targetColumn, !target.isEmpty {
             arguments += ["--target", target]
@@ -255,6 +247,22 @@ final class PythonRunner: @unchecked Sendable {
         if let codePath = config.codeExportPath, !codePath.isEmpty {
             arguments += ["--code-export-path", codePath]
         }
+        return arguments
+    }
+
+    private func executePythonScript(
+        pythonPath: String,
+        scriptPath: String,
+        csvPath: String,
+        targetColumn: String?,
+        config: AnalysisConfig,
+        progress: @escaping @Sendable (Double, String) -> Void,
+        completion: @escaping @Sendable (Result<AnalysisResult, Error>) -> Void
+    ) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: pythonPath)
+        
+        let arguments = buildArguments(scriptPath: scriptPath, csvPath: csvPath, targetColumn: targetColumn, config: config)
         process.arguments = arguments
         
         logInfo("Launching Python subprocess with arguments: \(arguments)")
@@ -409,7 +417,11 @@ final class PythonRunner: @unchecked Sendable {
         }
     }
     
-    func runPreview(csvPathOrURL: String, completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void) {
+    func runPreview(
+        csvPathOrURL: String,
+        progress: @escaping @Sendable (Double, String) -> Void,
+        completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
+    ) {
         logInfo("Starting runPreview for path/URL: \(csvPathOrURL)")
         
         processLock.lock()
@@ -437,11 +449,17 @@ final class PythonRunner: @unchecked Sendable {
                 return
             }
             
-            self.executePythonPreview(pythonPath: pythonExecutable, scriptPath: scriptPath, csvPath: csvPathOrURL, completion: completion)
+            self.executePythonPreview(pythonPath: pythonExecutable, scriptPath: scriptPath, csvPath: csvPathOrURL, progress: progress, completion: completion)
         }
     }
     
-    private func executePythonPreview(pythonPath: String, scriptPath: String, csvPath: String, completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void) {
+    private func executePythonPreview(
+        pythonPath: String,
+        scriptPath: String,
+        csvPath: String,
+        progress: @escaping @Sendable (Double, String) -> Void,
+        completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
+    ) {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: pythonPath)
         process.arguments = [scriptPath, csvPath, "--preview"]
@@ -484,10 +502,34 @@ final class PythonRunner: @unchecked Sendable {
             accumulatedOutData.append(data)
         }
         
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
+        let progressHandler = progress
+        errPipe.fileHandleForReading.readabilityHandler = { [weak self] handle in
             let data = handle.availableData
             guard !data.isEmpty else { return }
             accumulatedErrData.append(data)
+            
+            if let text = String(data: data, encoding: .utf8) {
+                let lines = text.components(separatedBy: .newlines)
+                for line in lines {
+                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { continue }
+                    
+                    if trimmed.hasPrefix("PROGRESS: ") {
+                        let parts = trimmed.dropFirst("PROGRESS: ".count).split(separator: ":", maxSplits: 1)
+                        if parts.count == 2,
+                           let frac = Double(parts[0].trimmingCharacters(in: .whitespaces)) {
+                            let msg = String(parts[1]).trimmingCharacters(in: .whitespaces)
+                            
+                            self?.logInfo("Preview Progress \(Int(frac * 100))%: \(msg)", category: "PythonPreviewSubprocess")
+                            Task { @MainActor in
+                                progressHandler(frac, msg)
+                            }
+                        }
+                    } else {
+                        self?.logWarning(trimmed, category: "PythonPreviewSubprocess")
+                    }
+                }
+            }
         }
         
         var wasCancelledBeforeRun = false

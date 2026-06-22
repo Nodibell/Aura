@@ -12,4 +12,5 @@ numba>=0.65.0
 llvmlite>=0.47.0
 slicer>=0.0.8
 cloudpickle>=3.0.0
-
+optuna>=3.3.0
+xgboost>=1.7.0

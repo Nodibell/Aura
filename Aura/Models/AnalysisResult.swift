@@ -42,6 +42,9 @@ struct AnalysisResult: Codable {
     let valConfusionMatrix: ConfusionMatrixData?
     let targets: [String: TargetResult]?
     
+    /// Optional warning message from the Python pipeline (e.g. image truncation notice).
+    let warning: String?
+    
     enum CodingKeys: String, CodingKey {
         case summary
         case columns
@@ -78,6 +81,7 @@ struct AnalysisResult: Codable {
         case valMetrics = "val_metrics"
         case valConfusionMatrix = "val_confusion_matrix"
         case targets
+        case warning
     }
 }
 
@@ -143,7 +147,8 @@ extension AnalysisResult {
             cleaningRecommendations: self.cleaningRecommendations,
             valMetrics: targetRes.valMetrics,
             valConfusionMatrix: targetRes.valConfusionMatrix,
-            targets: self.targets
+            targets: self.targets,
+            warning: self.warning
         )
     }
 }

@@ -545,10 +545,11 @@ private struct TypePill: View {
 
     private var accentColor: Color {
         switch type {
-        case .tabular:    return .purple
-        case .timeSeries: return .blue
-        case .image:      return .orange
-        case .nlp:        return .green
+        case .tabular:          return .purple
+        case .timeSeries:       return .blue
+        case .image:            return .orange
+        case .nlp:              return .green
+        case .objectDetection:  return .indigo
         }
     }
 

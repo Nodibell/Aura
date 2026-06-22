@@ -31,7 +31,12 @@ def load_image_dataset_from_dir(dir_path):
     all_image_paths.sort()
     
     max_images = 1500
+    truncation_warning = None
     if len(all_image_paths) > max_images:
+        truncation_warning = (
+            f"Dataset contains {len(all_image_paths)} images. "
+            f"Only {max_images} were randomly sampled for analysis to stay within memory limits."
+        )
         np.random.seed(42)
         selected_indices = np.random.choice(len(all_image_paths), max_images, replace=False)
         selected_paths = [all_image_paths[i] for i in sorted(selected_indices)]
@@ -74,7 +79,7 @@ def load_image_dataset_from_dir(dir_path):
         
     X = np.array(pixel_arrays)
     y = np.array(labels)
-    return X, y, metadata_rows
+    return X, y, metadata_rows, truncation_warning
 
 def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_path=None, code_export_path=None):
     from PIL import Image
@@ -401,6 +406,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
         return base64.b64encode(buffered.getvalue()).decode('utf-8')
  
     temp_dir = None
+    truncation_warning = None  # Set if images are silently subsampled
     try:
         if file_path.endswith((".csv", ".tsv", ".parquet")):
             print_progress(0.25, "Loading tabular dataset for image analysis...")
@@ -412,6 +418,10 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             # Subsample if too large
             max_images = 1500
             if N > max_images:
+                truncation_warning = (
+                    f"Dataset contains {N} images. "
+                    f"Only {max_images} were randomly sampled for analysis to stay within memory limits."
+                )
                 np.random.seed(42)
                 selected_indices = np.random.choice(N, max_images, replace=False)
                 X_images = X_images[selected_indices]
@@ -548,7 +558,9 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 return analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_path, code_export_path)
                 
             print_progress(0.25, "Loading image dataset from directory...")
-            X_images, y_arr, metadata_rows = load_image_dataset_from_dir(working_path)
+            X_images, y_arr, metadata_rows, dir_warning = load_image_dataset_from_dir(working_path)
+            if dir_warning:
+                truncation_warning = dir_warning
             N = len(X_images)
             H, W, C = X_images.shape[1], X_images.shape[2], X_images.shape[3]
             
@@ -883,6 +895,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             "test_correlations": test_correlations,
             "test_profiling": test_profiling,
             "test_full_preview": test_full_preview,
+            "warning": truncation_warning,
             "error": None
         }
     except Exception as e:

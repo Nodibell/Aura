@@ -84,8 +84,52 @@ def analyze_nlp(df, target_col, task_type_override,
         word_importance.sort(key=lambda x: x["weight"], reverse=True)
         top_words = word_importance[:20]
         
+        # 2. Advanced NLP Analysis: N-grams, Sentiment, and Lexical Diversity
+        # Simple sentiment analysis using lexicons
+        positive_lex = {
+            "love", "loved", "loving", "likes", "like", "liked", "awesome", "amazing", "great", "excellent", "good",
+            "wonderful", "fantastic", "beautiful", "perfect", "enjoy", "enjoyed", "happy", "pleasant", "glad",
+            "satisfactory", "satisfied", "recommend", "best", "superb", "masterpiece", "outstanding", "brilliant",
+            "witty", "smart", "touching", "heartwarming", "delight", "delightful", "incredible", "feast"
+        }
+        negative_lex = {
+            "hate", "hated", "hating", "dislike", "disliked", "bad", "terrible", "awful", "horrible", "worst",
+            "poor", "boring", "bored", "disappoint", "disappointed", "disappointing", "waste", "wasteful",
+            "annoy", "annoyed", "annoying", "painful", "lifeless", "useless", "broken", "fail", "failed", "disaster",
+            "embarrassment", "flat", "stupid", "mess", "shame", "mediocre"
+        }
+        
+        polarities = []
+        lexical_diversities = []
+        avg_word_lengths = []
+        
+        for doc in text_series:
+            words = [w.lower().strip(".,!?\"'()[]{}") for w in doc.split() if w]
+            if not words:
+                polarities.append(0.0)
+                lexical_diversities.append(0.0)
+                avg_word_lengths.append(0.0)
+                continue
+            
+            # Polarity
+            pos = sum(1 for w in words if w in positive_lex)
+            neg = sum(1 for w in words if w in negative_lex)
+            pol = (pos - neg) / (pos + neg) if (pos + neg) > 0 else 0.0
+            polarities.append(pol)
+            
+            # Lexical diversity (unique words / total words)
+            lexical_diversities.append(len(set(words)) / len(words))
+            
+            # Average word length
+            avg_word_lengths.append(float(np.mean([len(w) for w in words])))
+            
+        mean_polarity = float(np.mean(polarities)) if polarities else 0.0
+        mean_lex_div = float(np.mean(lexical_diversities)) if lexical_diversities else 0.0
+        mean_word_len = float(np.mean(avg_word_lengths)) if avg_word_lengths else 0.0
+
         charts = []
         
+        # 1. Unigrams Chart
         charts.append({
             "type": "bar",
             "title": f"Top Words by TF-IDF Importance in '{text_col}'",
@@ -94,7 +138,7 @@ def analyze_nlp(df, target_col, task_type_override,
             "data": [{"x_val": w["word"], "x_num": None, "y": w["weight"]} for w in top_words]
         })
         
-        # Word Cloud chart config
+        # 2. Word Cloud
         wordcloud_words = word_importance[:50]
         charts.append({
             "type": "wordcloud",
@@ -103,7 +147,45 @@ def analyze_nlp(df, target_col, task_type_override,
             "y_label": "Aggregate TF-IDF Weight",
             "data": [{"x_val": w["word"], "x_num": None, "y": w["weight"]} for w in wordcloud_words]
         })
+
+        # 3. Bigrams Chart
+        try:
+            from sklearn.feature_extraction.text import CountVectorizer
+            vectorizer_2 = CountVectorizer(ngram_range=(2, 2), max_features=10, stop_words='english')
+            X_2 = vectorizer_2.fit_transform(text_series)
+            sums_2 = X_2.sum(axis=0).A1
+            names_2 = vectorizer_2.get_feature_names_out()
+            bigrams_data = [{"x_val": name, "x_num": None, "y": float(s)} for name, s in zip(names_2, sums_2)]
+            bigrams_data.sort(key=lambda x: x["y"], reverse=True)
+            charts.append({
+                "type": "bar",
+                "title": f"Top Bigrams (2-word phrases) in '{text_col}'",
+                "x_label": "Bigram",
+                "y_label": "Frequency",
+                "data": bigrams_data
+            })
+        except Exception as e_bg:
+            sys.stderr.write(f"Warning: Bigrams extraction failed: {e_bg}\n")
+
+        # 4. Trigrams Chart
+        try:
+            vectorizer_3 = CountVectorizer(ngram_range=(3, 3), max_features=10, stop_words='english')
+            X_3 = vectorizer_3.fit_transform(text_series)
+            sums_3 = X_3.sum(axis=0).A1
+            names_3 = vectorizer_3.get_feature_names_out()
+            trigrams_data = [{"x_val": name, "x_num": None, "y": float(s)} for name, s in zip(names_3, sums_3)]
+            trigrams_data.sort(key=lambda x: x["y"], reverse=True)
+            charts.append({
+                "type": "bar",
+                "title": f"Top Trigrams (3-word phrases) in '{text_col}'",
+                "x_label": "Trigram",
+                "y_label": "Frequency",
+                "data": trigrams_data
+            })
+        except Exception as e_tg:
+            sys.stderr.write(f"Warning: Trigrams extraction failed: {e_tg}\n")
         
+        # 5. Document Word Count Distribution
         counts, bin_edges = np.histogram(word_counts, bins=min(10, max(2, len(np.unique(word_counts)))))
         word_dist_data = []
         for i in range(len(counts)):
@@ -120,6 +202,63 @@ def analyze_nlp(df, target_col, task_type_override,
             "y_label": "Count of Documents",
             "data": word_dist_data
         })
+
+        # 6. Sentiment Distribution Chart
+        pos_docs = sum(1 for p in polarities if p > 0.1)
+        neu_docs = sum(1 for p in polarities if -0.1 <= p <= 0.1)
+        neg_docs = sum(1 for p in polarities if p < -0.1)
+        charts.append({
+            "type": "bar",
+            "title": "Estimated Document Sentiment Tone Distribution",
+            "x_label": "Sentiment Tone",
+            "y_label": "Count of Documents",
+            "data": [
+                {"x_val": "Positive", "x_num": None, "y": float(pos_docs)},
+                {"x_val": "Neutral", "x_num": None, "y": float(neu_docs)},
+                {"x_val": "Negative", "x_num": None, "y": float(neg_docs)}
+            ]
+        })
+
+        # 7. Sentiment / Word Count vs Target Class Relationship
+        if is_classification:
+            avg_pol_by_class = {}
+            avg_wc_by_class = {}
+            for cls in np.unique(y):
+                mask = (y == cls)
+                cls_pols = [polarities[i] for i, m in enumerate(mask) if m]
+                cls_wcs = [word_counts.iloc[i] for i, m in enumerate(mask) if m]
+                avg_pol_by_class[cls] = float(np.mean(cls_pols)) if cls_pols else 0.0
+                avg_wc_by_class[cls] = float(np.mean(cls_wcs)) if cls_wcs else 0.0
+                
+            charts.append({
+                "type": "bar",
+                "title": f"Average Sentiment Polarity by Class in '{target_col}'",
+                "x_label": "Class",
+                "y_label": "Mean Sentiment Polarity",
+                "data": [{"x_val": str(cls), "x_num": None, "y": val} for cls, val in avg_pol_by_class.items()]
+            })
+            charts.append({
+                "type": "bar",
+                "title": f"Average Word Count by Class in '{target_col}'",
+                "x_label": "Class",
+                "y_label": "Mean Word Count",
+                "data": [{"x_val": str(cls), "x_num": None, "y": val} for cls, val in avg_wc_by_class.items()]
+            })
+        else:
+            scatter_pol_target = []
+            for i in range(len(y)):
+                scatter_pol_target.append({
+                    "x_val": None,
+                    "x_num": float(y[i]),
+                    "y": float(polarities[i])
+                })
+            charts.append({
+                "type": "scatter",
+                "title": f"Document Sentiment Polarity vs Target '{target_col}'",
+                "x_label": f"Target Value ({target_col})",
+                "y_label": "Sentiment Polarity",
+                "data": scatter_pol_target[:1000]
+            })
         X_val, y_val = None, None
         val_metrics = None
         val_confusion_matrix_data = None
@@ -364,7 +503,10 @@ def analyze_nlp(df, target_col, task_type_override,
         stats_rep = f"### 📊 Text Profiling Metrics\n"
         stats_rep += f"- **Average Character Count:** `{text_stats['avg_chars']:.1f}` (Max: `{text_stats['max_chars']:,}`)\n"
         stats_rep += f"- **Average Word Count:** `{text_stats['avg_words']:.1f}` (Max: `{text_stats['max_words']:,}`)\n"
-        stats_rep += f"- **Average Sentence Count (approx):** `{text_stats['avg_sentences']:.1f}`"
+        stats_rep += f"- **Average Sentence Count (approx):** `{text_stats['avg_sentences']:.1f}`\n"
+        stats_rep += f"- **Average Word Length:** `{mean_word_len:.2f}` characters\n"
+        stats_rep += f"- **Lexical Diversity (Type-Token Ratio):** `{mean_lex_div:.2%}`\n"
+        stats_rep += f"- **Mean Sentiment Polarity:** `{mean_polarity:+.2f}` (range -1.0 to +1.0)"
         summary_sections.append(stats_rep)
         
         target_info = f"### 🎯 Target Variable Analysis (`{target_col}`)\n"

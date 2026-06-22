@@ -102,31 +102,185 @@ func buildChartPrompt(_ config: ChartConfig) -> String {
         """
     }
 
-    let maxPoints = 20
-    let sample = config.data.prefix(maxPoints)
-
-    // Serialize data points to human-readable list
-    let dataLines = sample.map { pt -> String in
+    // For general charts (line, bar, scatter):
+    let totalPoints = config.data.count
+    
+    // Sort the data first to make sure samples are ordered by X value (important for trends)
+    let sortedData = config.data.sorted { (pt1, pt2) -> Bool in
+        if let x1 = pt1.xNum, let x2 = pt2.xNum {
+            return x1 < x2
+        }
+        if let x1 = pt1.xVal, let x2 = pt2.xVal {
+            return x1 < x2
+        }
+        return false
+    }
+    
+    // Statistics for Y-axis (always numeric)
+    let yValues = sortedData.map { $0.y }
+    let yMin = yValues.min() ?? 0.0
+    let yMax = yValues.max() ?? 0.0
+    let ySum = yValues.reduce(0.0, +)
+    let yMean = yValues.isEmpty ? 0.0 : ySum / Double(yValues.count)
+    
+    let ySorted = yValues.sorted()
+    let yMedian: Double
+    if ySorted.isEmpty {
+        yMedian = 0.0
+    } else if ySorted.count % 2 == 1 {
+        yMedian = ySorted[ySorted.count / 2]
+    } else {
+        let mid = ySorted.count / 2
+        yMedian = (ySorted[mid - 1] + ySorted[mid]) / 2.0
+    }
+    
+    // Statistics for X-axis (if numeric)
+    let xNums = sortedData.compactMap { $0.xNum }
+    let hasNumericX = !xNums.isEmpty && xNums.count == totalPoints
+    
+    var xMin: Double?
+    var xMax: Double?
+    var xMean: Double?
+    var xMedian: Double?
+    
+    if hasNumericX {
+        xMin = xNums.min()
+        xMax = xNums.max()
+        let xSum = xNums.reduce(0.0, +)
+        xMean = xSum / Double(xNums.count)
+        
+        let xSorted = xNums.sorted()
+        if !xSorted.isEmpty {
+            if xSorted.count % 2 == 1 {
+                xMedian = xSorted[xSorted.count / 2]
+            } else {
+                let mid = xSorted.count / 2
+                xMedian = (xSorted[mid - 1] + xSorted[mid]) / 2.0
+            }
+        }
+    }
+    
+    // Statistics for X-axis (if categorical)
+    let xVals = sortedData.compactMap { $0.xVal }
+    let uniqueCategoriesCount = Set(xVals).count
+    var categoricalDistributionString = ""
+    if !xVals.isEmpty {
+        var counts: [String: Int] = [:]
+        for val in xVals {
+            counts[val, default: 0] += 1
+        }
+        let sortedCounts = counts.sorted { $0.value > $1.value }
+        let topCounts = sortedCounts.prefix(10)
+        let distributionLines = topCounts.map { "    - \($0.key): \($0.value) points (\(String(format: "%.1f", Double($0.value) / Double(totalPoints) * 100.0))%)" }
+        categoricalDistributionString = distributionLines.joined(separator: "\n")
+        if sortedCounts.count > 10 {
+            let otherCount = sortedCounts.dropFirst(10).reduce(0) { $0 + $1.value }
+            categoricalDistributionString += "\n    - Others: \(otherCount) points (\(String(format: "%.1f", Double(otherCount) / Double(totalPoints) * 100.0))%)"
+        }
+    }
+    
+    // Series statistics (if present)
+    let seriesList = sortedData.compactMap { $0.series }
+    let hasSeries = !seriesList.isEmpty
+    var seriesSummaryString = ""
+    if hasSeries {
+        var seriesCounts: [String: Int] = [:]
+        var seriesYValues: [String: [Double]] = [:]
+        for pt in sortedData {
+            if let series = pt.series {
+                seriesCounts[series, default: 0] += 1
+                seriesYValues[series, default: []].append(pt.y)
+            }
+        }
+        
+        let sortedSeries = seriesCounts.sorted { $0.value > $1.value }
+        let seriesSummaryLines = sortedSeries.map { pair -> String in
+            let name = pair.key
+            let count = pair.value
+            let yVals = seriesYValues[name] ?? []
+            let avgY = yVals.isEmpty ? 0.0 : yVals.reduce(0.0, +) / Double(yVals.count)
+            return "    - \(name): \(count) points (Mean \(config.yLabel) = \(String(format: "%.4f", avgY)))"
+        }
+        seriesSummaryString = seriesSummaryLines.joined(separator: "\n")
+    }
+    
+    // Sampling representative data points
+    let maxPoints = 100
+    var sampledPoints: [ChartPoint] = []
+    if totalPoints <= maxPoints {
+        sampledPoints = sortedData
+    } else {
+        // Sample exactly maxPoints points evenly across sortedData
+        for i in 0..<maxPoints {
+            let idx = i * (totalPoints - 1) / (maxPoints - 1)
+            sampledPoints.append(sortedData[idx])
+        }
+    }
+    
+    // Format the sample data lines
+    let dataLines = sampledPoints.map { pt -> String in
         let x = pt.xVal ?? (pt.xNum.map { String(format: "%.4f", $0) } ?? "?")
-        return "  \(x): \(String(format: "%.6f", pt.y))"
+        let seriesPrefix = pt.series.map { "[\($0)] " } ?? ""
+        return "  - \(seriesPrefix)\(x): \(String(format: "%.6f", pt.y))"
     }.joined(separator: "\n")
+    
+    let isSampled = totalPoints > maxPoints
+    let samplingNote = isSampled 
+        ? "Showing a representative sample of \(maxPoints) data points spaced evenly across the range of X (sorted ascending) out of \(totalPoints) total points."
+        : "Showing all \(totalPoints) data points (sorted by X ascending)."
 
-    let moreNote = config.data.count > maxPoints
-        ? "\n  … (\(config.data.count - maxPoints) more data points not shown)"
-        : ""
+    // Build the stats block
+    var statsBlock = """
+    **Dataset Summary (\(totalPoints) points total):**
+      - **Y-axis (\(config.yLabel)):**
+        - Min: \(String(format: "%.6f", yMin))
+        - Max: \(String(format: "%.6f", yMax))
+        - Mean: \(String(format: "%.6f", yMean))
+        - Median: \(String(format: "%.6f", yMedian))
+    """
+    
+    if hasNumericX, let xMinVal = xMin, let xMaxVal = xMax, let xMeanVal = xMean, let xMedianVal = xMedian {
+        statsBlock += """
+        
+          - **X-axis (\(config.xLabel), Numeric):**
+            - Min: \(String(format: "%.6f", xMinVal))
+            - Max: \(String(format: "%.6f", xMaxVal))
+            - Mean: \(String(format: "%.6f", xMeanVal))
+            - Median: \(String(format: "%.6f", xMedianVal))
+        """
+    } else if uniqueCategoriesCount > 0 {
+        statsBlock += """
+        
+          - **X-axis (\(config.xLabel), Categorical):**
+            - Unique Categories: \(uniqueCategoriesCount)
+            - Category Distribution:
+        \(categoricalDistributionString)
+        """
+    }
+    
+    if hasSeries {
+        statsBlock += """
+        
+          - **Series/Groups (by column):**
+        \(seriesSummaryString)
+        """
+    }
 
     return """
-    Analyze this chart and provide specific, data-driven insights:
-
+    Analyze this chart dataset and provide specific, data-driven insights. Do not base your analysis solely on the subset of data points if they are sampled, but look at the statistical summary below first, and then cross-reference with the representative points.
+    
     **Chart:** \(config.title)
-    **X-axis (\(config.xLabel)) → Y-axis (\(config.yLabel)):**
-    \(dataLines)\(moreNote)
-
+    
+    \(statsBlock)
+    
+    **Data Points (\(samplingNote)):**
+    \(dataLines)
+    
     Please answer:
-    1. What pattern or trend do you see in this specific data?
-    2. Which values stand out as most important or surprising?
-    3. What does this tell us about the dataset?
-    Reference the actual values above in your answer.
+    1. What pattern or trend do you see in the overall dataset statistics and spatial distribution?
+    2. Which values or ranges stand out as most important, anomalous, or surprising?
+    3. What does this tell us about the dataset and its implications for machine learning/modeling?
+    Reference both the global statistics and the sample data points in your answer.
     """
 }
 

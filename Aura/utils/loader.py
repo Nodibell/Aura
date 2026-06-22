@@ -33,6 +33,16 @@ def download_dataset(url):
     url_folder = os.path.join(cache_dir, url_hash)
     if os.path.exists(url_folder) and os.path.isdir(url_folder):
         print_progress(0.10, "Found cached dataset directory...")
+        
+        # Check if it has a YOLO structure first
+        has_yolo = False
+        for root, _, filenames in os.walk(url_folder):
+            if any(f.lower() in ("dataset.yaml", "data.yaml", "yolo.yaml") for f in filenames):
+                has_yolo = True
+                break
+        if has_yolo:
+            return url_folder
+            
         for root, _, filenames in os.walk(url_folder):
             for f in filenames:
                 if f.lower().endswith((".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl")):
@@ -188,6 +198,10 @@ def download_dataset(url):
                         for f in filenames:
                             downloaded_files.append(os.path.join(root, f))
                             
+                    # Check if it has a YOLO structure first
+                    if any(os.path.basename(f).lower() in ("dataset.yaml", "data.yaml", "yolo.yaml") for f in downloaded_files):
+                        return url_folder
+                        
                     target_file = None
                     for f in downloaded_files:
                         if f.lower().endswith((".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl")):
@@ -401,6 +415,40 @@ def load_dataset(file_path, nrows=None):
 
 def _infer_dataset_type(df, file_path=""):
     """Best-effort heuristic to guess dataset type from the DataFrame and file path."""
+    if file_path and os.path.isdir(file_path):
+        # Check for YOLO dataset structure
+        has_yaml = False
+        for name in ("dataset.yaml", "data.yaml", "yolo.yaml"):
+            if os.path.exists(os.path.join(file_path, name)):
+                has_yaml = True
+                break
+        if not has_yaml:
+            for entry in os.scandir(file_path):
+                if entry.is_dir():
+                    for name in ("dataset.yaml", "data.yaml", "yolo.yaml"):
+                        if os.path.exists(os.path.join(entry.path, name)):
+                            has_yaml = True
+                            break
+                if has_yaml:
+                    break
+        if has_yaml:
+            return "object_detection"
+
+        # Check for images and labels/annotations dirs
+        has_images_and_labels = False
+        for root, dirs, files in os.walk(file_path):
+            if "images" in dirs and ("labels" in dirs or "annotations" in dirs):
+                has_images_and_labels = True
+                break
+        if has_images_and_labels:
+            return "object_detection"
+
+        # Fallback to image if any images are found
+        image_extensions = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".gif")
+        for root, dirs, files in os.walk(file_path):
+            if any(f.lower().endswith(image_extensions) for f in files):
+                return "image"
+
     ext = os.path.splitext(file_path)[1].lower()
     if ext == ".npz":
         return "image"
@@ -409,12 +457,17 @@ def _infer_dataset_type(df, file_path=""):
     ts_keywords = {"date", "time", "timestamp", "datetime", "year", "month", "period", "week"}
     if any(any(kw in c for kw in ts_keywords) for c in cols_lower):
         return "timeseries"
-    # NLP: check if any column has long average string length (>50 chars)
+    # NLP: check if any column has long average string length (>60 chars) AND
+    # has real word content (avg word count > 4). This prevents long Base64
+    # identifiers or UUID-like strings from being misclassified as text/NLP.
     for col in df.select_dtypes(include=[object]).columns:
         try:
-            avg_len = df[col].dropna().astype(str).str.len().mean()
+            sample = df[col].dropna().astype(str)
+            avg_len = sample.str.len().mean()
             if avg_len > 60:
-                return "nlp"
+                avg_words = sample.str.count(r'\s+').mean() + 1
+                if avg_words > 4:
+                    return "nlp"
         except Exception:
             pass
     return "tabular"

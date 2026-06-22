@@ -13,28 +13,37 @@ class ChatViewModel {
     // MARK: - Context Injection
 
     func injectContext(_ result: AnalysisResult) {
-        let topCorr = result.correlations.prefix(5).map {
+        // Cap correlation pairs to avoid flooding a local LLM's context window
+        let maxCorr = 10
+        let corrList = result.correlations.prefix(maxCorr).map {
             "\($0.x) ↔ \($0.y) (\(String(format: "%.3f", $0.value)))"
         }.joined(separator: ", ")
+        let topCorr = corrList.isEmpty ? "none" : corrList
+            + (result.correlations.count > maxCorr ? " … (\(result.correlations.count - maxCorr) more)" : "")
 
-        let topMissing = result.missingValues.filter { $0.value > 0 }
+        // Cap missing values at 10 columns
+        let maxMissing = 10
+        let missingFiltered = result.missingValues.filter { $0.value > 0 }
             .sorted { $0.value > $1.value }
-            .prefix(5)
+        let topMissing = missingFiltered.prefix(maxMissing)
             .map { "\($0.key): \($0.value)" }
             .joined(separator: ", ")
+            + (missingFiltered.count > maxMissing ? " … and \(missingFiltered.count - maxMissing) more" : "")
 
         let modelLeaderboard = result.modelsCompared
             .map { "\($0.name) → \($0.metric) \(String(format: "%.4f", $0.score))" }
             .joined(separator: " | ")
 
-        let featureImportances = result.charts.first(where: { $0.title == "Top Feature Importances (Random Forest)" })?
+        // Cap feature importances at 15 to avoid token overflow
+        let maxFeatures = 15
+        let featureData = result.charts.first(where: { $0.title == "Top Feature Importances (Random Forest)" })?
             .data
             .compactMap { point -> String? in
                 guard let name = point.xVal else { return nil }
                 return "\(name): \(String(format: "%.4f", point.y))"
-            }
-            .joined(separator: ", ")
-            ?? "none"
+            } ?? []
+        let featureImportances = featureData.prefix(maxFeatures).joined(separator: ", ")
+            + (featureData.count > maxFeatures ? " … (\(featureData.count - maxFeatures) more)" : "")
 
         var validationDetails = ""
         if let cvMean = result.cvMean {
@@ -59,8 +68,8 @@ class ChatViewModel {
         - Numeric columns: \(result.numericColCount), Categorical: \(result.categoricalColCount), Text (TF-IDF): \(result.textColCount)\(validationDetails)
         - Models trained: \(modelLeaderboard)
         - Best model: \(result.metrics.model) (\(result.metrics.scoreType): \(String(format: "%.4f", result.metrics.score)))
-        - Random Forest feature importances: \(featureImportances)
-        - Top correlations: \(topCorr.isEmpty ? "none" : topCorr)
+        - Random Forest feature importances: \(featureImportances.isEmpty ? "none" : featureImportances)
+        - Top correlations (showing \(min(result.correlations.count, maxCorr)) of \(result.correlations.count)): \(topCorr)
         - Missing values: \(topMissing.isEmpty ? "none" : topMissing)
         
         Answer questions about this specific dataset concisely using markdown formatting. Use bullet points and headers where helpful. Be direct and data-specific.

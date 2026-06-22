@@ -505,6 +505,25 @@ struct ContentView: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            
+                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            
+                            Button { loadSampleDataset(named: "drone_dataset") } label: {
+                                HStack {
+                                    Image(systemName: "viewfinder.rectangular").foregroundColor(.indigo)
+                                        .font(.system(size: 11))
+                                    Text("Drone Detection")
+                                        .font(.system(size: 12))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
 
@@ -639,8 +658,9 @@ struct ContentView: View {
 
             } else if isPreloading {
                 loadingView(
-                    title: "Loading dataset preview…",
+                    title: progressMessage.isEmpty ? "Loading dataset preview…" : progressMessage,
                     subtitle: "Downloading and parsing the file format…",
+                    fraction: (progressFraction > 0.0 || !progressMessage.isEmpty) ? progressFraction : nil,
                     onCancel: { PythonRunner.shared.cancelActiveAnalysis() }
                 )
 
@@ -655,6 +675,7 @@ struct ContentView: View {
                         Text("Charts").tag("Charts")
                         Text("Correlations").tag("Correlations")
                         Text("Data").tag("Data")
+                        Text("Cleaning").tag("Cleaning")
                     }
                     .pickerStyle(.segmented)
                     .padding()
@@ -765,6 +786,13 @@ struct ContentView: View {
                                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
                             }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case "Cleaning":
+                            DataCleaningView(
+                                result: analysisResult,
+                                config: $analysisConfig,
+                                onRunAnalysis: { runEDA() }
+                            )
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         default:
                             Text("Select a tab")
@@ -953,22 +981,24 @@ struct ContentView: View {
 
     private func getTaskShortLabel(_ task: String) -> String {
         switch task.lowercased() {
-        case "regression": return "Reg"
-        case "classification": return "Clf"
-        case "time_series": return "TS"
-        case "nlp": return "NLP"
-        case "image": return "Img"
+        case "regression":        return "Reg"
+        case "classification":    return "Clf"
+        case "time_series":       return "TS"
+        case "nlp":               return "NLP"
+        case "image":             return "Img"
+        case "object_detection":  return "Det"
         default: return task
         }
     }
 
     private func getTaskColor(_ task: String) -> Color {
         switch task.lowercased() {
-        case "regression": return .purple
-        case "classification": return .indigo
-        case "time_series": return .blue
-        case "nlp": return .green
-        case "image": return .orange
+        case "regression":        return .purple
+        case "classification":    return .indigo
+        case "time_series":       return .blue
+        case "nlp":               return .green
+        case "image":             return .orange
+        case "object_detection":  return .red
         default: return .secondary
         }
     }
@@ -1019,9 +1049,8 @@ struct ContentView: View {
     private func selectFileManually() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        let fileTypes = ["csv", "tsv", "parquet", "npz"]
-        panel.allowedContentTypes = fileTypes.compactMap { UTType(filenameExtension: $0) }
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
         if panel.runModal() == .OK, let url = panel.url {
             loadDroppedFile(url)
         }
@@ -1030,9 +1059,8 @@ struct ContentView: View {
     private func selectTestFileManually() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
-        panel.canChooseDirectories = false
-        let fileTypes = ["csv", "tsv", "parquet", "npz"]
-        panel.allowedContentTypes = fileTypes.compactMap { UTType(filenameExtension: $0) }
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = true
         if panel.runModal() == .OK, let url = panel.url {
             analysisConfig.testFilePath = url.path
         }
@@ -1080,8 +1108,15 @@ struct ContentView: View {
             errorMessage = nil
             previewResult = nil
             result = nil
+            progressFraction = 0.0
+            progressMessage = "Preparing preview..."
         }
-        PythonRunner.shared.runPreview(csvPathOrURL: pathOrURL) { response in
+        PythonRunner.shared.runPreview(csvPathOrURL: pathOrURL, progress: { frac, msg in
+            DispatchQueue.main.async {
+                self.progressFraction = frac
+                self.progressMessage = msg
+            }
+        }) { response in
             DispatchQueue.main.async {
                 withAnimation {
                     self.isPreloading = false
@@ -1205,32 +1240,41 @@ struct ContentView: View {
         withAnimation {
             self.errorMessage = nil
             self.isAnalyzing = false
-            self.isPreloading = false
-            
-            // Reconstruct the base configuration for this history item
-            var newConfig = AnalysisConfig()
-            newConfig.trainFilePath = item.datasetPath
-            
-            if item.datasetPath.hasPrefix("http://") || item.datasetPath.hasPrefix("https://") {
-                self.datasetURLInput = item.datasetPath
-                self.selectedFileURL = nil
+            self.isPreloading = true   // show a spinner while we read from disk
+            self.progressFraction = 0.0
+            self.progressMessage = ""
+        }
+
+        // Reconstruct the base configuration for this history item
+        var newConfig = AnalysisConfig()
+        newConfig.trainFilePath = item.datasetPath
+
+        if item.datasetPath.hasPrefix("http://") || item.datasetPath.hasPrefix("https://") {
+            self.datasetURLInput = item.datasetPath
+            self.selectedFileURL = nil
+        } else {
+            self.selectedFileURL = URL(fileURLWithPath: item.datasetPath)
+            self.datasetURLInput = ""
+            if let size = try? selectedFileURL?.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                let fmt = ByteCountFormatter()
+                fmt.countStyle = .file
+                self.fileDetails = fmt.string(fromByteCount: Int64(size))
             } else {
-                self.selectedFileURL = URL(fileURLWithPath: item.datasetPath)
-                self.datasetURLInput = ""
-                if let size = try? selectedFileURL?.resourceValues(forKeys: [.fileSizeKey]).fileSize {
-                    let fmt = ByteCountFormatter()
-                    fmt.countStyle = .file
-                    self.fileDetails = fmt.string(fromByteCount: Int64(size))
-                } else {
-                    self.fileDetails = "Local File"
-                }
+                self.fileDetails = "Local File"
             }
-            
-            if let loadedResult = historyService.loadAnalysisResult(item: item) {
+        }
+
+        // Offload the potentially large file read to a background task
+        Task { @MainActor in
+            let loadedResult = await historyService.loadAnalysisResult(item: item)
+            withAnimation {
+                self.isPreloading = false
+            }
+            if let loadedResult {
                 self.result = loadedResult
                 self.trainColumns = loadedResult.columns
                 self.chatViewModel.injectContext(loadedResult)
-                
+
                 if let targetsMap = loadedResult.targets, !targetsMap.isEmpty {
                     self.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn
                     newConfig.targetColumns = Array(targetsMap.keys).sorted()
@@ -1238,20 +1282,22 @@ struct ContentView: View {
                     self.selectedTargetName = loadedResult.targetColumn
                     newConfig.targetColumn = loadedResult.targetColumn
                 }
-                
+
                 // Reconstruct a DatasetPreview from the final AnalysisResult
                 let previewRows = (loadedResult.fullPreview?.rows.prefix(15) ?? []).map { row in
                     row.map { PreviewValue.string($0) }
                 }
-                
+
                 let datasetTypeStr: String
                 switch loadedResult.taskType.lowercased() {
                 case "classification", "regression":
                     datasetTypeStr = "tabular"
+                case "object_detection":
+                    datasetTypeStr = "object_detection"
                 default:
                     datasetTypeStr = loadedResult.taskType.lowercased()
                 }
-                
+
                 self.previewResult = DatasetPreview(
                     columns: loadedResult.columns,
                     previewRows: previewRows,
@@ -1261,11 +1307,11 @@ struct ContentView: View {
                     availableFiles: [item.datasetPath],
                     totalRows: loadedResult.rowCount
                 )
-                
+
                 if let type = DatasetType(rawValue: datasetTypeStr) {
                     newConfig.datasetType = type
                 }
-                
+
                 self.analysisConfig = newConfig
                 if self.ollamaStatus.isAvailable { self.showAIPanel = true }
                 self.selectedTab = "Summary"

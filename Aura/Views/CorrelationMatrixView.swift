@@ -192,6 +192,18 @@ struct CorrelationMatrixView: View {
 
     // MARK: - Helpers
 
+    /// O(1) lookup table built once from result.correlations.
+    /// Key format: "a|b" where a <= b lexicographically to guarantee a single canonical key.
+    private var correlationLookup: [String: Double] {
+        var table: [String: Double] = [:]
+        table.reserveCapacity(result.correlations.count)
+        for pair in result.correlations {
+            let key = pair.x <= pair.y ? "\(pair.x)|\(pair.y)" : "\(pair.y)|\(pair.x)"
+            table[key] = pair.value
+        }
+        return table
+    }
+
     private func uniqueVariables() -> [String] {
         var seen = Set<String>()
         var uniqueVars: [String] = []
@@ -214,10 +226,8 @@ struct CorrelationMatrixView: View {
 
     private func correlationValue(row: String, col: String) -> Double {
         if row == col { return 1.0 }
-        let pair = result.correlations.first(where: {
-            ($0.x == row && $0.y == col) || ($0.x == col && $0.y == row)
-        })
-        return pair?.value ?? 0.0
+        let key = row <= col ? "\(row)|\(col)" : "\(col)|\(row)"
+        return correlationLookup[key] ?? 0.0
     }
 
     private func heatmapColor(for value: Double) -> Color {

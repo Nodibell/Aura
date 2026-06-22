@@ -212,15 +212,29 @@ class AnalysisHistoryService {
         }
     }
     
-    func loadAnalysisResult(item: HistoryItem) -> AnalysisResult? {
+    func loadAnalysisResult(item: HistoryItem) async -> AnalysisResult? {
         let resultURL = baseDirectory.appendingPathComponent(item.resultFileName)
-        guard let data = try? Data(contentsOf: resultURL),
-              let result = try? JSONDecoder().decode(AnalysisResult.self, from: data) else {
-            AppLogger.shared.error("Failed to load/decode analysis result for '\(item.datasetName)' from file '\(item.resultFileName)'", category: "History")
-            return nil
-        }
-        AppLogger.shared.info("Loaded analysis result for '\(item.datasetName)' from file '\(item.resultFileName)'", category: "History")
-        return result
+        let fileName = item.resultFileName
+        let displayName = item.datasetName
+        return await Task.detached(priority: .userInitiated) {
+            guard let data = try? Data(contentsOf: resultURL),
+                  let result = try? JSONDecoder().decode(AnalysisResult.self, from: data) else {
+                await MainActor.run {
+                    AppLogger.shared.error(
+                        "Failed to load/decode analysis result for '\(displayName)' from file '\(fileName)'",
+                        category: "History"
+                    )
+                }
+                return nil
+            }
+            await MainActor.run {
+                AppLogger.shared.info(
+                    "Loaded analysis result for '\(displayName)' from file '\(fileName)'",
+                    category: "History"
+                )
+            }
+            return result
+        }.value
     }
     
     func deleteItem(_ item: HistoryItem) {

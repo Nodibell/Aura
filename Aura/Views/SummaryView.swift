@@ -164,9 +164,11 @@ struct SummaryView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            Capsule().fill(result.taskType == "classification"
-                                           ? Color.blue.opacity(0.8)
-                                           : Color.orange.opacity(0.8))
+                            Capsule().fill(
+                                result.taskType == "classification" ? Color.blue.opacity(0.8) :
+                                result.taskType == "object_detection" ? Color.purple.opacity(0.8) :
+                                Color.orange.opacity(0.8)
+                            )
                         )
 
                     Text("Target: \(result.targetColumn)")
@@ -655,70 +657,87 @@ struct ConfusionMatrixView: View {
     let matrix: ConfusionMatrixData
     var title: String = "Confusion Matrix (Test Set)"
     
+    // Safety cap to prevent AttributeGraph crashes on datasets with thousands of classes
+    private let maxDisplayClasses = 30
+    
     var body: some View {
+        let isTruncated = matrix.labels.count > maxDisplayClasses
+        let displayLabels = isTruncated ? Array(matrix.labels.prefix(maxDisplayClasses)) : matrix.labels
+        let displayRows = isTruncated ? Array(matrix.values.prefix(maxDisplayClasses)) : matrix.values
+        
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-            
-            HStack(spacing: 12) {
-                // Row labels (True labels) on the left
-                VStack(alignment: .trailing, spacing: 8) {
-                    Text("True")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .padding(.bottom, 10)
-                    
-                    ForEach(matrix.labels, id: \.self) { label in
-                        Text(label)
-                            .font(.system(size: 11, weight: .bold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.75)
-                            .frame(height: 36)
-                    }
+            HStack(alignment: .bottom, spacing: 8) {
+                Text(title)
+                    .font(.headline)
+                if isTruncated {
+                    Text("(Showing top \(maxDisplayClasses) of \(matrix.labels.count) classes)")
+                        .font(.caption)
+                        .foregroundColor(.orange)
                 }
-                
-                // Matrix Grid
-                VStack(alignment: .leading, spacing: 8) {
-                    // Column labels (Predicted labels) on top
-                    HStack(spacing: 8) {
-                        ForEach(matrix.labels, id: \.self) { label in
+            }
+            
+            ScrollView(.horizontal, showsIndicators: true) {
+                HStack(spacing: 12) {
+                    // Row labels (True labels) on the left
+                    VStack(alignment: .trailing, spacing: 8) {
+                        Text("True")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .padding(.bottom, 10)
+                        
+                        ForEach(displayLabels, id: \.self) { label in
                             Text(label)
                                 .font(.system(size: 11, weight: .bold))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
-                                .frame(width: 65, alignment: .center)
+                                .frame(height: 36)
                         }
                     }
                     
-                    // Grid cells
-                    ForEach(0..<matrix.values.count, id: \.self) { rowIdx in
-                        let row = matrix.values[rowIdx]
-                        let rowSum = Double(row.reduce(0, +))
-                        
+                    // Matrix Grid
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Column labels (Predicted labels) on top
                         HStack(spacing: 8) {
-                            ForEach(0..<row.count, id: \.self) { colIdx in
-                                let val = row[colIdx]
-                                let ratio = rowSum > 0 ? Double(val) / rowSum : 0.0
-                                
-                                Text("\(val)")
-                                    .font(.system(.body, design: .rounded))
-                                    .fontWeight(.bold)
-                                    .foregroundColor(textColor(ratio: ratio))
-                                    .frame(width: 65, height: 36)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(cellColor(rowIdx: rowIdx, colIdx: colIdx, ratio: ratio))
-                                    )
-                                    .help("True: \(matrix.labels[rowIdx]), Predicted: \(matrix.labels[colIdx])")
+                            ForEach(displayLabels, id: \.self) { label in
+                                Text(label)
+                                    .font(.system(size: 11, weight: .bold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                                    .frame(width: 65, alignment: .center)
                             }
                         }
+                        
+                        // Grid cells
+                        ForEach(0..<displayRows.count, id: \.self) { rowIdx in
+                            let fullRow = displayRows[rowIdx]
+                            let displayRow = isTruncated ? Array(fullRow.prefix(maxDisplayClasses)) : fullRow
+                            let rowSum = Double(fullRow.reduce(0, +)) // Keep the full row sum so color ratios remain accurate
+                            
+                            HStack(spacing: 8) {
+                                ForEach(0..<displayRow.count, id: \.self) { colIdx in
+                                    let val = displayRow[colIdx]
+                                    let ratio = rowSum > 0 ? Double(val) / rowSum : 0.0
+                                    
+                                    Text("\(val)")
+                                        .font(.system(.body, design: .rounded))
+                                        .fontWeight(.bold)
+                                        .foregroundColor(textColor(ratio: ratio))
+                                        .frame(width: 65, height: 36)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .fill(cellColor(rowIdx: rowIdx, colIdx: colIdx, ratio: ratio))
+                                        )
+                                        .help("True: \(displayLabels[rowIdx]), Predicted: \(displayLabels[colIdx])")
+                                }
+                            }
+                        }
+                        
+                        Text("Predicted")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 4)
                     }
-                    
-                    Text("Predicted")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.top, 4)
                 }
             }
         }
@@ -730,10 +749,8 @@ struct ConfusionMatrixView: View {
     
     private func cellColor(rowIdx: Int, colIdx: Int, ratio: Double) -> Color {
         if rowIdx == colIdx {
-            // Correct prediction (Diagonal) -> Green intensity
             return Color.green.opacity(max(0.1, ratio * 0.8))
         } else {
-            // Incorrect prediction -> Red/Orange intensity
             return Color.red.opacity(max(0.05, ratio * 0.8))
         }
     }

@@ -94,40 +94,45 @@ class AppLogger {
 private class LogFileWriter {
     let fileURL: URL?
     private let queue = DispatchQueue(label: "com.aura.logger.file", qos: .utility)
-    
+    private var persistentHandle: FileHandle?
+
     init() {
         let fileManager = FileManager.default
         if let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
             let auraDir = appSupport.appendingPathComponent("Aura", isDirectory: true)
             try? fileManager.createDirectory(at: auraDir, withIntermediateDirectories: true, attributes: nil)
-            self.fileURL = auraDir.appendingPathComponent("app_debug.log")
+            let url = auraDir.appendingPathComponent("app_debug.log")
+            self.fileURL = url
+
+            // Create file if it doesn't exist
+            if !fileManager.fileExists(atPath: url.path) {
+                fileManager.createFile(atPath: url.path, contents: nil)
+            }
+            // Open once and keep open for the lifetime of the logger
+            self.persistentHandle = try? FileHandle(forWritingTo: url)
+            self.persistentHandle?.seekToEndOfFile()
         } else {
             self.fileURL = nil
         }
     }
-    
+
+    deinit {
+        queue.sync { persistentHandle?.closeFile() }
+    }
+
     func write(_ line: String) {
-        guard let url = fileURL else { return }
+        guard let handle = persistentHandle else { return }
         queue.async {
-            let logLine = line + "\n"
-            if let data = logLine.data(using: .utf8) {
-                if FileManager.default.fileExists(atPath: url.path) {
-                    if let fileHandle = try? FileHandle(forWritingTo: url) {
-                        fileHandle.seekToEndOfFile()
-                        fileHandle.write(data)
-                        fileHandle.closeFile()
-                    }
-                } else {
-                    try? data.write(to: url)
-                }
-            }
+            guard let data = (line + "\n").data(using: .utf8) else { return }
+            handle.write(data)
         }
     }
-    
+
     func clear() {
-        guard let url = fileURL else { return }
+        guard let handle = persistentHandle else { return }
         queue.async {
-            try? "".write(to: url, atomically: true, encoding: .utf8)
+            handle.truncateFile(atOffset: 0)
+            handle.seek(toFileOffset: 0)
         }
     }
 }

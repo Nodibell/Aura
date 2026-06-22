@@ -7,33 +7,48 @@ def print_progress(fraction, message):
     sys.stderr.write(f"PROGRESS: {fraction:.2f}:{message}\n")
     sys.stderr.flush()
 
+import math
+
+class _AuraJsonEncoder(json.JSONEncoder):
+    """Custom encoder that serialises numpy scalars/arrays and converts
+    NaN/Inf to None (JSON null) at C speed — no Python-level recursion."""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            v = float(obj)
+            return None if (math.isnan(v) or math.isinf(v)) else v
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, bytes):
+            try:
+                return obj.decode('utf-8')
+            except UnicodeDecodeError:
+                return f"<Binary Data: {len(obj)} bytes>"
+        # Let the base encoder raise TypeError for truly unhandled types
+        return super().default(obj)
+
 def clean_nan(obj):
-    if isinstance(obj, (int, str, bool)) or obj is None:
-        return obj
-    elif isinstance(obj, bytes):
-        try:
-            return obj.decode('utf-8')
-        except UnicodeDecodeError:
-            return f"<Binary Data: {len(obj)} bytes>"
-    elif isinstance(obj, dict):
-        return {k: clean_nan(v) for k, v in obj.items()}
-    elif isinstance(obj, list):
-        return [clean_nan(x) for x in obj]
-    elif isinstance(obj, tuple):
-        return tuple(clean_nan(x) for x in obj)
-    elif isinstance(obj, float) or isinstance(obj, np.floating):
-        if np.isnan(obj) or np.isinf(obj):
-            return None
-        return float(obj)
-    elif isinstance(obj, np.integer):
-        return int(obj)
-    else:
-        try:
-            if pd.isna(obj):
-                return None
-        except Exception:
-            pass
-        return obj
+    """Return a JSON-safe copy of *obj*.
+
+    Uses a round-trip through the C-level JSON encoder (via _AuraJsonEncoder)
+    to handle numpy types and NaN/Inf.  This is far faster than the old
+    pure-Python recursive walk for large result dictionaries.
+    """
+    import re
+    _NAN_RE = re.compile(r'\b(NaN|-?Infinity)\b')
+
+    try:
+        # Fast path: allow_nan=False raises immediately for bare float NaN/Inf
+        return json.loads(json.dumps(obj, cls=_AuraJsonEncoder, allow_nan=False))
+    except (TypeError, ValueError):
+        pass
+
+    # Slow-path fallback: let the encoder emit Python-style NaN/Inf, then
+    # replace them with JSON null before parsing so json.loads never sees them.
+    raw = json.dumps(obj, cls=_AuraJsonEncoder)
+    return json.loads(_NAN_RE.sub('null', raw))
+
 
 def _generate_reproduction_code(dataset_path, dataset_type, target_col, exclude_cols,
                                task_type, feature_names, model_name, model_path,

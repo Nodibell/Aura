@@ -8,8 +8,125 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, confusion_matrix
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.dummy import DummyClassifier, DummyRegressor
+
+try:
+    from xgboost import XGBClassifier, XGBRegressor
+except ImportError:
+    pass
+
+class StatefulCleaner:
+    def __init__(self, actions_list):
+        self.actions = actions_list
+        self.imputers = {}
+        self.outlier_bounds = {}
+        
+    def fit(self, df):
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType")
+            if col not in df.columns:
+                continue
+            
+            # Imputation fitting
+            if act_type == "impute_mean":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    self.imputers[col] = df[col].mean()
+            elif act_type == "impute_median":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    self.imputers[col] = df[col].median()
+            elif act_type == "impute_mode":
+                mode_val = df[col].mode()
+                self.imputers[col] = mode_val[0] if not mode_val.empty else "missing"
+            elif act_type == "impute_knn":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    from sklearn.impute import KNNImputer
+                    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                    numeric_cols = [c for c in numeric_cols if c != "__is_test"]
+                    imputer = KNNImputer(n_neighbors=5)
+                    imputer.fit(df[numeric_cols])
+                    self.imputers[col] = (imputer, numeric_cols)
+            elif act_type == "impute_mice":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    from sklearn.experimental import enable_iterative_imputer
+                    from sklearn.impute import IterativeImputer
+                    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                    numeric_cols = [c for c in numeric_cols if c != "__is_test"]
+                    imputer = IterativeImputer(random_state=42, max_iter=10)
+                    imputer.fit(df[numeric_cols])
+                    self.imputers[col] = (imputer, numeric_cols)
+                    
+            # Outlier fitting
+            if act_type == "clip_outliers" or act_type == "drop_outliers":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    q25 = df[col].quantile(0.25)
+                    q75 = df[col].quantile(0.75)
+                    iqr = q75 - q25
+                    self.outlier_bounds[col] = (q25 - 1.5 * iqr, q75 + 1.5 * iqr)
+            elif act_type == "isolation_forest":
+                if pd.api.types.is_numeric_dtype(df[col].dtype):
+                    from sklearn.ensemble import IsolationForest
+                    temp_col = df[col].fillna(df[col].median())
+                    iso = IsolationForest(contamination=0.05, random_state=42)
+                    iso.fit(temp_col.to_frame())
+                    self.outlier_bounds[col] = iso
+                    
+    def transform(self, df, is_training=True):
+        df_out = df.copy()
+        # 1. Drop actions
+        drop_cols = [act.get("column") for act in self.actions if act.get("actionType") == "drop" and act.get("column") in df_out.columns]
+        if drop_cols:
+            df_out = df_out.drop(columns=drop_cols)
+            
+        # 2. Imputation actions
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType")
+            if col not in df_out.columns:
+                continue
+            
+            if act_type in ["impute_mean", "impute_median", "impute_mode"]:
+                if col in self.imputers:
+                    df_out[col] = df_out[col].fillna(self.imputers[col])
+            elif act_type == "impute_knn":
+                if col in self.imputers:
+                    imputer, numeric_cols = self.imputers[col]
+                    missing_cols = [c for c in numeric_cols if c not in df_out.columns]
+                    for mc in missing_cols:
+                        df_out[mc] = np.nan
+                    df_out[numeric_cols] = imputer.transform(df_out[numeric_cols])
+            elif act_type == "impute_mice":
+                if col in self.imputers:
+                    imputer, numeric_cols = self.imputers[col]
+                    missing_cols = [c for c in numeric_cols if c not in df_out.columns]
+                    for mc in missing_cols:
+                        df_out[mc] = np.nan
+                    df_out[numeric_cols] = imputer.transform(df_out[numeric_cols])
+                    
+        # 3. Outlier actions
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType")
+            if col not in df_out.columns:
+                continue
+            
+            if act_type == "clip_outliers":
+                if col in self.outlier_bounds:
+                    lower, upper = self.outlier_bounds[col]
+                    df_out[col] = df_out[col].clip(lower, upper)
+            elif act_type == "drop_outliers":
+                if is_training and col in self.outlier_bounds:
+                    lower, upper = self.outlier_bounds[col]
+                    df_out = df_out[(df_out[col] >= lower) & (df_out[col] <= upper)]
+            elif act_type == "isolation_forest":
+                if col in self.outlier_bounds:
+                    iso = self.outlier_bounds[col]
+                    temp_col = df_out[col].fillna(df_out[col].median() if col in df_out.columns else 0)
+                    preds = iso.predict(temp_col.to_frame())
+                    if is_training:
+                        df_out = df_out[preds == 1]
+        return df_out
 
 # Ensure local import paths work correctly in both dev and Xcode compiled bundle contexts
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -63,6 +180,10 @@ if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(o
     sys.modules["pipelines.nlp"] = nlp
     pipelines_mod.nlp = nlp
     
+    import object_detection
+    sys.modules["pipelines.object_detection"] = object_detection
+    pipelines_mod.object_detection = object_detection
+    
     import preview
     sys.modules["pipelines.preview"] = preview
     pipelines_mod.preview = preview
@@ -76,6 +197,7 @@ from utils.charts import generate_boxplots, load_images_from_tabular, get_image_
 from pipelines.timeseries import analyze_timeseries
 from pipelines.nlp import analyze_nlp
 from pipelines.image import analyze_image
+from pipelines.object_detection import analyze_object_detection
 from pipelines.preview import analyze_preview
 
 def analyze(file_path, target_col=None, dataset_type="tabular",
@@ -95,6 +217,9 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
         if dataset_type == "image":
             return analyze_image(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
 
+        if dataset_type == "object_detection":
+            return analyze_object_detection(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
+
         print_progress(0.15, "Loading dataset file...")
         df = load_dataset(file_path)
 
@@ -109,38 +234,17 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             df = df.drop(columns=[c for c in exclude_cols if c in df.columns], errors='ignore')
             print_progress(0.17, f"Excluded columns: {list(exclude_cols)}...")
 
-        # Apply cleaning actions (Phase 3)
+        # Initialize, fit and apply the stateful cleaner
+        cleaner = None
         if cleaning_actions:
             try:
-                import json
                 actions = json.loads(cleaning_actions)
-                for act in actions:
-                    col = act.get("column")
-                    act_type = act.get("actionType")
-                    if col in df.columns:
-                        if act_type == "drop":
-                            df = df.drop(columns=[col])
-                        elif act_type == "impute_mean":
-                            if pd.api.types.is_numeric_dtype(df[col].dtype):
-                                df[col] = df[col].fillna(df[col].mean())
-                        elif act_type == "impute_median":
-                            if pd.api.types.is_numeric_dtype(df[col].dtype):
-                                df[col] = df[col].fillna(df[col].median())
-                        elif act_type == "impute_mode":
-                            mode_val = df[col].mode()
-                            if not mode_val.empty:
-                                df[col] = df[col].fillna(mode_val[0])
-                        elif act_type == "clip_outliers":
-                            if pd.api.types.is_numeric_dtype(df[col].dtype):
-                                q25 = df[col].quantile(0.25)
-                                q75 = df[col].quantile(0.75)
-                                iqr = q75 - q25
-                                lower = q25 - 1.5 * iqr
-                                upper = q75 + 1.5 * iqr
-                                df[col] = df[col].clip(lower, upper)
+                cleaner = StatefulCleaner(actions)
+                cleaner.fit(df)
+                df = cleaner.transform(df, is_training=True)
                 print_progress(0.173, "Applied interactive cleaning recommendations...")
             except Exception as clean_err:
-                sys.stderr.write(f"Warning: Failed to apply cleaning actions: {str(clean_err)}\n")
+                sys.stderr.write(f"Warning: Failed to fit/apply cleaning actions: {str(clean_err)}\n")
 
         # Smart Sampling (Phase 2)
         if smart_sample and original_row_count > 100000:
@@ -176,31 +280,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     if exclude_cols:
                         test_df = test_df.drop(columns=[c for c in exclude_cols if c in test_df.columns], errors='ignore')
                     # Apply same cleaning actions to test set
-                    if cleaning_actions and not test_df.empty:
-                        for act in actions:
-                            col = act.get("column")
-                            act_type = act.get("actionType")
-                            if col in test_df.columns:
-                                if act_type == "drop":
-                                    test_df = test_df.drop(columns=[col])
-                                elif act_type == "impute_mean":
-                                    if pd.api.types.is_numeric_dtype(test_df[col].dtype):
-                                        test_df[col] = test_df[col].fillna(test_df[col].mean())
-                                elif act_type == "impute_median":
-                                    if pd.api.types.is_numeric_dtype(test_df[col].dtype):
-                                        test_df[col] = test_df[col].fillna(test_df[col].median())
-                                elif act_type == "impute_mode":
-                                    mode_val = test_df[col].mode()
-                                    if not mode_val.empty:
-                                        test_df[col] = test_df[col].fillna(mode_val[0])
-                                elif act_type == "clip_outliers":
-                                    if pd.api.types.is_numeric_dtype(test_df[col].dtype):
-                                        q25 = test_df[col].quantile(0.25)
-                                        q75 = test_df[col].quantile(0.75)
-                                        iqr = q75 - q25
-                                        lower = q25 - 1.5 * iqr
-                                        upper = q75 + 1.5 * iqr
-                                        test_df[col] = test_df[col].clip(lower, upper)
+                    if cleaner is not None and not test_df.empty:
+                        test_df = cleaner.transform(test_df, is_training=False)
                     # Apply smart sampling to test set
                     if smart_sample and len(test_df) > 100000:
                         test_df = test_df.sample(n=100000, random_state=42).reset_index(drop=True)
@@ -218,31 +299,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     if exclude_cols:
                         val_df = val_df.drop(columns=[c for c in exclude_cols if c in val_df.columns], errors='ignore')
                     # Apply same cleaning actions to validation set
-                    if cleaning_actions and not val_df.empty:
-                        for act in actions:
-                            col = act.get("column")
-                            act_type = act.get("actionType")
-                            if col in val_df.columns:
-                                if act_type == "drop":
-                                    val_df = val_df.drop(columns=[col])
-                                elif act_type == "impute_mean":
-                                    if pd.api.types.is_numeric_dtype(val_df[col].dtype):
-                                        val_df[col] = val_df[col].fillna(val_df[col].mean())
-                                elif act_type == "impute_median":
-                                    if pd.api.types.is_numeric_dtype(val_df[col].dtype):
-                                        val_df[col] = val_df[col].fillna(val_df[col].median())
-                                elif act_type == "impute_mode":
-                                    mode_val = val_df[col].mode()
-                                    if not mode_val.empty:
-                                        val_df[col] = val_df[col].fillna(mode_val[0])
-                                elif act_type == "clip_outliers":
-                                    if pd.api.types.is_numeric_dtype(val_df[col].dtype):
-                                        q25 = val_df[col].quantile(0.25)
-                                        q75 = val_df[col].quantile(0.75)
-                                        iqr = q75 - q25
-                                        lower = q25 - 1.5 * iqr
-                                        upper = q75 + 1.5 * iqr
-                                        val_df[col] = val_df[col].clip(lower, upper)
+                    if cleaner is not None and not val_df.empty:
+                        val_df = cleaner.transform(val_df, is_training=False)
                     # Apply smart sampling to validation set
                     if smart_sample and len(val_df) > 100000:
                         val_df = val_df.sample(n=100000, random_state=42).reset_index(drop=True)
@@ -672,12 +730,42 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             processed_parts.append(df_num)
             
         if X_categorical:
-            # One hot encode
-            encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-            X_cat_encoded = encoder.fit_transform(X_imputed[X_categorical])
-            encoded_names = encoder.get_feature_names_out(X_categorical)
-            df_cat = pd.DataFrame(X_cat_encoded, columns=encoded_names, index=X.index)
-            processed_parts.append(df_cat)
+            target_encode_cols = []
+            one_hot_cols = []
+            
+            # Load cleaning actions if present
+            actions_list = []
+            if cleaning_actions:
+                try:
+                    actions_list = json.loads(cleaning_actions)
+                except Exception:
+                    pass
+            
+            for col in X_categorical:
+                is_target_encoded = any(act.get("column") == col and act.get("actionType") == "target_encode" for act in actions_list)
+                if is_target_encoded:
+                    target_encode_cols.append(col)
+                else:
+                    one_hot_cols.append(col)
+            
+            # 1. One hot encode standard categorical columns
+            if one_hot_cols:
+                encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+                X_cat_encoded = encoder.fit_transform(X_imputed[one_hot_cols])
+                encoded_names = encoder.get_feature_names_out(one_hot_cols)
+                df_cat = pd.DataFrame(X_cat_encoded, columns=encoded_names, index=X.index)
+                processed_parts.append(df_cat)
+                
+            # 2. Target encode requested columns
+            if target_encode_cols:
+                from sklearn.preprocessing import TargetEncoder
+                train_mask = (X_imputed["__is_test"] == 0).to_numpy() if "__is_test" in X_imputed.columns else np.ones(len(X_imputed), dtype=bool)
+                te = TargetEncoder(random_state=42)
+                te.fit(X_imputed.loc[train_mask, target_encode_cols], y[train_mask])
+                encoded_data = te.transform(X_imputed[target_encode_cols])
+                encoded_names = [f"{col}_target_encoded" for col in target_encode_cols]
+                df_te = pd.DataFrame(encoded_data, columns=encoded_names, index=X.index)
+                processed_parts.append(df_te)
             
         if text_cols:
             print_progress(0.48, "Vectorizing text features (TF-IDF)...")
@@ -779,34 +867,91 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
         
         if is_classification:
             # 1. Logistic Regression
-            print_progress(0.62, "Training Logistic Regression classifier...")
+            print_progress(0.62, "Training Logistic Regression baseline...")
             lr = LogisticRegression(max_iter=1000, random_state=42)
             lr.fit(X_train, y_train)
             lr_preds = lr.predict(X_test)
             lr_acc = accuracy_score(y_test, lr_preds)
             
-            # 2. Random Forest
-            print_progress(0.70, "Training Random Forest classifier...")
-            rf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42, n_jobs=-1)
+            # Use LabelEncoder to safe-guard targets for XGBoost
+            from sklearn.preprocessing import LabelEncoder
+            le = LabelEncoder()
+            y_train_encoded = le.fit_transform(y_train)
+            y_test_encoded = le.transform(y_test)
+            
+            # Setup tuning splits (test_size=0.2)
+            tuning_X_tr, tuning_X_val, tuning_y_tr, tuning_y_val = train_test_split(
+                X_train, y_train_encoded, test_size=0.2, random_state=42,
+                stratify=y_train_encoded if len(np.unique(y_train_encoded)) > 1 else None
+            )
+            
+            print_progress(0.66, "Tuning hyperparameters with Optuna...")
+            import optuna
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            def objective(trial):
+                model_type = trial.suggest_categorical("model_type", ["rf", "xgb"])
+                if model_type == "rf":
+                    n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("rf_max_depth", 3, 10)
+                    clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                else:
+                    n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                    learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                    clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                
+                clf.fit(tuning_X_tr, tuning_y_tr)
+                preds = clf.predict(tuning_X_val)
+                return accuracy_score(tuning_y_val, preds)
+                
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=50, timeout=8.0)
+            
+            best_params = study.best_params
+            
+            # Train final Tuned Random Forest
+            rf_best_n = best_params.get("rf_n_estimators", 100)
+            rf_best_d = best_params.get("rf_max_depth", 5)
+            print_progress(0.72, f"Training Tuned Random Forest (n_estimators={rf_best_n}, max_depth={rf_best_d})...")
+            rf = RandomForestClassifier(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_acc_rf = accuracy_score(y_test, rf_preds)
             
+            # Train final Tuned XGBoost
+            xgb_best_n = best_params.get("xgb_n_estimators", 100)
+            xgb_best_d = best_params.get("xgb_max_depth", 5)
+            xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
+            print_progress(0.76, f"Training Tuned XGBoost (n_estimators={xgb_best_n}, max_depth={xgb_best_d}, lr={xgb_best_lr:.4f})...")
+            xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+            xgb.fit(X_train, y_train_encoded)
+            xgb_preds_encoded = xgb.predict(X_test)
+            xgb_preds = le.inverse_transform(xgb_preds_encoded)
+            xgb_acc = accuracy_score(y_test, xgb_preds)
+            
             # Choose best
-            if rf_acc_rf >= lr_acc:
-                best_model = "Random Forest Classifier"
+            best_model = "Logistic Regression"
+            best_score = lr_acc
+            best_preds = lr_preds
+            best_clf = lr
+            
+            if rf_acc_rf >= best_score:
+                best_model = "Tuned Random Forest"
                 best_score = rf_acc_rf
                 best_preds = rf_preds
                 best_clf = rf
-            else:
-                best_model = "Logistic Regression"
-                best_score = lr_acc
-                best_preds = lr_preds
-                best_clf = lr
+                
+            if xgb_acc >= best_score:
+                best_model = "Tuned XGBoost"
+                best_score = xgb_acc
+                best_preds = xgb_preds
+                best_clf = xgb
                 
             models_compared = [
                 {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy"},
-                {"name": "Random Forest Classifier", "score": float(rf_acc_rf), "metric": "Accuracy"}
+                {"name": "Tuned Random Forest", "score": float(rf_acc_rf), "metric": "Accuracy"},
+                {"name": "Tuned XGBoost", "score": float(xgb_acc), "metric": "Accuracy"}
             ]
             metrics = {
                 "model": best_model,
@@ -818,13 +963,19 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             }
             summary += f"Best model is {best_model} with an accuracy of {best_score:.2f}."
             
-            # Feature Importances (Random Forest)
-            if hasattr(rf, 'feature_importances_'):
-                importances = rf.feature_importances_
+            # Feature Importances (Best Tree Model)
+            importance_model = rf
+            model_name_label = "Random Forest"
+            if best_model == "Tuned XGBoost":
+                importance_model = best_clf
+                model_name_label = "XGBoost"
+                
+            if hasattr(importance_model, 'feature_importances_'):
+                importances = importance_model.feature_importances_
                 feat_imp = sorted(zip(X_train.columns, importances), key=lambda x: x[1], reverse=True)[:10]
                 charts.append({
                     "type": "bar",
-                    "title": "Top Feature Importances (Random Forest)",
+                    "title": f"Top Feature Importances ({model_name_label})",
                     "x_label": "Feature",
                     "y_label": "Importance",
                     "data": [{"x_val": name, "x_num": None, "y": float(val)} for name, val in feat_imp]
@@ -861,54 +1012,109 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             
         else:
             # 1. Linear Regression
-            print_progress(0.62, "Training Linear Regression model...")
+            print_progress(0.62, "Training Linear Regression baseline...")
             lr = LinearRegression()
             lr.fit(X_train, y_train)
             lr_preds = lr.predict(X_test)
             lr_r2 = r2_score(y_test, lr_preds)
             
-            # 2. Random Forest
-            print_progress(0.70, "Training Random Forest regressor...")
-            rf = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42, n_jobs=-1)
+            # Setup tuning splits (test_size=0.2)
+            tuning_X_tr, tuning_X_val, tuning_y_tr, tuning_y_val = train_test_split(
+                X_train, y_train, test_size=0.2, random_state=42
+            )
+            
+            print_progress(0.66, "Tuning hyperparameters with Optuna...")
+            import optuna
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            def objective(trial):
+                model_type = trial.suggest_categorical("model_type", ["rf", "xgb"])
+                if model_type == "rf":
+                    n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("rf_max_depth", 3, 10)
+                    reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                else:
+                    n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                    learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                    reg = XGBRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1)
+                
+                reg.fit(tuning_X_tr, tuning_y_tr)
+                preds = reg.predict(tuning_X_val)
+                return r2_score(tuning_y_val, preds)
+                
+            study = optuna.create_study(direction="maximize")
+            study.optimize(objective, n_trials=50, timeout=8.0)
+            
+            best_params = study.best_params
+            
+            # Train final Tuned Random Forest
+            rf_best_n = best_params.get("rf_n_estimators", 100)
+            rf_best_d = best_params.get("rf_max_depth", 5)
+            print_progress(0.72, f"Training Tuned Random Forest (n_estimators={rf_best_n}, max_depth={rf_best_d})...")
+            rf = RandomForestRegressor(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_r2_rf = r2_score(y_test, rf_preds)
             
+            # Train final Tuned XGBoost
+            xgb_best_n = best_params.get("xgb_n_estimators", 100)
+            xgb_best_d = best_params.get("xgb_max_depth", 5)
+            xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
+            print_progress(0.76, f"Training Tuned XGBoost (n_estimators={xgb_best_n}, max_depth={xgb_best_d}, lr={xgb_best_lr:.4f})...")
+            xgb = XGBRegressor(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1)
+            xgb.fit(X_train, y_train)
+            xgb_preds = xgb.predict(X_test)
+            xgb_r2 = r2_score(y_test, xgb_preds)
+            
             # Choose best
-            if rf_r2_rf >= lr_r2:
-                best_model = "Random Forest Regressor"
+            best_model = "Linear Regression"
+            best_score = lr_r2
+            best_preds = lr_preds
+            best_reg = lr
+            
+            if rf_r2_rf >= best_score:
+                best_model = "Tuned Random Forest"
                 best_score = rf_r2_rf
                 best_preds = rf_preds
                 best_reg = rf
-            else:
-                best_model = "Linear Regression"
-                best_score = lr_r2
-                best_preds = lr_preds
-                best_reg = lr
+                
+            if xgb_r2 >= best_score:
+                best_model = "Tuned XGBoost"
+                best_score = xgb_r2
+                best_preds = xgb_preds
+                best_reg = xgb
                 
             test_rmse = np.sqrt(mean_squared_error(y_test, best_preds))
             
             models_compared = [
-                {"name": "Linear Regression", "score": float(lr_r2), "metric": "R\u00b2 Score"},
-                {"name": "Random Forest Regressor", "score": float(rf_r2_rf), "metric": "R\u00b2 Score"}
+                {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score"},
+                {"name": "Tuned Random Forest", "score": float(rf_r2_rf), "metric": "R² Score"},
+                {"name": "Tuned XGBoost", "score": float(xgb_r2), "metric": "R² Score"}
             ]
             metrics = {
                 "model": best_model,
-                "score_type": "R\u00b2 Score",
+                "score_type": "R² Score",
                 "score": float(best_score),
                 "additional_metrics": {
                     "RMSE": float(test_rmse)
                 }
             }
-            summary += f"Best model is {best_model} with R\u00b2 score of {best_score:.2f} (RMSE: {test_rmse:.2f})."
+            summary += f"Best model is {best_model} with R² score of {best_score:.2f} (RMSE: {test_rmse:.2f})."
             
-            # Feature Importances (Random Forest)
-            if hasattr(rf, 'feature_importances_'):
-                importances = rf.feature_importances_
+            # Feature Importances (Best Tree Model)
+            importance_model = rf
+            model_name_label = "Random Forest"
+            if best_model == "Tuned XGBoost":
+                importance_model = best_reg
+                model_name_label = "XGBoost"
+                
+            if hasattr(importance_model, 'feature_importances_'):
+                importances = importance_model.feature_importances_
                 feat_imp = sorted(zip(X_train.columns, importances), key=lambda x: x[1], reverse=True)[:10]
                 charts.append({
                     "type": "bar",
-                    "title": "Top Feature Importances (Random Forest)",
+                    "title": f"Top Feature Importances ({model_name_label})",
                     "x_label": "Feature",
                     "y_label": "Importance",
                     "data": [{"x_val": name, "x_num": None, "y": float(val)} for name, val in feat_imp]
@@ -1569,8 +1775,8 @@ if __name__ == "__main__":
     parser.add_argument("legacy_target", nargs="?", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--target", default=None, help="Target column name")
     parser.add_argument("--dataset-type", default="tabular",
-                        choices=["tabular", "timeseries", "image", "nlp"],
-                        help="Dataset type (tabular|timeseries|image|nlp)")
+                        choices=["tabular", "timeseries", "image", "nlp", "object_detection"],
+                        help="Dataset type (tabular|timeseries|image|nlp|object_detection)")
     parser.add_argument("--task-type", default="auto",
                         choices=["auto", "classification", "regression", "forecast"],
                         help="ML task type override")

@@ -10,14 +10,19 @@
 		0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */; };
 		085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8DF684009A48B39E26C67 /* OllamaService.swift */; };
 		09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5CD552B5F09360B5BCABC896 /* Assets.xcassets */; };
+		17B72300B6D31DF071959B27 /* DataCleaningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */; };
 		217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */; };
 		2243569E3F9ED5A56AA8F9C4 /* helpers.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */; };
 		240CE722F69C5BCF99EEAC6D /* loader.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */; };
 		29641D18C037C33B9C16F82E /* loader.py in Resources */ = {isa = PBXBuildFile; fileRef = 874A91E91B9041211A336B9F /* loader.py */; };
 		349314BDD5FFFAE9B7373062 /* OllamaStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */; };
+		428BEC9F7A31189D0B88C8D9 /* ChartPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */; };
+		440BD1B765F92FABAD10EA06 /* object_detection.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */; };
 		4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */; };
 		4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F04E707B7135771590F783F /* AppLogger.swift */; };
 		5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */; };
+		5733E0A22FE6B3003D17C175 /* PythonRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */; };
+		630516F1E04DA43A53C63602 /* object_detection.py in Resources */ = {isa = PBXBuildFile; fileRef = 925E18925B25757AC8523B80 /* object_detection.py */; };
 		677FE39A7C5C40F1BB87180B /* AIChatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */; };
 		6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */ = {isa = PBXBuildFile; fileRef = 801D45C07D300201200808EB /* helpers.py */; };
 		6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */; };
@@ -27,6 +32,7 @@
 		72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401068CD37570487457B1D3C /* ExportReportSheet.swift */; };
 		73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 2658715CABC6977191661349 /* nlp.cpython-311.pyc */; };
 		76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */ = {isa = PBXBuildFile; fileRef = 61100B2C70DCAB2960A65C01 /* timeseries.py */; };
+		7A3FE47E6897F119029A7AA7 /* DatasetTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */; };
 		7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */; };
 		93AB26B4B55D549635F9AAA9 /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FEE37BF68704248704A691D /* SummaryView.swift */; };
 		9A6F073BB849AE6DCE038137 /* image.py in Resources */ = {isa = PBXBuildFile; fileRef = D1EAB7206F26FEE6CA526B55 /* image.py */; };
@@ -49,57 +55,78 @@
 		E3848A6553A9A5C36EE709B5 /* image.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 817B08D312D42549D73441A9 /* image.cpython-311.pyc */; };
 		E625E1E6F17C0DCC99446421 /* AnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0296AD82546F1F9C92E1473F /* AnalysisResult.swift */; };
 		E66D5B62FF637E7829C89DBD /* nlp.py in Resources */ = {isa = PBXBuildFile; fileRef = E3FBB74FD6B5716449BF2ABB /* nlp.py */; };
+		E7EC1E58C0C23675AB813DFE /* AutoMLCleaningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */; };
+		EC8715C25E05C9D26FD50BD8 /* ProtectedDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */; };
 		F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E410A6F2A214865D1593E321 /* AnalysisConfig.swift */; };
 		F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		4EC09B2DE95DE8C2AE624D01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8BD77261975AF982E9387AD3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 544833A0C6516D03E8600760;
+			remoteInfo = Aura;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0296AD82546F1F9C92E1473F /* AnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisResult.swift; sourceTree = "<group>"; };
 		0709C15E39493935E745814C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		0748F80EDE9BE8E1331656E0 /* DragDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropView.swift; sourceTree = "<group>"; };
 		16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaSetupView.swift; sourceTree = "<group>"; };
-		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
+		181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetTypeTests.swift; sourceTree = "<group>"; };
+		1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */ = {isa = PBXFileReference; path = "object_detection.cpython-311.pyc"; sourceTree = "<group>"; };
+		22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunnerTests.swift; sourceTree = "<group>"; };
+		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
 		26B8DF684009A48B39E26C67 /* OllamaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaService.swift; sourceTree = "<group>"; };
 		401068CD37570487457B1D3C /* ExportReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportReportSheet.swift; sourceTree = "<group>"; };
-		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
+		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
 		4718EA673E457067CA6C94BA /* HistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItem.swift; sourceTree = "<group>"; };
 		4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationMatrixView.swift; sourceTree = "<group>"; };
 		4964E50D792A7A2C0DAF554D /* PythonRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunner.swift; sourceTree = "<group>"; };
 		4A9E59AC258B2C2BA91E5EF7 /* Aura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aura.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatPanel.swift; sourceTree = "<group>"; };
-		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
+		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
 		5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTableView.swift; sourceTree = "<group>"; };
 		5CD552B5F09360B5BCABC896 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		61100B2C70DCAB2960A65C01 /* timeseries.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = timeseries.py; sourceTree = "<group>"; };
 		624F60BF44A6B0961B100408 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		646E55D57E8224D22C2A2172 /* analyze.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = analyze.py; sourceTree = "<group>"; };
+		67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectedDataTests.swift; sourceTree = "<group>"; };
 		7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartPromptTests.swift; sourceTree = "<group>"; };
 		7FEE37BF68704248704A691D /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
 		801D45C07D300201200808EB /* helpers.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = helpers.py; sourceTree = "<group>"; };
-		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
+		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
 		874A91E91B9041211A336B9F /* loader.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = loader.py; sourceTree = "<group>"; };
 		8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsListView.swift; sourceTree = "<group>"; };
 		8E79BF77BFF47CAD77B65137 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8F04E707B7135771590F783F /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		909EAF01F877E18009244DF4 /* preview.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = preview.py; sourceTree = "<group>"; };
+		925E18925B25757AC8523B80 /* object_detection.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = object_detection.py; sourceTree = "<group>"; };
 		938EA13730D79840F2FCBBA5 /* Aura.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aura.entitlements; sourceTree = "<group>"; };
+		9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCleaningView.swift; sourceTree = "<group>"; };
 		9ED2F02669746860CF49087F /* charts.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = charts.py; sourceTree = "<group>"; };
 		A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryService.swift; sourceTree = "<group>"; };
-		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
-		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
+		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
+		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
 		B775FC772BBB757874196464 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		BFE0A9FA6A6821EF8D5A1728 /* profiler.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = profiler.py; sourceTree = "<group>"; };
-		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
+		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
+		CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoMLCleaningTests.swift; sourceTree = "<group>"; };
 		D1EAB7206F26FEE6CA526B55 /* image.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = image.py; sourceTree = "<group>"; };
 		D21ABEC5EF698C64577CDF3E /* AuraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraApp.swift; sourceTree = "<group>"; };
-		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
+		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
+		D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D94A9C43791F93BBFF10727E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelExportSheet.swift; sourceTree = "<group>"; };
 		E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullTableView.swift; sourceTree = "<group>"; };
 		E3FBB74FD6B5716449BF2ABB /* nlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = nlp.py; sourceTree = "<group>"; };
 		E410A6F2A214865D1593E321 /* AnalysisConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisConfig.swift; sourceTree = "<group>"; };
 		EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaStatusChecker.swift; sourceTree = "<group>"; };
-		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
+		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -107,6 +134,7 @@
 			isa = PBXGroup;
 			children = (
 				B31AA8476739ED31C7CBAD21 /* Aura */,
+				A3354BB589049926C2237428 /* AuraTests */,
 				FF88EA15285C2C6E8FC84561 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -116,6 +144,7 @@
 			children = (
 				817B08D312D42549D73441A9 /* image.cpython-311.pyc */,
 				2658715CABC6977191661349 /* nlp.cpython-311.pyc */,
+				1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */,
 				588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */,
 				D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */,
 			);
@@ -149,6 +178,7 @@
 				8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */,
 				8E79BF77BFF47CAD77B65137 /* ContentView.swift */,
 				4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */,
+				9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */,
 				0748F80EDE9BE8E1331656E0 /* DragDropView.swift */,
 				401068CD37570487457B1D3C /* ExportReportSheet.swift */,
 				E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */,
@@ -187,6 +217,18 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
+		A3354BB589049926C2237428 /* AuraTests */ = {
+			isa = PBXGroup;
+			children = (
+				CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */,
+				7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */,
+				181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */,
+				67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */,
+				22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */,
+			);
+			path = AuraTests;
+			sourceTree = "<group>";
+		};
 		B31AA8476739ED31C7CBAD21 /* Aura */ = {
 			isa = PBXGroup;
 			children = (
@@ -209,6 +251,7 @@
 			children = (
 				D1EAB7206F26FEE6CA526B55 /* image.py */,
 				E3FBB74FD6B5716449BF2ABB /* nlp.py */,
+				925E18925B25757AC8523B80 /* object_detection.py */,
 				909EAF01F877E18009244DF4 /* preview.py */,
 				61100B2C70DCAB2960A65C01 /* timeseries.py */,
 				2805FA4CC8DA0DE75010564C /* __pycache__ */,
@@ -231,6 +274,7 @@
 			isa = PBXGroup;
 			children = (
 				4A9E59AC258B2C2BA91E5EF7 /* Aura.app */,
+				D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -256,6 +300,24 @@
 			productReference = 4A9E59AC258B2C2BA91E5EF7 /* Aura.app */;
 			productType = "com.apple.product-type.application";
 		};
+		D2A143BC3FFBF9FC613E6D9C /* AuraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 02D60E80C51CAF8FFD577266 /* Build configuration list for PBXNativeTarget "AuraTests" */;
+			buildPhases = (
+				DFF9EB951BB2866292C24BA7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				96881E0AC55AB979788DF237 /* PBXTargetDependency */,
+			);
+			name = AuraTests;
+			packageProductDependencies = (
+			);
+			productName = AuraTests;
+			productReference = D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -263,7 +325,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 5BE1483D97C2A0314A01DE80 /* Build configuration list for PBXProject "Aura" */;
 			developmentRegion = en;
@@ -280,6 +344,7 @@
 			projectRoot = "";
 			targets = (
 				544833A0C6516D03E8600760 /* Aura */,
+				D2A143BC3FFBF9FC613E6D9C /* AuraTests */,
 			);
 		};
 /* End PBXProject section */
@@ -302,6 +367,8 @@
 				29641D18C037C33B9C16F82E /* loader.py in Resources */,
 				73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */,
 				E66D5B62FF637E7829C89DBD /* nlp.py in Resources */,
+				440BD1B765F92FABAD10EA06 /* object_detection.cpython-311.pyc in Resources */,
+				630516F1E04DA43A53C63602 /* object_detection.py in Resources */,
 				DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */,
 				A3449C7392EA98857DB2606C /* preview.py in Resources */,
 				7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */,
@@ -329,6 +396,7 @@
 				6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */,
 				9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */,
 				A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */,
+				17B72300B6D31DF071959B27 /* DataCleaningView.swift in Sources */,
 				CF308130471B42534BC18080 /* DragDropView.swift in Sources */,
 				72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */,
 				6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */,
@@ -346,7 +414,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		DFF9EB951BB2866292C24BA7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E7EC1E58C0C23675AB813DFE /* AutoMLCleaningTests.swift in Sources */,
+				428BEC9F7A31189D0B88C8D9 /* ChartPromptTests.swift in Sources */,
+				7A3FE47E6897F119029A7AA7 /* DatasetTypeTests.swift in Sources */,
+				EC8715C25E05C9D26FD50BD8 /* ProtectedDataTests.swift in Sources */,
+				5733E0A22FE6B3003D17C175 /* PythonRunnerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		96881E0AC55AB979788DF237 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 544833A0C6516D03E8600760 /* Aura */;
+			targetProxy = 4EC09B2DE95DE8C2AE624D01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		1AF98EADB6D93512BF1EE4FA /* Debug */ = {
@@ -355,17 +443,13 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -378,20 +462,34 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 3;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		86740795EF8F84B55AC1C4DD /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aura.AuraTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aura.app/Contents/MacOS/Aura";
 			};
 			name = Release;
 		};
@@ -399,7 +497,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -430,11 +527,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -447,7 +542,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -458,7 +552,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -489,11 +582,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -513,16 +604,42 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
 			name = Debug;
 		};
+		DBD11031BF12504E7FD563A9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aura.AuraTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aura.app/Contents/MacOS/Aura";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		02D60E80C51CAF8FFD577266 /* Build configuration list for PBXNativeTarget "AuraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DBD11031BF12504E7FD563A9 /* Debug */,
+				86740795EF8F84B55AC1C4DD /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		2DA791177B86A5E946FD17AD /* Build configuration list for PBXNativeTarget "Aura" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

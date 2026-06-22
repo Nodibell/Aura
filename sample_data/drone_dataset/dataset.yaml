@@ -1,0 +1,9 @@
+path: .
+train: images/train
+val: images/val
+nc: 4
+names:
+  0: drone
+  1: airplane
+  2: helicopter
+  3: bird

@@ -34,9 +34,10 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Dynamic Title Generation**: Generates clean descriptive titles for your analysis history in the background.
 * **Markdown Report Export**: Compile full analyses, charts, and AI narrative reviews into clean Markdown files.
 
-### 6. Pipeline Replication & Serialization
-* **Model Export**: Serialize the best-performing model pipeline using `joblib`.
-* **Replication Code**: Auto-generate a standalone Python script containing exact preprocessing steps (imputation, encoding, scaling, training) to run anywhere.
+### 7. Interactive Preprocessing & AutoML (New in v0.2.0)
+* **Custom Imputation & Outlier Treatments**: Configure custom imputation (Mean, Median, Mode, KNN, MICE) and outlier filters (Cap IQR, Drop IQR, Isolation Forest) per column.
+* **Target Encoding**: Stateful target encoding for high-cardinality categorical variables without target leakage.
+* **Optuna Hyperparameter Tuning**: Auto-tuned RandomForest and XGBoost regressors and classifiers with strict run-time timeout budgeting.
 
 ---
 
@@ -56,7 +57,7 @@ Run the bootstrapper script to create a local virtual environment and install al
 ```bash
 ./setup_env.sh
 ```
-This installs the required packages: `pandas`, `numpy`, `scikit-learn`, `shap`, `statsmodels`, `joblib`, `pyarrow`, `kaggle`, `huggingface_hub`, and `pillow`.
+This installs the required packages: `pandas`, `numpy`, `scikit-learn`, `shap`, `statsmodels`, `joblib`, `pyarrow`, `kaggle`, `huggingface_hub`, `pillow`, `optuna`, and `xgboost`.
 
 ### 2. Local AI Setup (Optional)
 To enable the AI Analyst panel:

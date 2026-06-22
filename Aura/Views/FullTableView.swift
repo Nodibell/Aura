@@ -9,12 +9,15 @@ struct FullTableView: View {
     @State private var sortColumn: String? = nil
     @State private var sortAscending: Bool = true
     @State private var displayedCount: Int = 100
+    /// Cached result of filter + sort. Updated only when search/sort state changes.
+    @State private var filteredRows: [[String]] = []
 
     private let colWidth: CGFloat = 148
     private let pageSize: Int = 100
 
-    // Filtered + sorted rows
-    private var filteredRows: [[String]] {
+    // MARK: - Filter/Sort Logic
+
+    private func recomputeFiltered() {
         var rows = preview.rows
         if !searchText.isEmpty {
             let q = searchText.lowercased()
@@ -31,7 +34,7 @@ struct FullTableView: View {
                 return sortAscending ? av < bv : av > bv
             }
         }
-        return rows
+        filteredRows = rows
     }
 
     var body: some View {
@@ -66,6 +69,7 @@ struct FullTableView: View {
                                         sortColumn = col
                                         sortAscending = true
                                     }
+                                    recomputeFiltered()
                                 }
                             }
                         }
@@ -120,6 +124,9 @@ struct FullTableView: View {
                 }
             }
         }
+        .onAppear { recomputeFiltered() }
+        .onChange(of: sortColumn) { _, _ in recomputeFiltered() }
+        .onChange(of: sortAscending) { _, _ in recomputeFiltered() }
     }
 
     // MARK: - Toolbar
@@ -136,6 +143,7 @@ struct FullTableView: View {
                     .font(.system(size: 12))
                     .onChange(of: searchText) { _, _ in
                         displayedCount = pageSize   // reset pagination on new search
+                        recomputeFiltered()
                     }
                 if !searchText.isEmpty {
                     Button { searchText = "" } label: {

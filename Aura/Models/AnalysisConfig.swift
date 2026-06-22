@@ -1,5 +1,60 @@
 import Foundation
 
+// MARK: - Cleaning Options Enums
+
+enum ImputationOption: String, CaseIterable, Identifiable {
+    case none = "none"
+    case mean = "impute_mean"
+    case median = "impute_median"
+    case mode = "impute_mode"
+    case knn = "impute_knn"
+    case mice = "impute_mice"
+    
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none: return "None"
+        case .mean: return "Mean"
+        case .median: return "Median"
+        case .mode: return "Mode (Most Frequent)"
+        case .knn: return "KNN Imputer"
+        case .mice: return "MICE Imputer (Iterative)"
+        }
+    }
+}
+
+enum OutlierOption: String, CaseIterable, Identifiable {
+    case none = "none"
+    case capIqr = "clip_outliers"
+    case dropIqr = "drop_outliers"
+    case isolationForest = "isolation_forest"
+    
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none: return "None"
+        case .capIqr: return "Cap Outliers (IQR)"
+        case .dropIqr: return "Drop Outliers (IQR)"
+        case .isolationForest: return "Isolation Forest"
+        }
+    }
+}
+
+enum EncodingOption: String, CaseIterable, Identifiable {
+    case none = "none"
+    case oneHot = "one_hot_encode"
+    case target = "target_encode"
+    
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .none: return "Auto / Default"
+        case .oneHot: return "One-Hot Encoding"
+        case .target: return "Target Encoding"
+        }
+    }
+}
+
 // MARK: - Dataset Type
 
 enum DatasetType: String, CaseIterable, Codable, Identifiable {
@@ -7,43 +62,48 @@ enum DatasetType: String, CaseIterable, Codable, Identifiable {
     case timeSeries     = "timeseries"
     case image          = "image"
     case nlp            = "nlp"
+    case objectDetection = "object_detection"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .tabular:    return "Tabular"
-        case .timeSeries: return "Time Series"
-        case .image:      return "Image"
-        case .nlp:        return "Text / NLP"
+        case .tabular:          return "Tabular"
+        case .timeSeries:       return "Time Series"
+        case .image:            return "Image"
+        case .nlp:              return "Text / NLP"
+        case .objectDetection:  return "Object Detection"
         }
     }
 
     var icon: String {
         switch self {
-        case .tabular:    return "tablecells"
-        case .timeSeries: return "chart.line.uptrend.xyaxis"
-        case .image:      return "photo.stack"
-        case .nlp:        return "text.bubble"
+        case .tabular:          return "tablecells"
+        case .timeSeries:       return "chart.line.uptrend.xyaxis"
+        case .image:            return "photo.stack"
+        case .nlp:              return "text.bubble"
+        case .objectDetection:  return "viewfinder.rectangular"
         }
     }
 
     var description: String {
         switch self {
-        case .tabular:    return "Standard rows/columns — classification or regression."
-        case .timeSeries: return "Ordered sequence with a datetime or index column."
-        case .image:      return "Pixel arrays (NPZ) or image folders — image classification."
-        case .nlp:        return "Text-heavy columns — sentiment, topic modelling, or classification."
+        case .tabular:          return "Standard rows/columns — classification or regression."
+        case .timeSeries:       return "Ordered sequence with a datetime or index column."
+        case .image:            return "Pixel arrays (NPZ) or image folders — image classification."
+        case .nlp:              return "Text-heavy columns — sentiment, topic modelling, or classification."
+        case .objectDetection:  return "YOLO-format dataset with images/ + labels/ folders and dataset.yaml."
         }
     }
 
     /// Accent color for the selector pill
     var color: String {
         switch self {
-        case .tabular:    return "purple"
-        case .timeSeries: return "blue"
-        case .image:      return "orange"
-        case .nlp:        return "green"
+        case .tabular:          return "purple"
+        case .timeSeries:       return "blue"
+        case .image:            return "orange"
+        case .nlp:              return "green"
+        case .objectDetection:  return "red"
         }
     }
 }

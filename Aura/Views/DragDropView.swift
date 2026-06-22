@@ -155,7 +155,12 @@ struct DragDropView: View {
                         .dropDestination(for: URL.self) { items, location in
                             guard let firstURL = items.first else { return false }
                             let ext = firstURL.pathExtension.lowercased()
-                            if ["csv", "tsv", "parquet", "npz"].contains(ext) {
+                            var isDir: ObjCBool = false
+                            let exists = FileManager.default.fileExists(atPath: firstURL.path, isDirectory: &isDir)
+                            if exists && isDir.boolValue {
+                                onFileDropped(firstURL)
+                                return true
+                            } else if ["csv", "tsv", "parquet", "npz"].contains(ext) {
                                 onFileDropped(firstURL)
                                 return true
                             }
@@ -299,6 +304,14 @@ struct DragDropView: View {
                                 icon: "photo.stack",
                                 color: .orange,
                                 desc: "Image dataset, pixel grids, classification accuracy."
+                            )
+                            
+                            sampleCard(
+                                name: "Drone Detection",
+                                filename: "drone_dataset",
+                                icon: "viewfinder.rectangular",
+                                color: .indigo,
+                                desc: "YOLO dataset, object detection, bounding-box crops classification."
                             )
                         }
                         .frame(maxWidth: 1350)
