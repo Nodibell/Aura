@@ -879,10 +879,14 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             y_train_encoded = le.fit_transform(y_train)
             y_test_encoded = le.transform(y_test)
             
-            # Setup tuning splits (test_size=0.2)
+            # Setup tuning splits (test_size=0.2, stratify if all classes have >= 2 members)
+            from collections import Counter
+            counts = Counter(y_train_encoded)
+            can_stratify = len(counts) > 1 and min(counts.values()) >= 2
+            
             tuning_X_tr, tuning_X_val, tuning_y_tr, tuning_y_val = train_test_split(
                 X_train, y_train_encoded, test_size=0.2, random_state=42,
-                stratify=y_train_encoded if len(np.unique(y_train_encoded)) > 1 else None
+                stratify=y_train_encoded if can_stratify else None
             )
             
             print_progress(0.66, "Tuning hyperparameters with Optuna...")
