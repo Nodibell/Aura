@@ -215,8 +215,8 @@ actor PythonRunner {
         process.executableURL = URL(fileURLWithPath: pythonExecutable)
         process.arguments = [serverScriptPath, "--port", "\(serverPort)"]
         
-        process.standardOutput = Pipe()
-        process.standardError = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
         
         do {
             try process.run()
