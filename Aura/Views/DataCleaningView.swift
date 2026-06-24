@@ -25,7 +25,7 @@ struct DataCleaningView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding()
-            .background(Color.white.opacity(0.01))
+            .background(Color.primary.opacity(0.01))
             
             Divider()
 
@@ -110,7 +110,7 @@ struct DataCleaningView: View {
                                                 .foregroundColor(current != .none ? .purple : .primary)
                                         }
                                         .menuStyle(.borderlessButton)
-                                        .frame(width: 140, alignment: .leading)
+                                        .frame(width: 130, alignment: .leading)
                                     }
                                     
                                     // 2. Outlier Picker (Numeric only)
@@ -141,7 +141,7 @@ struct DataCleaningView: View {
                                                     .foregroundColor(current != .none ? .purple : .primary)
                                             }
                                             .menuStyle(.borderlessButton)
-                                            .frame(width: 140, alignment: .leading)
+                                            .frame(width: 130, alignment: .leading)
                                         }
                                     }
                                     
@@ -152,39 +152,91 @@ struct DataCleaningView: View {
                                                 .font(.system(size: 9, weight: .bold))
                                                 .foregroundColor(.secondary)
                                             
-                                            Menu {
-                                                ForEach(EncodingOption.allCases) { opt in
-                                                    Button {
-                                                        setEncoding(opt, for: col)
-                                                    } label: {
-                                                        HStack {
-                                                            Text(opt.label)
-                                                            if getEncoding(for: col) == opt {
-                                                                Image(systemName: "checkmark")
+                                            HStack(spacing: 4) {
+                                                Menu {
+                                                    ForEach(EncodingOption.allCases) { opt in
+                                                        Button {
+                                                            setEncoding(opt, for: col)
+                                                        } label: {
+                                                            HStack {
+                                                                Text(opt.label)
+                                                                if getEncoding(for: col) == opt {
+                                                                    Image(systemName: "checkmark")
+                                                                }
                                                             }
                                                         }
                                                     }
+                                                } label: {
+                                                    let current = getEncoding(for: col)
+                                                    Text(current.label)
+                                                        .font(.caption)
+                                                        .fontWeight(current != .none ? .bold : .regular)
+                                                        .foregroundColor(current != .none ? .purple : .primary)
                                                 }
-                                            } label: {
-                                                let current = getEncoding(for: col)
-                                                Text(current.label)
-                                                    .font(.caption)
-                                                    .fontWeight(current != .none ? .bold : .regular)
-                                                    .foregroundColor(current != .none ? .purple : .primary)
+                                                .menuStyle(.borderlessButton)
+                                                .frame(width: 130, alignment: .leading)
+                                                
+                                                if getEncoding(for: col) == .target {
+                                                    Image(systemName: "exclamationmark.triangle.fill")
+                                                        .foregroundColor(.orange)
+                                                        .font(.caption2)
+                                                        .help("Warning: Target encoding has a high risk of target leakage/overfitting if validation splits are not managed carefully.")
+                                                }
                                             }
-                                            .menuStyle(.borderlessButton)
-                                            .frame(width: 140, alignment: .leading)
                                         }
+                                    }
+                                    
+                                    // 4. Feature Engineering Picker
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Feature Engineering")
+                                            .font(.system(size: 9, weight: .bold))
+                                            .foregroundColor(.secondary)
+                                        
+                                        Menu {
+                                            Button("None") {
+                                                clearFeatureEngineering(for: col)
+                                            }
+                                            
+                                            if colType == "numeric" {
+                                                Button("Log Transform (log1p)") {
+                                                    setFeatureEngineering("transform_log", for: col)
+                                                }
+                                                Button("Power Transform (Square)") {
+                                                    setFeatureEngineering("transform_power", for: col)
+                                                }
+                                                
+                                                Menu("Interaction with...") {
+                                                    let otherNumericCols = result.columns.filter { $0 != col && $0 != result.targetColumn && (result.profiling?.columns[$0]?.type.lowercased() == "numeric" || $0 != result.targetColumn) }
+                                                    ForEach(otherNumericCols, id: \.self) { otherCol in
+                                                        Button(otherCol) {
+                                                            setFeatureEngineering("transform_interaction:\(otherCol)", for: col)
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                Button("Extract Date Parts") {
+                                                    setFeatureEngineering("transform_date", for: col)
+                                                }
+                                            }
+                                        } label: {
+                                            let current = getFeatureEngineeringLabel(for: col)
+                                            Text(current)
+                                                .font(.caption)
+                                                .fontWeight(current != "None" ? .bold : .regular)
+                                                .foregroundColor(current != "None" ? .purple : .primary)
+                                        }
+                                        .menuStyle(.borderlessButton)
+                                        .frame(width: 145, alignment: .leading)
                                     }
                                 }
                             }
                         }
                         .padding(12)
-                        .background(Color.white.opacity(hoverColumn == col ? 0.04 : 0.01))
+                        .background(Color.primary.opacity(hoverColumn == col ? 0.04 : 0.01))
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.white.opacity(hoverColumn == col ? 0.08 : 0.03), lineWidth: 1)
+                                .stroke(Color.primary.opacity(hoverColumn == col ? 0.08 : 0.03), lineWidth: 1)
                         )
                         .onHover { isHover in
                             withAnimation(.easeInOut(duration: 0.15)) {
@@ -231,7 +283,7 @@ struct DataCleaningView: View {
                 .buttonStyle(.plain)
             }
             .padding()
-            .background(Color.white.opacity(0.015))
+            .background(Color.primary.opacity(0.015))
         }
     }
     
@@ -298,5 +350,25 @@ struct DataCleaningView: View {
         if option != .none {
             config.cleaningActions.insert(CleaningAction(column: col, actionType: option.rawValue))
         }
+    }
+    
+    private func getFeatureEngineeringLabel(for col: String) -> String {
+        if config.cleaningActions.contains(where: { $0.column == col && $0.actionType == "transform_log" }) { return "Log Transform" }
+        if config.cleaningActions.contains(where: { $0.column == col && $0.actionType == "transform_power" }) { return "Power Transform" }
+        if let interactionAct = config.cleaningActions.first(where: { $0.column == col && $0.actionType.hasPrefix("transform_interaction:") }) {
+            let otherCol = interactionAct.actionType.dropFirst("transform_interaction:".count)
+            return "Interaction (\(otherCol))"
+        }
+        if config.cleaningActions.contains(where: { $0.column == col && $0.actionType == "transform_date" }) { return "Extract Date" }
+        return "None"
+    }
+    
+    private func setFeatureEngineering(_ actionType: String, for col: String) {
+        config.cleaningActions = config.cleaningActions.filter { !($0.column == col && $0.actionType.hasPrefix("transform_")) }
+        config.cleaningActions.insert(CleaningAction(column: col, actionType: actionType))
+    }
+    
+    private func clearFeatureEngineering(for col: String) {
+        config.cleaningActions = config.cleaningActions.filter { !($0.column == col && $0.actionType.hasPrefix("transform_")) }
     }
 }

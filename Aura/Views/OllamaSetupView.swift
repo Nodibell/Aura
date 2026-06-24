@@ -47,9 +47,9 @@ struct OllamaSetupView: View {
                 stepRow(number: "3", text: "Pull a model", command: "ollama pull llama3.2")
             }
             .padding(16)
-            .background(Color.white.opacity(0.03))
+            .background(Color.primary.opacity(0.03))
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.08)))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.08)))
 
             HStack(spacing: 12) {
                 Button {

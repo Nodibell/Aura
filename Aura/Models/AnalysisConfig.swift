@@ -110,20 +110,22 @@ enum DatasetType: String, CaseIterable, Codable, Identifiable {
 
 // MARK: - Task Type Override
 
-enum TaskTypeOverride: String, CaseIterable, Identifiable {
-    case auto           = "auto"
-    case classification = "classification"
-    case regression     = "regression"
-    case forecast       = "forecast"
+enum TaskTypeOverride: String, Codable, CaseIterable, Identifiable {
+    case auto            = "auto"
+    case classification  = "classification"
+    case regression      = "regression"
+    case forecast        = "forecast"
+    case clustering      = "clustering"
 
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .auto:           return "Auto-detect"
-        case .classification: return "Classification"
-        case .regression:     return "Regression"
-        case .forecast:       return "Forecast (TS)"
+        case .auto:             return "Auto-detect"
+        case .classification:   return "Classification"
+        case .regression:       return "Regression"
+        case .forecast:         return "Forecast (TS)"
+        case .clustering:       return "None (Clustering)"
         }
     }
 }
@@ -139,7 +141,7 @@ struct CleaningAction: Codable, Hashable, Identifiable {
 // MARK: - Analysis Configuration
 
 /// Holds all user-confirmed settings that are passed to analyze.py before the full run.
-struct AnalysisConfig {
+struct AnalysisConfig: Codable, Equatable {
     var datasetType: DatasetType          = .tabular
     var taskTypeOverride: TaskTypeOverride = .auto
     var targetColumns: [String]           = []

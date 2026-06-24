@@ -7,6 +7,7 @@ struct AIChatPanel: View {
 
     @State private var selectedModel: String = ""
     @State private var scrollProxy: ScrollViewProxy? = nil
+    @State private var activeProvider: LLMProvider = .ollama
 
     // Retrieve settings
     private var temperature: Double {
@@ -17,6 +18,27 @@ struct AIChatPanel: View {
         return v > 0 ? v : 2048
     }
 
+    private var isOpenAIKeySet: Bool {
+        let key = KeychainService.shared.getSecureString(forKey: "Aura_OpenAIKey") ?? ""
+        return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    private var isClaudeKeySet: Bool {
+        let key = KeychainService.shared.getSecureString(forKey: "Aura_ClaudeKey") ?? ""
+        return !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var activeProviderIsReady: Bool {
+        switch activeProvider {
+        case .ollama:
+            return ollamaStatus.isAvailable
+        case .openAI:
+            return isOpenAIKeySet
+        case .claude:
+            return isClaudeKeySet
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header bar
@@ -24,67 +46,116 @@ struct AIChatPanel: View {
 
             Divider()
 
-            if !ollamaStatus.isAvailable {
-                // Ollama not running
-                OllamaSetupView {
-                    await ollamaStatus.refresh()
+            if activeProvider == .ollama {
+                if !ollamaStatus.isAvailable {
+                    // Ollama not running
+                    OllamaSetupView {
+                        await ollamaStatus.refresh()
+                    }
+                } else {
+                    chatArea
                 }
-            } else {
-                // Chat area
-                VStack(spacing: 0) {
-                    // Messages
-                    ScrollViewReader { proxy in
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                if viewModel.messages.isEmpty {
-                                    emptyState
-                                        .id("empty")
-                                } else {
-                                    ForEach(viewModel.messages) { message in
-                                        MessageBubble(message: message)
-                                            .id(message.id)
-                                    }
-                                }
-                            }
-                            .padding(12)
-                        }
-                        .onAppear { scrollProxy = proxy }
-                        .onChange(of: viewModel.messages.count) { _, _ in
-                            scrollToBottom(proxy: proxy)
-                        }
-                        .onChange(of: viewModel.messages.last?.content) { _, _ in
-                            scrollToBottom(proxy: proxy)
-                        }
-                    }
-
-                    // Quick action chips
-                    if let result = analysisResult, viewModel.messages.isEmpty {
-                        quickActionChips(for: result)
-                    }
-
-                    Divider()
-
-                    // Input bar
-                    inputBar
+            } else if activeProvider == .openAI {
+                if !isOpenAIKeySet {
+                    CloudKeySetupView(providerName: "OpenAI")
+                } else {
+                    chatArea
+                }
+            } else if activeProvider == .claude {
+                if !isClaudeKeySet {
+                    CloudKeySetupView(providerName: "Claude")
+                } else {
+                    chatArea
                 }
             }
         }
         .onAppear {
+            let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
+            activeProvider = LLMProvider(rawValue: providerStr) ?? .ollama
             resolveSelectedModel()
+            if let analysisResult {
+                viewModel.injectContext(analysisResult)
+            }
         }
         .onChange(of: ollamaStatus.availableModels) { _, models in
             resolveSelectedModel()
         }
+        .onChange(of: analysisResult) { _, newResult in
+            if let newResult {
+                viewModel.injectContext(newResult)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
+            let newProvider = LLMProvider(rawValue: providerStr) ?? .ollama
+            if activeProvider != newProvider {
+                activeProvider = newProvider
+                resolveSelectedModel()
+            }
+        }
+    }
+
+    private var chatArea: some View {
+        VStack(spacing: 0) {
+            // Messages
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        if viewModel.messages.isEmpty {
+                            emptyState
+                                .id("empty")
+                        } else {
+                            ForEach(viewModel.messages) { message in
+                                MessageBubble(message: message)
+                                    .id(message.id)
+                            }
+                        }
+                    }
+                    .padding(12)
+                }
+                .onAppear { scrollProxy = proxy }
+                .onChange(of: viewModel.messages.count) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: viewModel.messages.last?.content) { _, _ in
+                    scrollToBottom(proxy: proxy)
+                }
+            }
+
+            // Quick action chips
+            if let result = analysisResult, viewModel.messages.isEmpty {
+                quickActionChips(for: result)
+            }
+
+            Divider()
+
+            // Input bar
+            inputBar
+        }
     }
 
     private func resolveSelectedModel() {
-        let saved = UserDefaults.standard.string(forKey: "Aura_OllamaModel") ?? ""
-        let models = ollamaStatus.availableModels
-        if !saved.isEmpty && models.contains(where: { $0.name == saved }) {
+        let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
+        let provider = LLMProvider(rawValue: providerStr) ?? .ollama
+        
+        switch provider {
+        case .ollama:
+            let saved = UserDefaults.standard.string(forKey: "Aura_OllamaModel") ?? ""
+            let models = ollamaStatus.availableModels
+            if !saved.isEmpty && models.contains(where: { $0.name == saved }) {
+                selectedModel = saved
+            } else if let first = models.first {
+                selectedModel = first.name
+                UserDefaults.standard.set(first.name, forKey: "Aura_OllamaModel")
+            } else {
+                selectedModel = ""
+            }
+        case .openAI:
+            let saved = UserDefaults.standard.string(forKey: "Aura_OpenAIModel") ?? "gpt-4o-mini"
             selectedModel = saved
-        } else if let first = models.first {
-            selectedModel = first.name
-            UserDefaults.standard.set(first.name, forKey: "Aura_OllamaModel")
+        case .claude:
+            let saved = UserDefaults.standard.string(forKey: "Aura_ClaudeModel") ?? "claude-3-5-haiku-latest"
+            selectedModel = saved
         }
     }
 
@@ -94,7 +165,7 @@ struct AIChatPanel: View {
         HStack(spacing: 8) {
             // Model status dot
             Circle()
-                .fill(ollamaStatus.isAvailable ? Color.green : Color.red)
+                .fill(activeProviderIsReady ? Color.green : Color.red)
                 .frame(width: 8, height: 8)
 
             Text("AI Analyst")
@@ -102,18 +173,43 @@ struct AIChatPanel: View {
 
             Spacer()
 
-            // Model picker (only when available and models exist)
-            if ollamaStatus.isAvailable && !ollamaStatus.availableModels.isEmpty && !selectedModel.isEmpty {
-                Picker("", selection: $selectedModel) {
-                    ForEach(ollamaStatus.availableModels) { m in
-                        Text(m.name).tag(m.name)
+            // Model picker based on active provider
+            if activeProvider == .ollama {
+                if ollamaStatus.isAvailable && !ollamaStatus.availableModels.isEmpty && !selectedModel.isEmpty {
+                    Picker("", selection: $selectedModel) {
+                        ForEach(ollamaStatus.availableModels) { m in
+                            Text(m.name).tag(m.name)
+                        }
                     }
+                    .pickerStyle(.menu)
+                    .font(.caption)
+                    .frame(maxWidth: 130)
+                    .onChange(of: selectedModel) { _, v in
+                        UserDefaults.standard.set(v, forKey: "Aura_OllamaModel")
+                    }
+                }
+            } else if activeProvider == .openAI {
+                Picker("", selection: $selectedModel) {
+                    Text("gpt-4o-mini").tag("gpt-4o-mini")
+                    Text("gpt-4o").tag("gpt-4o")
+                    Text("o1-mini").tag("o1-mini")
                 }
                 .pickerStyle(.menu)
                 .font(.caption)
                 .frame(maxWidth: 130)
                 .onChange(of: selectedModel) { _, v in
-                    UserDefaults.standard.set(v, forKey: "Aura_OllamaModel")
+                    UserDefaults.standard.set(v, forKey: "Aura_OpenAIModel")
+                }
+            } else if activeProvider == .claude {
+                Picker("", selection: $selectedModel) {
+                    Text("claude-3-5-haiku-latest").tag("claude-3-5-haiku-latest")
+                    Text("claude-3-5-sonnet-latest").tag("claude-3-5-sonnet-latest")
+                }
+                .pickerStyle(.menu)
+                .font(.caption)
+                .frame(maxWidth: 130)
+                .onChange(of: selectedModel) { _, v in
+                    UserDefaults.standard.set(v, forKey: "Aura_ClaudeModel")
                 }
             }
 
@@ -129,6 +225,7 @@ struct AIChatPanel: View {
                 }
                 .buttonStyle(.plain)
                 .help("Clear conversation")
+                .keyboardShortcut("k", modifiers: .command)
             }
         }
         .padding(.horizontal, 12)
@@ -170,11 +267,11 @@ struct AIChatPanel: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.05))
+                        .background(Color.primary.opacity(0.05))
                         .cornerRadius(20)
                         .overlay(
                             RoundedRectangle(cornerRadius: 20)
-                                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                                .stroke(Color.primary.opacity(0.12), lineWidth: 1)
                         )
                     }
                     .buttonStyle(.plain)
@@ -312,11 +409,11 @@ private struct MessageBubble: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(0.04))
+            .background(Color.primary.opacity(0.04))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(message.state == .error ? Color.red.opacity(0.3) : Color.white.opacity(0.07), lineWidth: 1)
+                    .stroke(message.state == .error ? Color.red.opacity(0.3) : Color.primary.opacity(0.07), lineWidth: 1)
             )
         }
     }
@@ -469,9 +566,9 @@ struct MarkdownMessageView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
-            .background(Color.white.opacity(0.04))
+            .background(Color.primary.opacity(0.04))
             
-            Divider().background(Color.white.opacity(0.06))
+            Divider().background(Color.primary.opacity(0.06))
             
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
@@ -481,11 +578,11 @@ struct MarkdownMessageView: View {
                     .padding(12)
             }
         }
-        .background(Color.black.opacity(0.25))
+        .background(Color(nsColor: .underPageBackgroundColor))
         .cornerRadius(8)
         .overlay(
             RoundedRectangle(cornerRadius: 8)
-                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
     }
     
@@ -527,11 +624,11 @@ struct MarkdownMessageView: View {
                 }
                 .padding(12)
             }
-            .background(Color.white.opacity(0.02))
+            .background(Color.primary.opacity(0.02))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
             )
         }
         .padding(.vertical, 4)
@@ -547,7 +644,7 @@ struct MarkdownMessageView: View {
                 .padding(.vertical, 12)
                 .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .background(Color.white.opacity(0.02))
+                .background(Color.primary.opacity(0.02))
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -854,3 +951,34 @@ struct MarkdownMessageView: View {
         return resultBlocks
     }
 }
+
+struct CloudKeySetupView: View {
+    let providerName: String
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "key.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.orange)
+            
+            Text("\(providerName) API Key Missing")
+                .font(.headline)
+                .fontWeight(.bold)
+            
+            Text("To use the cloud-hosted AI analyst, you must configure your API Key in the application Settings.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 240)
+            
+            Button("Open Settings") {
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding()
+    }
+}
+

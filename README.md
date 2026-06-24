@@ -39,6 +39,15 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Target Encoding**: Stateful target encoding for high-cardinality categorical variables without target leakage.
 * **Optuna Hyperparameter Tuning**: Auto-tuned RandomForest and XGBoost regressors and classifiers with strict run-time timeout budgeting.
 
+### 8. Enterprise Features & Live Inference (New in v0.3.0)
+* **Interactive Live Inference**: Test predictions on-the-fly inside the app using the best-performing trained model.
+* **Direct Database Connectivity**: Connect directly to SQLite, MySQL, and PostgreSQL to pull datasets into Aura.
+* **Periodical Analysis Scheduler**: Automate hourly, daily, or weekly data scans and auto-export HTML/PDF reports to a designated folder.
+* **Visual Run Comparison (Analysis Diff)**: Compare multiple runs of the same dataset side-by-side to track changes in metrics, feature importance, and performance.
+* **Dataset Merging Engine**: Combine and merge different tables directly in-app using inner, outer, left, and right joins.
+* **PDF Report Compiler**: Standardized PDF report generation, compiling data profiles, visualizations, and local AI summaries.
+* **Clustering & Deep Learning Pipelines**: Added K-Means/DBSCAN clustering pipelines with PCA visualization, plus PyTorch tabular Neural Networks.
+
 ---
 
 ## 🏗️ Architecture
@@ -57,7 +66,7 @@ Run the bootstrapper script to create a local virtual environment and install al
 ```bash
 ./setup_env.sh
 ```
-This installs the required packages: `pandas`, `numpy`, `scikit-learn`, `shap`, `statsmodels`, `joblib`, `pyarrow`, `kaggle`, `huggingface_hub`, `pillow`, `optuna`, and `xgboost`.
+This installs the required packages: `pandas`, `numpy`, `scikit-learn`, `shap`, `statsmodels`, `joblib`, `pyarrow`, `kaggle`, `huggingface_hub`, `pillow`, `optuna`, `xgboost`, `torch`, and `SQLAlchemy`.
 
 ### 2. Local AI Setup (Optional)
 To enable the AI Analyst panel:
@@ -84,7 +93,7 @@ xcodebuild -project Aura.xcodeproj -scheme Aura -configuration Debug -destinatio
 You can run the Python pipeline directly in the terminal to inspect the JSON outputs:
 ```bash
 # Tabular analysis
-.venv/bin/python Aura/analyze.py sample_data/house_prices.csv --target SalePrice --dataset-type tabular
+.venv/bin/python Aura/analyze.py sample_data/house_prices.csv --target Price --dataset-type tabular
 
 # Time Series analysis with multiple targets
 .venv/bin/python Aura/analyze.py sample_data/airline_passengers.csv --target Passengers,Month --time-col Date --dataset-type timeseries

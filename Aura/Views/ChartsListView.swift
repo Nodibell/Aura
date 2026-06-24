@@ -1,9 +1,18 @@
 import SwiftUI
 import Charts
 
+struct DrillDownItem: Identifiable {
+    var id: String { title }
+    let title: String
+    let preview: FullTablePreview
+}
+
 struct ChartsListView: View {
     let result: AnalysisResult
     let onAskAI: (String) -> Void
+
+    @State private var drillDownPreview: FullTablePreview? = nil
+    @State private var drillDownTitle: String = ""
 
     var body: some View {
         ScrollView {
@@ -19,12 +28,153 @@ struct ChartsListView: View {
                     .frame(maxWidth: .infinity, minHeight: 300)
                 } else {
                     ForEach(result.charts) { chartConfig in
-                        ChartCard(config: chartConfig, onAskAI: onAskAI)
+                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                            handleDrillDown(chartConfig: chartConfig, point: point)
+                        }
                     }
                 }
             }
             .padding()
         }
+        .sheet(item: Binding<DrillDownItem?>(
+            get: {
+                if let preview = drillDownPreview {
+                    return DrillDownItem(title: drillDownTitle, preview: preview)
+                }
+                return nil
+            },
+            set: { val in
+                if val == nil {
+                    drillDownPreview = nil
+                    drillDownTitle = ""
+                }
+            }
+        )) { item in
+            VStack(spacing: 0) {
+                HStack {
+                    Text(item.title)
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        drillDownPreview = nil
+                        drillDownTitle = ""
+                    } label: {
+                        Text("Close")
+                            .fontWeight(.medium)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding()
+                
+                Divider()
+                
+                FullTableView(preview: item.preview)
+            }
+            .frame(minWidth: 800, minHeight: 500)
+            .background(Color(NSColor.windowBackgroundColor))
+        }
+    }
+
+    private func handleDrillDown(chartConfig: ChartConfig, point: ChartPoint) {
+        guard let preview = result.fullPreview else { return }
+        
+        let colName = findColumnName(title: chartConfig.title, columns: preview.columns, targetColumn: result.targetColumn) ?? chartConfig.xLabel
+        
+        let filtered = filterRows(for: colName, selectedPoint: point, allData: chartConfig.data, preview: preview)
+        
+        let labelVal = point.xVal ?? (point.xNum != nil ? String(format: "%.2f", point.xNum!) : "")
+        drillDownTitle = "Data Points where '\(colName)' matches '\(labelVal)' (\(filtered.rows.count) rows)"
+        drillDownPreview = filtered
+    }
+
+    private func findColumnName(title: String, columns: [String], targetColumn: String) -> String? {
+        let lowerTitle = title.lowercased()
+        
+        // Explicit mappings
+        if lowerTitle.contains("target class") || lowerTitle.contains("target value") || lowerTitle.contains("predictions vs actual") {
+            return targetColumn
+        }
+        if lowerTitle.contains("k-means cluster") {
+            return "K-Means Cluster"
+        }
+        if lowerTitle.contains("dbscan cluster") {
+            return "DBSCAN Cluster"
+        }
+        
+        // Check if any column name is in the title
+        for col in columns {
+            if lowerTitle.contains(col.lowercased()) {
+                return col
+            }
+        }
+        
+        return nil
+    }
+
+    private func filterRows(for colName: String, selectedPoint: ChartPoint, allData: [ChartPoint], preview: FullTablePreview) -> FullTablePreview {
+        guard let colIdx = preview.columns.firstIndex(of: colName) else { return preview }
+        
+        var filteredRows: [[String]] = []
+        
+        if let xVal = selectedPoint.xVal {
+            let cleanXVal = xVal.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            
+            var possibleMatches = [cleanXVal]
+            if let firstWord = xVal.components(separatedBy: " ").first?.lowercased() {
+                possibleMatches.append(firstWord)
+            }
+            
+            let parts = xVal.split(separator: "-")
+            if parts.count == 2, let low = Double(parts[0].trimmingCharacters(in: .whitespaces)), let high = Double(parts[1].trimmingCharacters(in: .whitespaces)) {
+                for row in preview.rows {
+                    if colIdx < row.count, let val = Double(row[colIdx]) {
+                        if val >= low && val <= high {
+                            filteredRows.append(row)
+                        }
+                    }
+                }
+            } else {
+                for row in preview.rows {
+                    if colIdx < row.count {
+                        let cellVal = row[colIdx].trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                        if possibleMatches.contains(cellVal) || cellVal.contains(cleanXVal) || cleanXVal.contains(cellVal) {
+                            filteredRows.append(row)
+                        }
+                    }
+                }
+            }
+        } else if let xNum = selectedPoint.xNum {
+            var binWidth: Double = 0.0
+            let nums = allData.compactMap { $0.xNum }.sorted()
+            if nums.count > 1 {
+                var minDiff = Double.greatestFiniteMagnitude
+                for i in 0..<(nums.count - 1) {
+                    let diff = nums[i+1] - nums[i]
+                    if diff > 0 && diff < minDiff {
+                        minDiff = diff
+                    }
+                }
+                if minDiff != Double.greatestFiniteMagnitude {
+                    binWidth = minDiff
+                }
+            }
+            
+            let halfWidth = binWidth > 0 ? binWidth / 2.0 : 1e-5
+            let low = xNum - halfWidth
+            let high = xNum + halfWidth
+            
+            for row in preview.rows {
+                if colIdx < row.count, let val = Double(row[colIdx]) {
+                    if val >= low && val <= high {
+                        filteredRows.append(row)
+                    }
+                }
+            }
+        } else {
+            filteredRows = preview.rows
+        }
+        
+        return FullTablePreview(columns: preview.columns, rows: filteredRows, totalRows: filteredRows.count)
     }
 }
 
@@ -289,6 +439,7 @@ func buildChartPrompt(_ config: ChartConfig) -> String {
 struct ChartCard: View {
     let config: ChartConfig
     let onAskAI: (String) -> Void
+    var onTapPoint: ((ChartPoint) -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -326,19 +477,23 @@ struct ChartCard: View {
                 .frame(height: (config.type == "image_grid" || config.type == "boxplot" || config.type == "wordcloud") ? 340 : 260)
         }
         .padding(20)
-        .background(Color.white.opacity(0.02))
+        .background(Color.primary.opacity(0.02))
         .cornerRadius(16)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.05), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.05), lineWidth: 1))
     }
 
     @ViewBuilder
     private var chartView: some View {
         if config.type == "bar" {
-            BarChartView(config: config)
+            BarChartView(config: config, onTapPoint: onTapPoint)
         } else if config.type == "line" {
             LineChartView(config: config)
         } else if config.type == "scatter" {
             ScatterChartView(config: config)
+        } else if config.type == "shap_beeswarm" {
+            ShapBeeswarmView(config: config)
+        } else if config.type == "pdp_ice" {
+            PdpIceView(config: config)
         } else if config.type == "image_grid" {
             ImageGridView(config: config)
         } else if config.type == "boxplot" {
@@ -356,6 +511,7 @@ struct ChartCard: View {
 
 struct BarChartView: View {
     let config: ChartConfig
+    var onTapPoint: ((ChartPoint) -> Void)? = nil
 
     var body: some View {
         let hasMultipleSeries = config.data.contains(where: { $0.series != nil })
@@ -418,6 +574,26 @@ struct BarChartView: View {
                 .chartXScale(domain: .automatic(includesZero: false))
                 .frame(width: max(geo.size.width, CGFloat(config.data.count) * (hasMultipleSeries ? 50 : 30)))
                 .padding(.all, 8)
+                .chartOverlay { proxy in
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { location in
+                            if let xVal = proxy.value(atX: location.x, as: String.self) {
+                                if let matchedPoint = config.data.first(where: { $0.xVal == xVal }) {
+                                    onTapPoint?(matchedPoint)
+                                }
+                            } else if let xNum = proxy.value(atX: location.x, as: Double.self) {
+                                let matchedPoint = config.data.min(by: { a, b in
+                                    let aDiff = abs((a.xNum ?? 0.0) - xNum)
+                                    let bDiff = abs((b.xNum ?? 0.0) - xNum)
+                                    return aDiff < bDiff
+                                })
+                                if let matched = matchedPoint {
+                                    onTapPoint?(matched)
+                                }
+                            }
+                        }
+                }
             }
         }
     }
@@ -604,7 +780,7 @@ struct LineChartView: View {
                                     .font(.system(size: 9, weight: .bold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(viewMode == mode ? Color.purple : Color.white.opacity(0.04))
+                                    .background(viewMode == mode ? Color.purple : Color.primary.opacity(0.04))
                                     .foregroundColor(viewMode == mode ? .white : .secondary)
                                     .cornerRadius(8)
                             }
@@ -625,7 +801,7 @@ struct LineChartView: View {
                                     .font(.system(size: 9, weight: .bold))
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
-                                    .background(selectedYear == "All" ? Color.indigo : Color.white.opacity(0.04))
+                                    .background(selectedYear == "All" ? Color.indigo : Color.primary.opacity(0.04))
                                     .foregroundColor(selectedYear == "All" ? .white : .secondary)
                                     .cornerRadius(8)
                             }
@@ -641,7 +817,7 @@ struct LineChartView: View {
                                         .font(.system(size: 9, weight: .bold))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 4)
-                                        .background(selectedYear == year ? Color.indigo : Color.white.opacity(0.04))
+                                        .background(selectedYear == year ? Color.indigo : Color.primary.opacity(0.04))
                                         .foregroundColor(selectedYear == year ? .white : .secondary)
                                         .cornerRadius(8)
                                 }
@@ -811,6 +987,207 @@ struct ScatterChartView: View {
 }
 }
 
+// MARK: - SHAP Beeswarm Chart
+
+struct ShapBeeswarmView: View {
+    let config: ChartConfig
+    
+    // Stacking point structure
+    struct StackingPoint: Identifiable {
+        let id = UUID()
+        let x: Double
+        let y: Double
+        let yOffset: Double
+        let featureIndex: Int
+    }
+    
+    private var uniqueFeatures: [String] {
+        var list: [String] = []
+        for point in config.data {
+            if let feat = point.xVal, !list.contains(feat) {
+                list.append(feat)
+            }
+        }
+        return list
+    }
+    
+    private var stackedPoints: [StackingPoint] {
+        let features = uniqueFeatures
+        var allStacked: [StackingPoint] = []
+        for (idx, feature) in features.enumerated() {
+            let featurePoints = config.data.filter { $0.xVal == feature }
+            let stackedForFeature = computeStacking(points: featurePoints, featureIndex: idx, featuresCount: features.count)
+            allStacked.append(contentsOf: stackedForFeature)
+        }
+        return allStacked
+    }
+    
+    var body: some View {
+        let features = uniqueFeatures
+        
+        Chart {
+            ForEach(stackedPoints) { point in
+                let reversedY = Double(features.count - 1 - point.featureIndex) + point.yOffset
+                PointMark(
+                    x: .value(config.xLabel, point.x),
+                    y: .value(config.yLabel, reversedY)
+                )
+                .foregroundStyle(featureValueColor(point.y))
+                .symbolSize(22) // slightly smaller for a denser, cleaner look
+            }
+        }
+        .chartXAxis {
+            AxisMarks()
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading, values: Array(0..<features.count)) { value in
+                if let index = value.as(Int.self), index >= 0, index < features.count {
+                    AxisValueLabel {
+                        Text(features[features.count - 1 - index])
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                AxisGridLine()
+            }
+        }
+        .chartXScale(domain: .automatic(includesZero: false))
+        .chartYScale(domain: -0.5...Double(max(1, features.count)) - 0.5)
+        .overlay(alignment: .bottomTrailing) {
+            colorLegend
+        }
+    }
+    
+    private func computeStacking(points: [ChartPoint], featureIndex: Int, featuresCount: Int) -> [StackingPoint] {
+        let sortedPoints = points.compactMap { pt -> (x: Double, y: Double)? in
+            guard let x = pt.xNum else { return nil }
+            return (x: x, y: pt.y)
+        }.sorted { $0.x < $1.x }
+        
+        var stacked: [StackingPoint] = []
+        
+        let xs = sortedPoints.map { $0.x }
+        let xMin = xs.min() ?? 0.0
+        let xMax = xs.max() ?? 1.0
+        let xRange = xMax - xMin
+        let cellWidth = xRange > 0 ? (xRange * 0.02) : 0.015
+        let diameter = 0.07 // vertical stacking step
+        
+        for pt in sortedPoints {
+            let neighbors = stacked.filter { abs($0.x - pt.x) < cellWidth }
+            
+            var offset = 0.0
+            var found = false
+            var step = 0
+            
+            while !found {
+                let candidate: Double
+                if step == 0 {
+                    candidate = 0.0
+                } else if step % 2 == 1 {
+                    candidate = Double((step + 1) / 2) * diameter
+                } else {
+                    candidate = -Double(step / 2) * diameter
+                }
+                
+                // Limit overflow to avoid overlapping next feature row
+                let collides = neighbors.contains { abs($0.yOffset - candidate) < (diameter * 0.85) }
+                if !collides || abs(candidate) >= 0.4 {
+                    offset = min(max(candidate, -0.4), 0.4)
+                    found = true
+                } else {
+                    step += 1
+                }
+            }
+            
+            stacked.append(
+                StackingPoint(
+                    x: pt.x,
+                    y: pt.y,
+                    yOffset: offset,
+                    featureIndex: featureIndex
+                )
+            )
+        }
+        return stacked
+    }
+    
+    private func featureValueColor(_ value: Double) -> Color {
+        let r = 0.2 + value * 0.8
+        let g = 0.4 - value * 0.3
+        let b = 1.0 - value * 0.6
+        return Color(red: r, green: g, blue: b)
+    }
+    
+    private var colorLegend: some View {
+        HStack(spacing: 6) {
+            Text("Low")
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+            
+            LinearGradient(
+                colors: [Color(red: 0.2, green: 0.4, blue: 1.0), Color(red: 1.0, green: 0.1, blue: 0.4)],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: 60, height: 6)
+            .cornerRadius(3)
+            
+            Text("High")
+                .font(.system(size: 8))
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.regularMaterial)
+        .cornerRadius(6)
+        .padding(.trailing, 8)
+        .padding(.bottom, 8)
+    }
+}
+
+// MARK: - PDP & ICE Chart
+
+struct PdpIceView: View {
+    let config: ChartConfig
+    
+    var body: some View {
+        Chart {
+            ForEach(config.data.filter { $0.series != "PDP" }) { point in
+                if let xNum = point.xNum {
+                    LineMark(
+                        x: .value(config.xLabel, xNum),
+                        y: .value(config.yLabel, point.y),
+                        series: .value("Series", point.series ?? "")
+                    )
+                    .foregroundStyle(Color.primary.opacity(0.12))
+                    .lineStyle(StrokeStyle(lineWidth: 0.8))
+                }
+            }
+            
+            ForEach(config.data.filter { $0.series == "PDP" }) { point in
+                if let xNum = point.xNum {
+                    LineMark(
+                        x: .value(config.xLabel, xNum),
+                        y: .value(config.yLabel, point.y),
+                        series: .value("Series", "PDP")
+                    )
+                    .foregroundStyle(Color.purple)
+                    .lineStyle(StrokeStyle(lineWidth: 3.0))
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks()
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .chartXScale(domain: .automatic(includesZero: false))
+        .chartYScale(domain: .automatic(includesZero: false))
+        .chartLegend(.hidden)
+    }
+}
+
 // MARK: - Image Grid View
 
 struct ImageGridView: View {
@@ -860,9 +1237,9 @@ struct ImageGridView: View {
                             .foregroundColor(.primary)
                     }
                     .padding(8)
-                    .background(Color.white.opacity(0.03))
+                    .background(Color.primary.opacity(0.03))
                     .cornerRadius(12)
-                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                     .onTapGesture {
                         selectedImage = item
                     }
@@ -1091,7 +1468,7 @@ struct WordCloudView: View {
             .padding(10)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.white.opacity(0.01))
+        .background(Color.primary.opacity(0.01))
         .cornerRadius(12)
     }
 }

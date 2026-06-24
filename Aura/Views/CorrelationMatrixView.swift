@@ -70,7 +70,7 @@ struct CorrelationMatrixView: View {
                     Text("-1")
                         .font(.caption2)
                         .foregroundColor(.secondary)
-                    LinearGradient(colors: [.red, .white.opacity(0.1), .blue], startPoint: .leading, endPoint: .trailing)
+                    LinearGradient(colors: [.red, Color(nsColor: .systemGray).opacity(0.3), .blue], startPoint: .leading, endPoint: .trailing)
                         .frame(height: 6)
                         .cornerRadius(3)
                     Text("+1")
@@ -138,9 +138,9 @@ struct CorrelationMatrixView: View {
                     }
                     .padding(8)
                 }
-                .background(Color.white.opacity(0.02))
+                .background(Color.primary.opacity(0.02))
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.07)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.07)))
             }
         )
     }
@@ -169,7 +169,7 @@ struct CorrelationMatrixView: View {
                         // Mini bar
                         let absVal = min(abs(pair.value), 1.0)
                         ZStack(alignment: pair.value > 0 ? .leading : .trailing) {
-                            RoundedRectangle(cornerRadius: 3).fill(Color.white.opacity(0.06)).frame(width: 80, height: 6)
+                            RoundedRectangle(cornerRadius: 3).fill(Color.primary.opacity(0.06)).frame(width: 80, height: 6)
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(pair.value > 0 ? Color.blue.gradient : Color.red.gradient)
                                 .frame(width: max(4, 80 * absVal), height: 6)
@@ -183,7 +183,7 @@ struct CorrelationMatrixView: View {
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(Color.white.opacity(0.02))
+                    .background(Color.primary.opacity(0.02))
                     .cornerRadius(8)
                 }
             }
@@ -234,7 +234,7 @@ struct CorrelationMatrixView: View {
         if value == 1.0 { return Color.blue.opacity(0.8) }
         let absVal = Swift.min(Swift.abs(value), 1.0)
         
-        if absVal < 0.01 { return Color.white.opacity(0.04) }
+        if absVal < 0.01 { return Color.primary.opacity(0.04) }
 
         if value > 0 {
             return Color.blue.opacity(absVal * 0.8 + 0.1)

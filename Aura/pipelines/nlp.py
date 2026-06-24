@@ -529,14 +529,22 @@ def analyze_nlp(df, target_col, task_type_override,
 
         # Phase 1: Model & Code Export
         if model_export_path or code_export_path:
-            model_to_save = best_clf if is_classification else best_reg
-            # NLP feature names are vocabulary words
-            feats = list(vectorizer.get_feature_names_out()) if 'vectorizer' in locals() else []
+            raw_clf = best_clf if is_classification else best_reg
+            # Build a full inference pipeline: TF-IDF vectorizer → classifier.
+            # This ensures run_predict can accept raw text without a separate
+            # vectorization step and the full chain is serialized together.
+            from sklearn.pipeline import Pipeline as SKPipeline
+            model_to_save = SKPipeline([
+                ('tfidf', vectorizer),
+                ('clf', raw_clf)
+            ])
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
                 file_path, "nlp", target_col, None,
                 "classification" if is_classification else "regression",
-                feats, best_model, numeric_cols, categorical_cols, [text_col] if 'text_col' in locals() else []
+                None, best_model, numeric_cols, categorical_cols,
+                [text_col] if 'text_col' in locals() else [],
+                cleaner=None, preprocessor=None, label_encoder=None
             )
         
         return {

@@ -173,7 +173,8 @@ class AnalysisHistoryService {
         }
     }
     
-    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String? = nil) {
+    @discardableResult
+    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String? = nil) -> HistoryItem? {
         let sourceForName = originalSource ?? datasetPath
         let datasetName = generateDisplayName(source: sourceForName, result: result)
         let resultId = UUID()
@@ -183,7 +184,6 @@ class AnalysisHistoryService {
         do {
             let data = try JSONEncoder().encode(result)
             try data.write(to: resultURL)
-            
             
             let newItem = HistoryItem(
                 id: resultId,
@@ -207,8 +207,10 @@ class AnalysisHistoryService {
             
             // Asynchronously generate a title via LLM if available
             triggerBackgroundTitleGeneration(for: resultId, result: result)
+            return newItem
         } catch {
             AppLogger.shared.error("Failed to save analysis result in SwiftData: \(error)", category: "History")
+            return nil
         }
     }
     

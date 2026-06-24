@@ -142,7 +142,7 @@ def analyze_preview(file_path, dataset_type=None):
                         # Walk from the root cached directory (current) to find all files
                         for root, _, filenames in os.walk(current):
                             for f in filenames:
-                                if f.endswith(".csv") or f.endswith(".parquet") or f.endswith(".tsv") or f.endswith(".npz"):
+                                if f.endswith(".csv") or f.endswith(".parquet") or f.endswith(".tsv") or f.endswith(".npz") or f.endswith(".xlsx") or f.endswith(".xls"):
                                     available_files.append(os.path.join(root, f))
                         break
                     if parent == current:

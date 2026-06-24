@@ -31,7 +31,7 @@ struct ModelExportSheet: View {
             }
             .padding(20)
 
-            Divider().background(Color.white.opacity(0.07))
+            Divider().background(Color.primary.opacity(0.07))
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -47,9 +47,9 @@ struct ModelExportSheet: View {
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
                             .padding(12)
-                            .background(Color.white.opacity(0.02))
+                            .background(Color.primary.opacity(0.02))
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.05)))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.05)))
                     }
 
                     // Directory selector
@@ -70,7 +70,7 @@ struct ModelExportSheet: View {
                                 }
                                 .padding(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.white.opacity(0.03))
+                                .background(Color.primary.opacity(0.03))
                                 .cornerRadius(6)
                             } else {
                                 Text("No folder selected")
@@ -78,7 +78,7 @@ struct ModelExportSheet: View {
                                     .foregroundColor(.secondary)
                                     .padding(8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.white.opacity(0.03))
+                                    .background(Color.primary.opacity(0.03))
                                     .cornerRadius(6)
                             }
 
@@ -130,7 +130,7 @@ struct ModelExportSheet: View {
                 .padding(20)
             }
 
-            Divider().background(Color.white.opacity(0.07))
+            Divider().background(Color.primary.opacity(0.07))
 
             // Action Buttons
             HStack(spacing: 12) {
@@ -152,7 +152,7 @@ struct ModelExportSheet: View {
                     .padding(.vertical, 9)
                     .background(
                         selectedFolderURL == nil
-                            ? AnyShapeStyle(Color.white.opacity(0.08))
+                            ? AnyShapeStyle(Color.primary.opacity(0.08))
                             : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
                     )
                     .cornerRadius(9)
@@ -164,9 +164,9 @@ struct ModelExportSheet: View {
             .padding(.vertical, 14)
         }
         .frame(width: 480, height: 420)
-        .background(Color(white: 0.08))
+        .background(Color(nsColor: .windowBackgroundColor))
         .cornerRadius(16)
-        .colorScheme(.dark)
+        
     }
 
     private func selectFolder() {

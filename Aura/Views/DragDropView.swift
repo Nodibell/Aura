@@ -1,8 +1,9 @@
 import SwiftUI
 
 struct DragDropView: View {
-    let onFileDropped: (URL) -> Void
+    let onFileDropped: ([URL]) -> Void
     let onSelectFileManually: () -> Void
+    let onImportFromDatabase: () -> Void
     let onURLSubmitted: (String) -> Void
     let onSampleSelected: (String) -> Void
     let recentAnalyses: [HistoryItem]
@@ -132,39 +133,56 @@ struct DragDropView: View {
                                         .foregroundColor(.secondary)
                                 }
                                 
-                                Button(action: onSelectFileManually) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "folder.fill")
-                                        Text("Browse Files...")
+                                HStack(spacing: 12) {
+                                    Button(action: onSelectFileManually) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "folder.fill")
+                                            Text("Browse Files...")
+                                        }
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing)
+                                        )
+                                        .cornerRadius(10)
                                     }
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 10)
-                                    .background(
-                                        LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing)
-                                    )
-                                    .cornerRadius(10)
+                                    .buttonStyle(.plain)
+                                    .shadow(color: Color.purple.opacity(0.25), radius: 6, x: 0, y: 3)
+                                    
+                                    Button(action: onImportFromDatabase) {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: "server.rack")
+                                            Text("Import from DB...")
+                                        }
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 10)
+                                        .background(
+                                            LinearGradient(colors: [.indigo, .blue], startPoint: .leading, endPoint: .trailing)
+                                        )
+                                        .cornerRadius(10)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
                                 }
-                                .buttonStyle(.plain)
-                                .shadow(color: Color.purple.opacity(0.25), radius: 6, x: 0, y: 3)
                             }
                             .padding(40)
                         }
                         .frame(maxWidth: 540, minHeight: 260)
                         .dropDestination(for: URL.self) { items, location in
-                            guard let firstURL = items.first else { return false }
-                            let ext = firstURL.pathExtension.lowercased()
-                            var isDir: ObjCBool = false
-                            let exists = FileManager.default.fileExists(atPath: firstURL.path, isDirectory: &isDir)
-                            if exists && isDir.boolValue {
-                                onFileDropped(firstURL)
-                                return true
-                            } else if ["csv", "tsv", "parquet", "npz"].contains(ext) {
-                                onFileDropped(firstURL)
-                                return true
+                            guard !items.isEmpty else { return false }
+                            let validItems = items.filter { url in
+                                let ext = url.pathExtension.lowercased()
+                                var isDir: ObjCBool = false
+                                let exists = FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                                return exists && (isDir.boolValue || ["csv", "tsv", "parquet", "xlsx", "xls", "npz"].contains(ext))
                             }
-                            return false
+                            guard !validItems.isEmpty else { return false }
+                            onFileDropped(validItems)
+                            return true
                         } isTargeted: { targeted in
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 isDraggingOver = targeted
@@ -188,7 +206,7 @@ struct DragDropView: View {
                                     .foregroundColor(getURLIconColor(urlInput))
                                     .font(.system(size: 16))
                                     .frame(width: 24, height: 24)
-                                    .background(Color.white.opacity(0.03))
+                                    .background(Color.primary.opacity(0.03))
                                     .cornerRadius(6)
                                 
                                 TextField("Kaggle, Hugging Face, or direct CSV URL...", text: $urlInput)
@@ -201,11 +219,11 @@ struct DragDropView: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
-                            .background(Color.black.opacity(0.12))
+                            .background(Color(nsColor: .controlBackgroundColor))
                             .cornerRadius(10)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 10)
-                                    .stroke(isUrlHovered ? Color.purple.opacity(0.4) : Color.white.opacity(0.06), lineWidth: 1)
+                                    .stroke(isUrlHovered ? Color.purple.opacity(0.4) : Color.primary.opacity(0.06), lineWidth: 1)
                             )
                             .onHover { hovering in
                                 withAnimation(.easeOut(duration: 0.15)) {
@@ -361,11 +379,11 @@ struct DragDropView: View {
             }
             .padding(14)
             .frame(width: 250, height: 74)
-            .background(Color.white.opacity(0.02))
+            .background(Color.primary.opacity(0.02))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
             )
         }
         .buttonStyle(SampleCardButtonStyle())
@@ -469,11 +487,11 @@ struct DragDropView: View {
             }
             .padding(12)
             .frame(width: 220, height: 110)
-            .background(Color.white.opacity(0.02))
+            .background(Color.primary.opacity(0.02))
             .cornerRadius(12)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color.white.opacity(0.05), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.05), lineWidth: 1)
             )
         }
         .buttonStyle(SampleCardButtonStyle())
@@ -497,7 +515,7 @@ struct SampleCardButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.98 : 1.0)
-            .background(configuration.isPressed ? Color.white.opacity(0.04) : Color.clear)
+            .background(configuration.isPressed ? Color.primary.opacity(0.04) : Color.clear)
             .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
     }
 }
@@ -506,6 +524,7 @@ struct SampleCardButtonStyle: ButtonStyle {
     DragDropView(
         onFileDropped: { _ in },
         onSelectFileManually: {},
+        onImportFromDatabase: {},
         onURLSubmitted: { _ in },
         onSampleSelected: { _ in },
         recentAnalyses: [

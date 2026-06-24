@@ -52,13 +52,105 @@ def clean_nan(obj):
 
 def _generate_reproduction_code(dataset_path, dataset_type, target_col, exclude_cols,
                                task_type, feature_names, model_name, model_path,
-                               numeric_cols, categorical_cols, text_cols, time_col=None):
+                               numeric_cols, categorical_cols, text_cols, time_col=None,
+                               cleaner=None, preprocessor=None):
     import os
     exclude_list = list(exclude_cols) if exclude_cols else []
     num_list = numeric_cols if numeric_cols else []
     cat_list = categorical_cols if categorical_cols else []
     txt_list = text_cols if text_cols else []
     model_file_name = os.path.basename(model_path) if model_path else "model.joblib"
+    
+    if cleaner is not None or preprocessor is not None:
+        code = f'''# Aura - Tabular Reproduction Pipeline
+# Generated for target: '{target_col}' ({task_type})
+
+import os
+import pandas as pd
+import numpy as np
+import joblib
+from sklearn.metrics import accuracy_score, r2_score, mean_squared_error, f1_score
+
+# 1. Load the dataset
+DATA_PATH = r"{dataset_path}"
+if not os.path.exists(DATA_PATH):
+    print(f"Warning: File not found at {{DATA_PATH}}. Please update DATA_PATH to your local file path.")
+
+df = pd.read_csv(DATA_PATH) if not DATA_PATH.endswith('.parquet') else pd.read_parquet(DATA_PATH)
+
+# Exclude columns
+exclude_cols = {exclude_list}
+df = df.drop(columns=exclude_cols, errors='ignore')
+
+# 2. Load Pipeline and Predict
+MODEL_PATH = r"{model_file_name}"
+if os.path.exists(MODEL_PATH):
+    pipeline = joblib.load(MODEL_PATH)
+    print("Successfully loaded pipeline from:", MODEL_PATH)
+    
+    cleaner = pipeline.get('cleaner')
+    preprocessor = pipeline.get('preprocessor')
+    model = pipeline.get('model')
+    
+    # Apply cleaner
+    df_clean = df.copy()
+    if cleaner is not None:
+        try:
+            df_clean = cleaner.transform(df_clean, is_training=False)
+        except Exception as e:
+            print("Warning during cleaner transform:", e)
+            
+    # Drop target column from features
+    target_col = "{target_col}"
+    if target_col in df_clean.columns:
+        X = df_clean.drop(columns=[target_col])
+        y_raw = df_clean[target_col]
+        if "{task_type}" == "classification":
+            y = y_raw.fillna(y_raw.mode()[0] if not y_raw.mode().empty else "missing").astype(str).to_numpy()
+        else:
+            y = y_raw.fillna(y_raw.median()).to_numpy()
+    else:
+        X = df_clean
+        y = None
+        
+    # Preprocess
+    if preprocessor is not None:
+        X_processed = preprocessor.transform(X)
+        
+        # Sanitize column names for XGBoost compatibility (no [, ] or <)
+        new_cols = []
+        for col in X_processed.columns:
+            c = str(col)
+            c = c.replace('[', '_').replace(']', '_').replace('<', 'lt_').replace('>', 'gt_')
+            new_cols.append(c)
+        X_processed.columns = new_cols
+    else:
+        X_processed = X
+        
+    # Ensure all expected columns are present
+    expected_features = {feature_names}
+    for col in expected_features:
+        if col not in X_processed.columns:
+            X_processed[col] = 0.0
+    X_processed = X_processed[expected_features]
+    
+    preds = model.predict(X_processed)
+    print("First 10 predictions:", preds[:10])
+    
+    if y is not None:
+        if "{task_type}" == "classification":
+            score = accuracy_score(y, preds)
+            print("Reproduction Accuracy:", score)
+        else:
+            score = r2_score(y, preds)
+            rmse = np.sqrt(mean_squared_error(y, preds))
+            print("Reproduction R2:", score)
+            print("Reproduction RMSE:", rmse)
+else:
+    print(f"Model file not found at {{MODEL_PATH}}. Please place it in the same directory.")
+'''
+        return code
+
 
     if dataset_type == "timeseries":
         code = f'''# Aura - Time Series Reproduction Pipeline
@@ -392,12 +484,22 @@ else:
 
 def _export_model_and_code(model_obj, model_path, code_path, dataset_path, dataset_type,
                            target_col, exclude_cols, task_type, feature_names,
-                           model_name, numeric_cols=None, categorical_cols=None, text_cols=None, time_col=None):
+                           model_name, numeric_cols=None, categorical_cols=None, text_cols=None, time_col=None,
+                           cleaner=None, preprocessor=None, label_encoder=None):
     import joblib
     try:
-        # Save model
+        # Save model — always use the dict format so run_predict gets a
+        # consistent structure regardless of pipeline type (NLP, tabular, etc.)
         if model_path and model_obj is not None:
-            joblib.dump(model_obj, model_path)
+            pipeline_dict = {
+                'cleaner': cleaner,
+                'preprocessor': preprocessor,
+                'model': model_obj,
+                'feature_names': feature_names,
+                'target_col': target_col,
+                'label_encoder': label_encoder
+            }
+            joblib.dump(pipeline_dict, model_path)
             sys.stderr.write(f"Model exported successfully to {model_path}\n")
             
         # Save reproduction code
@@ -405,10 +507,12 @@ def _export_model_and_code(model_obj, model_path, code_path, dataset_path, datas
             code_content = _generate_reproduction_code(
                 dataset_path, dataset_type, target_col, exclude_cols,
                 task_type, feature_names, model_name, model_path,
-                numeric_cols, categorical_cols, text_cols, time_col=time_col
+                numeric_cols, categorical_cols, text_cols, time_col=time_col,
+                cleaner=cleaner, preprocessor=preprocessor
             )
             with open(code_path, "w", encoding="utf-8") as f:
                 f.write(code_content)
             sys.stderr.write(f"Reproduction code exported successfully to {code_path}\n")
     except Exception as e:
         sys.stderr.write(f"Warning: Failed to export model/code: {str(e)}\n")
+

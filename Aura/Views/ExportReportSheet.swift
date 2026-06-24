@@ -7,6 +7,22 @@ struct ExportReportSheet: View {
     let result: AnalysisResult
     @Binding var isPresented: Bool
 
+    enum ExportFormat: String, CaseIterable, Identifiable {
+        case markdown = "Markdown"
+        case html = "HTML"
+        case pdf = "PDF"
+        
+        var id: String { self.rawValue }
+        var rawValue: String {
+            switch self {
+            case .markdown: return "Markdown (.md)"
+            case .html: return "Interactive HTML (.html)"
+            case .pdf: return "Styled PDF (.pdf)"
+            }
+        }
+    }
+    
+    @State private var exportFormat: ExportFormat = .pdf
     @State private var includeCharts: Bool = true
     @State private var includeAINarrative: Bool = true
     @State private var includeStats: Bool = true
@@ -38,10 +54,24 @@ struct ExportReportSheet: View {
             }
             .padding(20)
 
-            Divider().background(Color.white.opacity(0.07))
+            Divider().background(Color.primary.opacity(0.07))
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
+
+                    // ── Export Format ──────────────────────────────────────────
+                    VStack(alignment: .leading, spacing: 10) {
+                        sectionHeader("Report Export Format", icon: "doc.badge.gearshape")
+                        
+                        Picker("", selection: $exportFormat) {
+                            ForEach(ExportFormat.allCases) { format in
+                                Text(format.rawValue).tag(format)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                    
+                    Divider().background(Color.primary.opacity(0.07))
 
                     // ── Include Options ───────────────────────────────────────
                     VStack(alignment: .leading, spacing: 10) {
@@ -80,7 +110,7 @@ struct ExportReportSheet: View {
                                   isOn: $includeTable)
                     }
 
-                    Divider().background(Color.white.opacity(0.07))
+                    Divider().background(Color.primary.opacity(0.07))
 
                     // ── Dataset Summary Preview ───────────────────────────────
                     VStack(alignment: .leading, spacing: 8) {
@@ -93,9 +123,9 @@ struct ExportReportSheet: View {
                             exportStat(value: String(format: "%.3f", result.metrics.score), label: result.metrics.scoreType)
                         }
                         .padding(14)
-                        .background(Color.white.opacity(0.03))
+                        .background(Color.primary.opacity(0.03))
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                     }
 
                     // ── Error ─────────────────────────────────────────────────
@@ -117,14 +147,14 @@ struct ExportReportSheet: View {
                                 .foregroundColor(.secondary)
                         }
                         .padding(12)
-                        .background(Color.white.opacity(0.03))
+                        .background(Color.primary.opacity(0.03))
                         .cornerRadius(8)
                     }
                 }
                 .padding(20)
             }
 
-            Divider().background(Color.white.opacity(0.07))
+            Divider().background(Color.primary.opacity(0.07))
 
             // ── Action Buttons ────────────────────────────────────────────────
             HStack(spacing: 12) {
@@ -151,7 +181,7 @@ struct ExportReportSheet: View {
                     .padding(.vertical, 9)
                     .background(
                         isGenerating
-                            ? AnyShapeStyle(Color.white.opacity(0.08))
+                            ? AnyShapeStyle(Color.primary.opacity(0.08))
                             : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
                     )
                     .cornerRadius(9)
@@ -163,9 +193,9 @@ struct ExportReportSheet: View {
             .padding(.vertical, 14)
         }
         .frame(width: 480, height: 560)
-        .background(Color(white: 0.08))
+        .background(Color(nsColor: .windowBackgroundColor))
         .cornerRadius(16)
-        .colorScheme(.dark)
+        
     }
 
     // MARK: - Subviews
@@ -197,93 +227,65 @@ struct ExportReportSheet: View {
         isGenerating = true
         errorMessage = nil
 
-        generationStatus = "Building report structure…"
-        var md = buildMarkdownReport()
-
-        // AI Narrative
+        var narrativeText: String? = nil
         if includeAINarrative && ollamaStatus.isAvailable {
             generationStatus = "Asking AI to generate narrative…"
-            if let narrative = await generateAINarrative() {
-                md = narrative + "\n\n---\n\n" + md
-            }
+            narrativeText = await generateAINarrative()
         }
 
-        generationStatus = "Opening save dialog…"
-        await saveMarkdownFile(content: md)
+        switch exportFormat {
+        case .markdown:
+            generationStatus = "Building Markdown report…"
+            let md = buildMarkdownReport(narrative: narrativeText)
+            generationStatus = "Opening save dialog…"
+            await saveFile(filenameExtension: "md", defaultName: "Aura_Report_\(result.targetColumn).md") { url in
+                try md.write(to: url, atomically: true, encoding: .utf8)
+            }
+            
+        case .html:
+            generationStatus = "Building HTML report…"
+            let html = buildHTMLReport(narrative: narrativeText)
+            generationStatus = "Opening save dialog…"
+            await saveFile(filenameExtension: "html", defaultName: "Aura_Report_\(result.targetColumn).html") { url in
+                try html.write(to: url, atomically: true, encoding: .utf8)
+            }
+            
+        case .pdf:
+            generationStatus = "Building HTML report for PDF…"
+            let html = buildHTMLReport(narrative: narrativeText)
+            generationStatus = "Rendering PDF (takes a moment)…"
+            do {
+                let pdfData = try await HTMLToPDFConverter.shared.convert(html: html)
+                generationStatus = "Opening save dialog…"
+                await saveFile(filenameExtension: "pdf", defaultName: "Aura_Report_\(result.targetColumn).pdf") { url in
+                    try pdfData.write(to: url)
+                }
+            } catch {
+                errorMessage = "PDF Rendering failed: \(error.localizedDescription)"
+            }
+        }
+        
         isGenerating = false
     }
 
-    private func buildMarkdownReport() -> String {
-        var md = "# Analysis Report: \(result.targetColumn)\n\n"
-        md += "_Generated by Aura — \(Date().formatted(date: .long, time: .shortened))_\n\n"
-        md += "---\n\n"
-
-        if includeStats {
-            md += "## 📊 Dataset Overview\n\n"
-            md += "| Metric | Value |\n|---|---|\n"
-            md += "| Rows | \(result.rowCount) |\n"
-            md += "| Columns | \(result.colCount) |\n"
-            md += "| Task Type | \(result.taskType.capitalized) |\n"
-            md += "| Target Column | `\(result.targetColumn)` |\n"
-            md += "| Numeric Columns | \(result.numericColCount) |\n"
-            md += "| Categorical Columns | \(result.categoricalColCount) |\n\n"
-
-            md += "### 🤖 Model Performance\n\n"
-            md += "| Model | \(result.metrics.scoreType) |\n|---|---|\n"
-            for model in result.modelsCompared {
-                md += "| \(model.name) | \(String(format: "%.4f", model.score)) |\n"
-            }
-            md += "\n"
-
-            let missingCols = result.missingValues.filter { $0.value > 0 }
-            if !missingCols.isEmpty {
-                md += "### ⚠️ Missing Values\n\n"
-                md += "| Column | Missing Count |\n|---|---|\n"
-                for (col, count) in missingCols.sorted(by: { $0.value > $1.value }) {
-                    md += "| `\(col)` | \(count) |\n"
-                }
-                md += "\n"
-            }
-        }
-
-        if includeCharts && !result.charts.isEmpty {
-            md += "## 📈 Charts\n\n"
-            for chart in result.charts {
-                md += "### \(chart.title)\n\n"
-                md += "_\(chart.xLabel) → \(chart.yLabel)_\n\n"
-                md += "| \(chart.xLabel) | \(chart.yLabel) |\n|---|---|\n"
-                for point in chart.data.prefix(20) {
-                    let x = point.xVal ?? (point.xNum.map { String(format: "%.4f", $0) } ?? "—")
-                    md += "| \(x) | \(String(format: "%.6f", point.y)) |\n"
-                }
-                if chart.data.count > 20 {
-                    md += "\n_… \(chart.data.count - 20) more points not shown_\n"
-                }
-                md += "\n"
-            }
-        }
-
-        if includeTable, let fp = result.fullPreview {
-            md += "## 🗃️ Data Sample (first 50 rows)\n\n"
-            md += "| " + fp.columns.joined(separator: " | ") + " |\n"
-            md += "|" + fp.columns.map { _ in "---" }.joined(separator: "|") + "|\n"
-            for row in fp.rows.prefix(50) {
-                md += "| " + row.joined(separator: " | ") + " |\n"
-            }
-            md += "\n"
-        }
-
-        if !result.correlations.isEmpty {
-            md += "## 🔗 Top Correlations\n\n"
-            md += "| Feature A | Feature B | Correlation |\n|---|---|---|\n"
-            for corr in result.correlations.prefix(10) {
-                md += "| `\(corr.x)` | `\(corr.y)` | \(String(format: "%.3f", corr.value)) |\n"
-            }
-            md += "\n"
-        }
-
-        return md
+    private func buildMarkdownReport(narrative: String?) -> String {
+        ReportCompiler.buildMarkdownReport(
+            result: result,
+            narrative: narrative,
+            includeStats: includeStats,
+            includeCharts: includeCharts,
+            includeTable: includeTable
+        )
     }
+
+    private func buildHTMLReport(narrative: String?) -> String {
+        ReportCompiler.buildHTMLReport(
+            result: result,
+            narrative: narrative,
+            includeTable: includeTable
+        )
+    }
+
 
     private func generateAINarrative() async -> String? {
         let model = UserDefaults.standard.string(forKey: "Aura_OllamaModel")
@@ -292,22 +294,18 @@ struct ExportReportSheet: View {
 
         var extraContext = ""
         
-        // Include Leakage Warnings
         if let warnings = result.dataLeakageWarnings, !warnings.isEmpty {
             extraContext += "- Data Leakage Warnings: \(warnings.joined(separator: "; "))\n"
         }
         
-        // Include Cleaning Recommendations
         if let recs = result.cleaningRecommendations, !recs.isEmpty {
             let recsStr = recs.map { "\($0.column) (\($0.issue) -> \($0.recommendation) [Impact: \($0.impact)])" }.joined(separator: "; ")
             extraContext += "- Data Quality Issues & Recommendations: \(recsStr)\n"
         }
         
-        // Include Models Compared
         let modelsStr = result.modelsCompared.map { "\($0.name) (\($0.metric): \(String(format: "%.4f", $0.score)))" }.joined(separator: ", ")
         extraContext += "- Models Compared: \(modelsStr)\n"
         
-        // Include Feature Importances (from charts if available)
         if let importanceChart = result.charts.first(where: { $0.title.lowercased().contains("importance") }) {
             let topFeats = importanceChart.data.prefix(5).compactMap { pt in
                 pt.xVal.map { "\($0): \(String(format: "%.4f", pt.y))" }
@@ -369,16 +367,16 @@ struct ExportReportSheet: View {
     }
 
     @MainActor
-    private func saveMarkdownFile(content: String) async {
+    private func saveFile(filenameExtension: String, defaultName: String, dataWriter: @escaping (URL) throws -> Void) async {
         let panel = NSSavePanel()
         panel.title = "Export Analysis Report"
-        panel.allowedContentTypes = [.init(filenameExtension: "md")!]
-        panel.nameFieldStringValue = "Aura_Report_\(result.targetColumn).md"
+        panel.allowedContentTypes = [.init(filenameExtension: filenameExtension)!]
+        panel.nameFieldStringValue = defaultName
         panel.canCreateDirectories = true
 
         if panel.runModal() == .OK, let url = panel.url {
             do {
-                try content.write(to: url, atomically: true, encoding: .utf8)
+                try dataWriter(url)
             } catch {
                 errorMessage = "Failed to save: \(error.localizedDescription)"
             }
@@ -424,8 +422,8 @@ private struct ToggleRow: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(Color.white.opacity(isOn ? 0.04 : 0.02))
+        .background(Color.primary.opacity(isOn ? 0.04 : 0.02))
         .cornerRadius(9)
-        .overlay(RoundedRectangle(cornerRadius: 9).stroke(isOn ? color.opacity(0.2) : Color.white.opacity(0.04), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 9).stroke(isOn ? color.opacity(0.2) : Color.primary.opacity(0.04), lineWidth: 1))
     }
 }

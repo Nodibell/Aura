@@ -54,10 +54,13 @@ import sys
 import pandas as pd
 import numpy as np
 import sklearn
+import torch
 print(f'Python path: {sys.executable}')
 print(f'Pandas version: {pd.__version__} - OK')
 print(f'NumPy version: {np.__version__} - OK')
 print(f'Scikit-learn version: {sklearn.__version__} - OK')
+print(f'PyTorch version: {torch.__version__} - OK')
+print(f'MPS GPU training support available: {torch.backends.mps.is_available()}')
 "
 
 # Test optional packages

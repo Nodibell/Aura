@@ -2,10 +2,12 @@ import SwiftUI
 
 @main
 struct AuraApp: App {
+    @AppStorage("Aura_Appearance") private var appearanceMode = "System"
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .preferredColorScheme(.dark) // Dark mode by default for premium developer feel
+                .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
         }
         .commands {
             TextEditingCommands()
@@ -13,7 +15,7 @@ struct AuraApp: App {
         
         Settings {
             SettingsView()
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
         }
         .commands {
             TextEditingCommands()

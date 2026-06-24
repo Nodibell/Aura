@@ -45,7 +45,7 @@ def download_dataset(url):
             
         for root, _, filenames in os.walk(url_folder):
             for f in filenames:
-                if f.lower().endswith((".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl")):
+                if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl")):
                     return os.path.join(root, f)
         
         # If no tabular/NPZ files, check if there are images
@@ -108,7 +108,7 @@ def download_dataset(url):
                             shutil.rmtree(url_folder)
                         os.makedirs(url_folder, exist_ok=True)
                         
-                        data_files = [f for f in files if f.lower().endswith((".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl"))]
+                        data_files = [f for f in files if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl"))]
                         if not data_files:
                             raise Exception(f"No CSV, Parquet, TSV, NPZ, or JSON file found in Hugging Face repository '{repo_id}'. Files found: {files}")
                         
@@ -204,7 +204,7 @@ def download_dataset(url):
                         
                     target_file = None
                     for f in downloaded_files:
-                        if f.lower().endswith((".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl")):
+                        if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl")):
                             target_file = f
                             break
                             
@@ -248,7 +248,7 @@ def download_dataset(url):
                 
                 # Deduce extension based on magic bytes or fallback
                 ext = url_ext
-                if not ext or ext not in [".csv", ".parquet", ".tsv", ".npz", ".json", ".jsonl"]:
+                if not ext or ext not in [".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl"]:
                     with open(temp_file.name, "rb") as f:
                         magic = f.read(4)
                     if magic.startswith(b"PAR1"):
@@ -287,6 +287,15 @@ def load_dataset(file_path, nrows=None):
             return df.replace([np.inf, -np.inf], np.nan)
         except ImportError:
             raise ImportError("PyArrow or fastparquet is required to read Parquet. Please install: pip install pyarrow")
+    elif ext in [".xlsx", ".xls"]:
+        try:
+            df = pd.read_excel(file_path)
+            if nrows:
+                df = df.head(nrows)
+            df.columns = df.columns.astype(str).str.strip()
+            return df.replace([np.inf, -np.inf], np.nan)
+        except Exception as e:
+            raise Exception(f"Failed to load Excel dataset: {str(e)}")
     elif ext == ".jsonl" or (ext == ".json" and magic.startswith(b"[")):
         try:
             df = pd.read_json(file_path, lines=(ext == ".jsonl"))

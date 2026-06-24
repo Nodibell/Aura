@@ -21,6 +21,9 @@ __pycache__/
 *.pyc
 temp/
 scratch/
+.pytest_cache/
+.ipynb_checkpoints/
+.mypy_cache/
 
 # Xcode
 build/
@@ -45,3 +48,7 @@ scratch_build*.log
 
 # Packaged binaries
 *.dmg
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json

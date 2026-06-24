@@ -7,6 +7,7 @@ struct SummaryView: View {
     let onRunAnalysis: () -> Void
     let onExportModelAndCode: () -> Void
     let onAskAI: (String) -> Void
+    let onScheduleAnalysis: () -> Void
 
     // MARK: - Helper Methods for interactive cleaning actions
     
@@ -181,16 +182,28 @@ struct SummaryView: View {
 
             Spacer()
 
-            Button {
-                onAskAI("Summarize the key findings from this EDA in 3-5 bullet points. Include dataset size, task type, best model performance, and the most important features or correlations.")
-            } label: {
-                Label("Ask AI", systemImage: "sparkles")
-                    .font(.caption)
-                    .fontWeight(.semibold)
+            HStack(spacing: 8) {
+                Button {
+                    onAskAI("Summarize the key findings from this EDA in 3-5 bullet points. Include dataset size, task type, best model performance, and the most important features or correlations.")
+                } label: {
+                    Label("Ask AI", systemImage: "sparkles")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color.purple.opacity(0.8))
+                .help("Pre-fill the AI chat with a summary question")
+                
+                Button {
+                    onScheduleAnalysis()
+                } label: {
+                    Label("Schedule...", systemImage: "clock")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                }
+                .buttonStyle(.bordered)
+                .help("Set up a cron-like schedule for this dataset analysis")
             }
-            .buttonStyle(.borderedProminent)
-            .tint(Color.purple.opacity(0.8))
-            .help("Pre-fill the AI chat with a summary question")
         }
         .padding(20)
         .background(
@@ -354,9 +367,9 @@ struct SummaryView: View {
                             }
                         }
                         .padding(12)
-                        .background(Color.white.opacity(0.02))
+                        .background(Color.primary.opacity(0.02))
                         .cornerRadius(10)
-                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                     }
                 }
                 
@@ -423,14 +436,14 @@ struct SummaryView: View {
                     let pct = min(max(model.score, 0), 1)
                     let scoreColor: Color = isWinner ? (model.score >= 0 ? .green : .orange) : .primary
                     let barColor: Color = isWinner ? (model.score >= 0 ? .green : .orange) : .blue.opacity(0.4)
-                    let strokeColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.2) : .orange.opacity(0.2)) : .white.opacity(0.05)
-                    let bgColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.05) : .orange.opacity(0.05)) : .white.opacity(0.02)
+                    let strokeColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.2) : .orange.opacity(0.2)) : Color.primary.opacity(0.08)
+                    let bgColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.05) : .orange.opacity(0.05)) : Color(nsColor: .controlBackgroundColor)
                     
                     HStack(spacing: 12) {
                         // Medal
                         ZStack {
                             Circle()
-                                .fill(isWinner ? Color.yellow.opacity(0.2) : Color.white.opacity(0.04))
+                                .fill(isWinner ? Color.yellow.opacity(0.2) : Color.primary.opacity(0.04))
                                 .frame(width: 32, height: 32)
                             Image(systemName: isWinner ? "trophy.fill" : "medal")
                                 .font(.system(size: 14))
@@ -452,7 +465,7 @@ struct SummaryView: View {
                         // Score bar
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.white.opacity(0.06))
+                                .fill(Color.primary.opacity(0.06))
                                 .frame(width: 100, height: 6)
                             RoundedRectangle(cornerRadius: 4)
                                 .fill(barColor)
@@ -505,9 +518,9 @@ struct SummaryView: View {
                         }
                         .padding(10)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.02))
+                        .background(Color.primary.opacity(0.02))
                         .cornerRadius(8)
-                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                         
                         // Baseline Model card
                         if let dummy = result.dummyBaselineScore {
@@ -529,9 +542,9 @@ struct SummaryView: View {
                             }
                             .padding(10)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.white.opacity(0.02))
+                            .background(Color.primary.opacity(0.02))
                             .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.05), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.05), lineWidth: 1))
                         }
                     }
                 }
@@ -585,9 +598,9 @@ struct SummaryView: View {
                 .chartXAxisLabel("Missing Count")
                 .frame(height: CGFloat(max(nonZeroPairs.count * 44, 145)))
                 .padding(16)
-                .background(Color.white.opacity(0.02))
+                .background(Color.primary.opacity(0.02))
                 .cornerRadius(12)
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05)))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.05)))
             }
         }
     }
@@ -643,11 +656,15 @@ struct StatCard: View {
         .padding(16)
         .frame(minWidth: 140)
         .background(
-            LinearGradient(colors: [color.opacity(0.06), color.opacity(0.02)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            ZStack {
+                Color(nsColor: .controlBackgroundColor)
+                LinearGradient(colors: [color.opacity(0.06), color.opacity(0.02)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+            }
         )
         .cornerRadius(14)
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(color.opacity(0.12), lineWidth: 1))
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
 }
 
@@ -742,9 +759,10 @@ struct ConfusionMatrixView: View {
             }
         }
         .padding(16)
-        .background(Color.white.opacity(0.02))
+        .background(Color(nsColor: .controlBackgroundColor))
         .cornerRadius(12)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05)))
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.07)))
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
     }
     
     private func cellColor(rowIdx: Int, colIdx: Int, ratio: Double) -> Color {
@@ -875,7 +893,7 @@ struct DataProfilingSection: View {
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 10)
-                            .background(Color.white.opacity(isExpanded ? 0.03 : 0))
+                            .background(Color.primary.opacity(isExpanded ? 0.03 : 0))
                         }
                         .buttonStyle(.plain)
                         
@@ -896,10 +914,12 @@ struct DataProfilingSection: View {
                                 } else if let topCats = colProfile.topCategories {
                                     // Categorical top categories list
                                     VStack(alignment: .leading, spacing: 4) {
-                                        Text("Top Categories:")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .fontWeight(.bold)
+                                        if topCats.count > 1 {
+                                            Text("Top Categories:")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                                .fontWeight(.bold)
+                                        }
                                         ForEach(topCats) { cat in
                                             HStack {
                                                 Text(cat.value.isEmpty ? "(empty)" : cat.value)
@@ -917,16 +937,17 @@ struct DataProfilingSection: View {
                             .padding(.leading, 30)
                             .padding(.trailing, 12)
                             .padding(.bottom, 12)
-                            .background(Color.white.opacity(0.03))
+                            .background(Color.primary.opacity(0.03))
                         }
                         
                         Divider()
                     }
                 }
             }
-            .background(Color.white.opacity(0.01))
+            .background(Color(nsColor: .controlBackgroundColor))
             .cornerRadius(12)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.05), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.07), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         }
     }
 }
@@ -952,8 +973,8 @@ struct StatMiniBox: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white.opacity(0.02))
+        .background(Color.primary.opacity(0.02))
         .cornerRadius(6)
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.white.opacity(0.04), lineWidth: 0.5))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.04), lineWidth: 0.5))
     }
 }

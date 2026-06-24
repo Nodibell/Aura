@@ -3,6 +3,8 @@ import SwiftUI
 struct SettingsView: View {
     @State private var selectedTab = 0
     private var appLogger = AppLogger.shared
+    
+    @AppStorage("Aura_Appearance") private var appearanceMode = "System"
 
     // Python Runtime State
     @State private var pythonPath = ""
@@ -16,6 +18,12 @@ struct SettingsView: View {
     @State private var hfToken = ""
 
     // AI Settings State
+    @State private var llmProvider = LLMProvider.ollama
+    @State private var openAIKey = ""
+    @State private var claudeKey = ""
+    @State private var ollamaBaseURL = ""
+    @State private var openAIModel = "gpt-4o-mini"
+    @State private var claudeModel = "claude-3-5-haiku-latest"
     @State private var ollamaModel = ""
     @State private var ollamaTemp: Double = 0.3
     @State private var ollamaMaxTokens: Int = 2048
@@ -59,7 +67,7 @@ struct SettingsView: View {
                         .disabled(pythonPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isChecking)
                     }
                     
-                    Text("Ensure the path points to a python3 environment containing: pandas, numpy, scikit-learn.")
+                    Text("Ensure the path points to a python3 environment containing: pandas, numpy, scikit-learn, torch (with MPS support).")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -224,6 +232,40 @@ struct SettingsView: View {
                     Label("System Logs", systemImage: "doc.text.magnifyingglass")
                 }
                 .tag(3)
+            
+            // TAB 5: Appearance
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Appearance Settings")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Configure your user interface appearance preference.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.bottom, 8)
+                
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Theme Mode").font(.headline)
+                    Picker("Theme Mode", selection: $appearanceMode) {
+                        Text("System").tag("System")
+                        Text("Light").tag("Light")
+                        Text("Dark").tag("Dark")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 250)
+                }
+                .padding()
+                .background(Color(NSColor.controlBackgroundColor))
+                .cornerRadius(8)
+                
+                Spacer()
+            }
+            .padding(24)
+            .tabItem {
+                Label("Appearance", systemImage: "paintpalette")
+            }
+            .tag(4)
         }
         .frame(width: 600, height: 520)
         .onAppear {
@@ -232,6 +274,15 @@ struct SettingsView: View {
             kaggleUsername = KeychainService.shared.getSecureString(forKey: "Aura_KaggleUsername") ?? ""
             kaggleKey = KeychainService.shared.getSecureString(forKey: "Aura_KaggleKey") ?? ""
             hfToken = KeychainService.shared.getSecureString(forKey: "Aura_HFToken") ?? ""
+            
+            let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
+            llmProvider = LLMProvider(rawValue: providerStr) ?? .ollama
+            ollamaBaseURL = UserDefaults.standard.string(forKey: "Aura_OllamaBaseURL") ?? "http://localhost:11434"
+            openAIKey = KeychainService.shared.getSecureString(forKey: "Aura_OpenAIKey") ?? ""
+            claudeKey = KeychainService.shared.getSecureString(forKey: "Aura_ClaudeKey") ?? ""
+            openAIModel = UserDefaults.standard.string(forKey: "Aura_OpenAIModel") ?? "gpt-4o-mini"
+            claudeModel = UserDefaults.standard.string(forKey: "Aura_ClaudeModel") ?? "claude-3-5-haiku-latest"
+            
             ollamaModel = UserDefaults.standard.string(forKey: "Aura_OllamaModel") ?? ""
             let temp = UserDefaults.standard.double(forKey: "Aura_OllamaTemp")
             ollamaTemp = temp == 0 ? 0.3 : temp
@@ -246,6 +297,24 @@ struct SettingsView: View {
         }
         .onChange(of: hfToken) { _, newValue in
             _ = KeychainService.shared.save(newValue, forKey: "Aura_HFToken")
+        }
+        .onChange(of: llmProvider) { _, newValue in
+            UserDefaults.standard.set(newValue.rawValue, forKey: "Aura_LLMProvider")
+        }
+        .onChange(of: ollamaBaseURL) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "Aura_OllamaBaseURL")
+        }
+        .onChange(of: openAIKey) { _, newValue in
+            _ = KeychainService.shared.save(newValue, forKey: "Aura_OpenAIKey")
+        }
+        .onChange(of: claudeKey) { _, newValue in
+            _ = KeychainService.shared.save(newValue, forKey: "Aura_ClaudeKey")
+        }
+        .onChange(of: openAIModel) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "Aura_OpenAIModel")
+        }
+        .onChange(of: claudeModel) { _, newValue in
+            UserDefaults.standard.set(newValue, forKey: "Aura_ClaudeModel")
         }
     }
     
@@ -271,11 +340,11 @@ struct SettingsView: View {
                 self.isChecking = false
                 if works {
                     self.isValid = true
-                    self.validationMessage = "Successfully connected. Required packages (pandas, numpy, scikit-learn) are imported correctly."
+                    self.validationMessage = "Successfully connected. Required packages (pandas, numpy, scikit-learn, torch) and Apple Silicon GPU (MPS) support are verified."
                     PythonRunner.shared.setCustomPythonPath(pathToCheck)
                 } else {
                     self.isValid = false
-                    self.validationMessage = "Python binary located, but environment is missing required packages. Run: 'pip install pandas scikit-learn numpy' inside this environment."
+                    self.validationMessage = "Python binary located, but environment is missing required packages or Apple Silicon GPU (MPS) support is unavailable. Run: 'pip install pandas scikit-learn numpy torch' inside this environment."
                 }
             }
         }
@@ -308,137 +377,213 @@ struct SettingsView: View {
 
     private var aiTab: some View {
         let ollamaChecker = OllamaStatusChecker.shared
-        return VStack(alignment: .leading, spacing: 20) {
-            // Header
-            VStack(alignment: .leading, spacing: 4) {
-                Text("AI / Local LLM")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Text("Configure the Ollama-powered AI Analyst")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .padding(.bottom, 4)
-
-            // Ollama Status
-            HStack(spacing: 10) {
-                Circle()
-                    .fill(ollamaChecker.isAvailable ? Color.green : Color.red)
-                    .frame(width: 10, height: 10)
-                Text(ollamaChecker.isAvailable
-                     ? "Ollama is running — \(ollamaChecker.availableModels.count) model(s) installed"
-                     : "Ollama is not running (start with: ollama serve)")
-                    .font(.subheadline)
-                    .foregroundColor(ollamaChecker.isAvailable ? .green : .red)
-                Spacer()
-                Button("Refresh") {
-                    Task { await ollamaChecker.refresh() }
+        return ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("AI / LLM Settings")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                    Text("Configure the AI Analyst (Local Ollama or Cloud APIs)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
-            .padding(12)
-            .background(ollamaChecker.isAvailable ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
-            .cornerRadius(10)
-            .overlay(RoundedRectangle(cornerRadius: 10)
-                .stroke(ollamaChecker.isAvailable ? Color.green.opacity(0.2) : Color.red.opacity(0.2)))
-
-            Divider()
-
-            // Default Model
-            if ollamaChecker.isAvailable && !ollamaChecker.availableModels.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Default Model").font(.headline)
-                    Picker("Model", selection: $ollamaModel) {
-                        ForEach(ollamaChecker.availableModels) { m in
-                            Text(m.name).tag(m.name)
+                .padding(.bottom, 4)
+                
+                // Provider Picker
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("AI Provider").font(.headline)
+                    Picker("AI Provider", selection: $llmProvider) {
+                        ForEach(LLMProvider.allCases, id: \.self) { provider in
+                            Text(provider.rawValue).tag(provider)
                         }
                     }
-                    .pickerStyle(.menu)
-                    .onChange(of: ollamaModel) { _, v in
-                        UserDefaults.standard.set(v, forKey: "Aura_OllamaModel")
-                    }
+                    .pickerStyle(.segmented)
                 }
-            }
 
-            // Pull a model
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Pull a New Model").font(.headline)
-                HStack {
-                    TextField("e.g. llama3.2, qwen2.5:7b", text: $pullModelName)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Pull") {
-                        guard !pullModelName.isEmpty else { return }
-                        isPullingModel = true
-                        pullStatus = "Pulling \(pullModelName)..."
-                        let name = pullModelName
-                        DispatchQueue.global().async {
-                            let proc = Process()
-                            proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-                            proc.arguments = ["ollama", "pull", name]
-                            try? proc.run()
-                            proc.waitUntilExit()
-                            DispatchQueue.main.async {
-                                isPullingModel = false
-                                pullStatus = proc.terminationStatus == 0
-                                    ? "✓ Successfully pulled \(name)"
-                                    : "✗ Failed to pull \(name). Check model name."
+                Divider()
+
+                if llmProvider == .ollama {
+                    // Ollama Customizable Endpoint URL
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Ollama API Base URL").font(.headline)
+                        HStack(spacing: 12) {
+                            TextField("Enter Ollama API url", text: $ollamaBaseURL)
+                                .textFieldStyle(.roundedBorder)
+                                .font(.system(.body, design: .monospaced))
+                            
+                            Button("Test") {
                                 Task { await ollamaChecker.refresh() }
                             }
                         }
                     }
-                    .disabled(pullModelName.isEmpty || isPullingModel)
-                    .buttonStyle(.borderedProminent)
-                }
-                if !pullStatus.isEmpty {
-                    Text(pullStatus)
-                        .font(.caption)
-                        .foregroundColor(pullStatus.hasPrefix("✓") ? .green : .red)
-                }
-            }
-
-            Divider()
-
-            // Temperature
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Temperature").font(.headline)
-                    Spacer()
-                    Text(String(format: "%.2f", ollamaTemp))
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-                Slider(value: $ollamaTemp, in: 0.0...1.0, step: 0.05)
-                    .onChange(of: ollamaTemp) { _, v in
-                        UserDefaults.standard.set(v, forKey: "Aura_OllamaTemp")
+                    
+                    // Ollama Status
+                    HStack(spacing: 10) {
+                        Circle()
+                            .fill(ollamaChecker.isAvailable ? Color.green : Color.red)
+                            .frame(width: 10, height: 10)
+                        Text(ollamaChecker.isAvailable
+                             ? "Ollama is running — \(ollamaChecker.availableModels.count) model(s) installed"
+                             : "Ollama is not running (start with: ollama serve)")
+                            .font(.subheadline)
+                            .foregroundColor(ollamaChecker.isAvailable ? .green : .red)
+                        Spacer()
+                        Button("Refresh") {
+                            Task { await ollamaChecker.refresh() }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
-                Text("Lower = more deterministic (recommended: 0.3 for analytical tasks)")
-                    .font(.caption2).foregroundColor(.secondary)
-            }
+                    .padding(12)
+                    .background(ollamaChecker.isAvailable ? Color.green.opacity(0.05) : Color.red.opacity(0.05))
+                    .cornerRadius(10)
+                    .overlay(RoundedRectangle(cornerRadius: 10)
+                        .stroke(ollamaChecker.isAvailable ? Color.green.opacity(0.2) : Color.red.opacity(0.2)))
 
-            // Max Tokens
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("Max Tokens").font(.headline)
-                    Spacer()
-                    Text("\(ollamaMaxTokens)")
-                        .font(.system(.body, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-                Slider(value: Binding(
-                    get: { Double(ollamaMaxTokens) },
-                    set: { ollamaMaxTokens = Int($0) }
-                ), in: 512...4096, step: 256)
-                .onChange(of: ollamaMaxTokens) { _, v in
-                    UserDefaults.standard.set(v, forKey: "Aura_OllamaMaxTokens")
-                }
-                Text("Maximum tokens generated per response (2048 recommended)")
-                    .font(.caption2).foregroundColor(.secondary)
-            }
+                    // Default Model
+                    if ollamaChecker.isAvailable && !ollamaChecker.availableModels.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Default Model").font(.headline)
+                            Picker("Model", selection: $ollamaModel) {
+                                ForEach(ollamaChecker.availableModels) { m in
+                                    Text(m.name).tag(m.name)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .onChange(of: ollamaModel) { _, v in
+                                UserDefaults.standard.set(v, forKey: "Aura_OllamaModel")
+                            }
+                        }
+                    }
 
-            Spacer()
+                    // Pull a model
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pull a New Model").font(.headline)
+                        HStack {
+                            TextField("e.g. llama3.2, qwen2.5:7b", text: $pullModelName)
+                                .textFieldStyle(.roundedBorder)
+                            Button("Pull") {
+                                guard !pullModelName.isEmpty else { return }
+                                isPullingModel = true
+                                pullStatus = "Pulling \(pullModelName)..."
+                                let name = pullModelName
+                                DispatchQueue.global().async {
+                                    let proc = Process()
+                                    proc.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                                    proc.arguments = ["ollama", "pull", name]
+                                    try? proc.run()
+                                    proc.waitUntilExit()
+                                    DispatchQueue.main.async {
+                                        isPullingModel = false
+                                        pullStatus = proc.terminationStatus == 0
+                                            ? "✓ Successfully pulled \(name)"
+                                            : "✗ Failed to pull \(name). Check model name."
+                                        Task { await ollamaChecker.refresh() }
+                                    }
+                                }
+                            }
+                            .disabled(pullModelName.isEmpty || isPullingModel)
+                            .buttonStyle(.borderedProminent)
+                        }
+                        if !pullStatus.isEmpty {
+                            Text(pullStatus)
+                                .font(.caption)
+                                .foregroundColor(pullStatus.hasPrefix("✓") ? .green : .red)
+                        }
+                    }
+                } else if llmProvider == .openAI {
+                    // OpenAI Configs
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("OpenAI API Configuration").font(.headline).foregroundColor(.blue)
+                        
+                        Text("API Key:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        SecureField("sk-...", text: $openAIKey)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Text("Default Model:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Picker("", selection: $openAIModel) {
+                            Text("gpt-4o-mini").tag("gpt-4o-mini")
+                            Text("gpt-4o").tag("gpt-4o")
+                            Text("o1-mini").tag("o1-mini")
+                        }
+                        .pickerStyle(.menu)
+                        
+                        Text("API key is securely saved in the macOS Keychain.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                } else if llmProvider == .claude {
+                    // Claude Configs
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Claude API Configuration").font(.headline).foregroundColor(.orange)
+                        
+                        Text("API Key:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        SecureField("sk-ant-...", text: $claudeKey)
+                            .textFieldStyle(.roundedBorder)
+                        
+                        Text("Default Model:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Picker("", selection: $claudeModel) {
+                            Text("claude-3-5-haiku-latest").tag("claude-3-5-haiku-latest")
+                            Text("claude-3-5-sonnet-latest").tag("claude-3-5-sonnet-latest")
+                        }
+                        .pickerStyle(.menu)
+                        
+                        Text("API key is securely saved in the macOS Keychain.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Divider()
+
+                // Temperature
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Temperature").font(.headline)
+                        Spacer()
+                        Text(String(format: "%.2f", ollamaTemp))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: $ollamaTemp, in: 0.0...1.0, step: 0.05)
+                        .onChange(of: ollamaTemp) { _, v in
+                            UserDefaults.standard.set(v, forKey: "Aura_OllamaTemp")
+                        }
+                    Text("Lower = more deterministic (recommended: 0.3 for analytical tasks)")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+
+                // Max Tokens
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Max Tokens").font(.headline)
+                        Spacer()
+                        Text("\(ollamaMaxTokens)")
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(.secondary)
+                    }
+                    Slider(value: Binding(
+                        get: { Double(ollamaMaxTokens) },
+                        set: { ollamaMaxTokens = Int($0) }
+                    ), in: 512...4096, step: 256)
+                    .onChange(of: ollamaMaxTokens) { _, v in
+                        UserDefaults.standard.set(v, forKey: "Aura_OllamaMaxTokens")
+                    }
+                    Text("Maximum tokens generated per response (2048 recommended)")
+                        .font(.caption2).foregroundColor(.secondary)
+                }
+            }
+            .padding(24)
         }
-        .padding(24)
     }
 
     private var logsTab: some View {
@@ -490,11 +635,11 @@ struct SettingsView: View {
                     .padding(8)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color.black.opacity(0.4))
-                .cornerRadius(8)
+                .background(Color(red: 0.10, green: 0.10, blue: 0.12))
+                .cornerRadius(10)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.black.opacity(0.5), lineWidth: 1)
                 )
                 .onChange(of: appLogger.logs.count) { _, _ in
                     if let last = appLogger.logs.last {
@@ -524,13 +669,13 @@ struct SettingsView: View {
     private func colorForLogLevel(_ level: AppLogger.LogLevel) -> Color {
         switch level {
         case .debug:
-            return .green.opacity(0.8)
+            return Color(red: 0.35, green: 0.85, blue: 0.45)   // terminal green
         case .info:
-            return .white.opacity(0.9)
+            return Color(red: 0.85, green: 0.85, blue: 0.90)   // soft white
         case .warning:
             return .orange
         case .error:
-            return .red
+            return Color(red: 1.0, green: 0.38, blue: 0.38)    // bright red
         }
     }
 }

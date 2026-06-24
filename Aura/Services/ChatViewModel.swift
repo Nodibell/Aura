@@ -36,14 +36,16 @@ class ChatViewModel {
 
         // Cap feature importances at 15 to avoid token overflow
         let maxFeatures = 15
-        let featureData = result.charts.first(where: { $0.title == "Top Feature Importances (Random Forest)" })?
-            .data
-            .compactMap { point -> String? in
-                guard let name = point.xVal else { return nil }
-                return "\(name): \(String(format: "%.4f", point.y))"
-            } ?? []
-        let featureImportances = featureData.prefix(maxFeatures).joined(separator: ", ")
-            + (featureData.count > maxFeatures ? " … (\(featureData.count - maxFeatures) more)" : "")
+        var featureData = result.charts.first(where: { $0.title.contains("SHAP") })?.data
+        if featureData == nil {
+            featureData = result.charts.first(where: { $0.title.lowercased().contains("importance") })?.data
+        }
+        let featurePoints = featureData ?? []
+        let featureImportances = featurePoints.prefix(maxFeatures).compactMap { point -> String? in
+            guard let name = point.xVal else { return nil }
+            return "\(name): \(String(format: "%.4f", point.y))"
+        }.joined(separator: ", ")
+        + (featurePoints.count > maxFeatures ? " … (\(featurePoints.count - maxFeatures) more)" : "")
 
         var validationDetails = ""
         if let cvMean = result.cvMean {
@@ -68,7 +70,7 @@ class ChatViewModel {
         - Numeric columns: \(result.numericColCount), Categorical: \(result.categoricalColCount), Text (TF-IDF): \(result.textColCount)\(validationDetails)
         - Models trained: \(modelLeaderboard)
         - Best model: \(result.metrics.model) (\(result.metrics.scoreType): \(String(format: "%.4f", result.metrics.score)))
-        - Random Forest feature importances: \(featureImportances.isEmpty ? "none" : featureImportances)
+        - Top feature importances: \(featureImportances.isEmpty ? "none" : featureImportances)
         - Top correlations (showing \(min(result.correlations.count, maxCorr)) of \(result.correlations.count)): \(topCorr)
         - Missing values: \(topMissing.isEmpty ? "none" : topMissing)
         
@@ -99,13 +101,17 @@ class ChatViewModel {
         isStreaming = true
         inputText = ""
 
-        let ollamaMessages = buildOllamaMessages()
-        let service = OllamaService.shared
+        let historyMessages = buildHistoryMessages()
+        let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
+        let provider = LLMProvider(rawValue: providerStr) ?? .ollama
+        let service = AIService.shared
 
         streamTask = Task {
             do {
                 let stream = service.streamChat(
-                    messages: ollamaMessages,
+                    messages: historyMessages,
+                    systemPrompt: systemPrompt,
+                    provider: provider,
                     model: model,
                     temperature: temperature,
                     maxTokens: maxTokens
@@ -129,9 +135,13 @@ class ChatViewModel {
             } catch {
                 await MainActor.run {
                     if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
-                        let errMsg = error.localizedDescription.contains("refused") || error.localizedDescription.contains("connect")
-                            ? "Ollama is not reachable. Make sure it is running (`ollama serve`)."
-                            : "Generation failed: \(error.localizedDescription)"
+                        let rawMsg = error.localizedDescription
+                        let errMsg: String
+                        if rawMsg.contains("refused") || rawMsg.contains("connect") {
+                            errMsg = "Ollama is not reachable. Make sure it is running (`ollama serve`) or check your custom endpoint."
+                        } else {
+                            errMsg = rawMsg
+                        }
                         self.messages[idx].content = errMsg
                         self.messages[idx].state = .error
                     }
@@ -152,11 +162,8 @@ class ChatViewModel {
 
     // MARK: - Helpers
 
-    private func buildOllamaMessages() -> [OllamaChatMessage] {
+    private func buildHistoryMessages() -> [OllamaChatMessage] {
         var result: [OllamaChatMessage] = []
-        if !systemPrompt.isEmpty {
-            result.append(OllamaChatMessage(role: "system", content: systemPrompt))
-        }
         for msg in messages.dropLast() { // drop last (empty assistant placeholder)
             let role = msg.role == .user ? "user" : "assistant"
             if !msg.content.isEmpty {

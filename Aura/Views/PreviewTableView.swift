@@ -28,14 +28,14 @@ struct PreviewTableView: View {
                     .padding(.top, 16)
                     .padding(.bottom, 12)
 
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Color.primary.opacity(0.06))
 
                 // ── Dataset Type Selector ──────────────────────────────────────
                 datasetTypeSelector
                     .padding(.horizontal, 20)
                     .padding(.vertical, 12)
 
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Color.primary.opacity(0.06))
 
                 // ── Smart Sampling Toggle ──────────────────────────────────────
                 smartSamplingSection
@@ -43,7 +43,7 @@ struct PreviewTableView: View {
                     .padding(.vertical, 12)
 
                 if let available = preview.availableFiles, available.count > 1 {
-                    Divider().background(Color.white.opacity(0.06))
+                    Divider().background(Color.primary.opacity(0.06))
                     
                     availableFilesPicker(available)
                         .padding(.horizontal, 20)
@@ -52,7 +52,7 @@ struct PreviewTableView: View {
 
                 // Optional: time-column picker for Time Series
                 if config.datasetType == .timeSeries {
-                    Divider().background(Color.white.opacity(0.06))
+                    Divider().background(Color.primary.opacity(0.06))
                     
                     timeColumnPicker
                         .padding(.horizontal, 20)
@@ -61,14 +61,14 @@ struct PreviewTableView: View {
 
                 // ── Exclusion Banner ────────────────────────────────────────────
                 if !config.excludedColumns.isEmpty {
-                    Divider().background(Color.white.opacity(0.06))
+                    Divider().background(Color.primary.opacity(0.06))
                     
                     exclusionBanner
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
                 }
 
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Color.primary.opacity(0.06))
 
                 // ── Data Table (Horizontal Scroll Only) ───────────────────────────
                 ScrollView(.horizontal, showsIndicators: true) {
@@ -183,9 +183,9 @@ struct PreviewTableView: View {
                 }
             }
             .padding(10)
-            .background(Color.white.opacity(0.02))
+            .background(Color.primary.opacity(0.02))
             .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(config.smartSample ? Color.purple.opacity(0.2) : Color.white.opacity(0.06), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(config.smartSample ? Color.purple.opacity(0.2) : Color.primary.opacity(0.06), lineWidth: 1))
         }
     }
 
@@ -316,8 +316,8 @@ struct PreviewTableView: View {
                 }
                 .padding(.horizontal, 10)
                 .frame(width: colWidth, height: 48, alignment: .leading)
-                .background(isExcluded ? Color.white.opacity(0.02) : Color.white.opacity(0.04))
-                .border(Color.white.opacity(0.07), width: 0.5)
+                .background(isExcluded ? Color.primary.opacity(0.02) : Color.primary.opacity(0.04))
+                .border(Color.primary.opacity(0.07), width: 0.5)
             }
         }
     }
@@ -380,9 +380,9 @@ struct PreviewTableView: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(Color.white.opacity(0.04))
+                        .background(Color.primary.opacity(0.04))
                         .cornerRadius(7)
-                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                     }
                     .menuStyle(.borderlessButton)
                 }
@@ -430,9 +430,9 @@ struct PreviewTableView: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(Color.white.opacity(0.04))
+                        .background(Color.primary.opacity(0.04))
                         .cornerRadius(7)
-                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                     }
                     .menuStyle(.borderlessButton)
                 }
@@ -480,9 +480,9 @@ struct PreviewTableView: View {
                         }
                         .padding(.horizontal, 10)
                         .padding(.vertical, 7)
-                        .background(Color.white.opacity(0.04))
+                        .background(Color.primary.opacity(0.04))
                         .cornerRadius(7)
-                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        .overlay(RoundedRectangle(cornerRadius: 7).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                     }
                     .menuStyle(.borderlessButton)
                 }
@@ -567,12 +567,12 @@ private struct TypePill: View {
             .background(
                 isSelected
                     ? AnyShapeStyle(accentColor.gradient.opacity(0.9))
-                    : AnyShapeStyle(Color.white.opacity(0.04))
+                    : AnyShapeStyle(Color.primary.opacity(0.04))
             )
             .cornerRadius(20)
             .overlay(
                 RoundedRectangle(cornerRadius: 20)
-                    .stroke(isSelected ? accentColor.opacity(0.4) : Color.white.opacity(0.07), lineWidth: 1)
+                    .stroke(isSelected ? accentColor.opacity(0.4) : Color.primary.opacity(0.07), lineWidth: 1)
             )
             .shadow(color: isSelected ? accentColor.opacity(0.25) : .clear, radius: 4, y: 2)
         }
@@ -595,8 +595,8 @@ struct PreviewCellView: View {
             .truncationMode(.tail)
             .padding(.horizontal, 10)
             .frame(width: 148, height: 34, alignment: .leading)
-            .background(isExcluded ? Color.white.opacity(0.01) : (rowIndex % 2 == 0 ? Color.white.opacity(0.015) : Color.clear))
-            .border(Color.white.opacity(0.04), width: 0.5)
+            .background(isExcluded ? Color.primary.opacity(0.01) : (rowIndex % 2 == 0 ? Color.primary.opacity(0.015) : Color.clear))
+            .border(Color.primary.opacity(0.04), width: 0.5)
     }
 
     private var cellColor: Color {

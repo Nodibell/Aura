@@ -396,3 +396,14 @@ enum PreviewValue: Codable, Hashable, Identifiable {
         }
     }
 }
+
+extension AnalysisResult: Equatable {
+    static func == (lhs: AnalysisResult, rhs: AnalysisResult) -> Bool {
+        lhs.targetColumn == rhs.targetColumn &&
+        lhs.rowCount == rhs.rowCount &&
+        lhs.colCount == rhs.colCount &&
+        lhs.metrics.score == rhs.metrics.score &&
+        lhs.summary == rhs.summary
+    }
+}
+

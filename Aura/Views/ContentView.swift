@@ -22,6 +22,12 @@ struct ContentView: View {
     @State private var selectedTargetName = ""
     @AppStorage("Aura_hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var showOnboarding = false
+    @State private var showDatabaseSheet = false
+    @State private var showSchedulerSheet = false
+    @State private var currentHistoryItemId: UUID? = nil
+    @State private var showMergeSheet = false
+    @State private var mergeFile1Path = ""
+    @State private var mergeFile2Path = ""
 
     /// Holds all user configuration from the Preview screen (type, excluded rows, time col)
     @State private var analysisConfig: AnalysisConfig = AnalysisConfig()
@@ -31,6 +37,17 @@ struct ContentView: View {
     
     @State private var progressFraction: Double = 0.0
     @State private var progressMessage: String = ""
+    
+    @AppStorage("Aura_Appearance") private var appearanceMode = "System"
+    
+    struct ProgressStage: Identifiable, Equatable {
+        let id = UUID()
+        let message: String
+        let elapsed: Double
+    }
+    @State private var completedStages: [ProgressStage] = []
+    @State private var currentStageMessage: String = ""
+    @State private var currentStageStartTime: Date = Date()
 
     @State private var chatViewModel = ChatViewModel()
     private let ollamaStatus = OllamaStatusChecker.shared
@@ -108,7 +125,25 @@ struct ContentView: View {
                 }
             }
         }
-        .colorScheme(.dark)
+        .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
+        .background {
+            Group {
+                Button("") {
+                    runEDA()
+                }
+                .keyboardShortcut("r", modifiers: .command)
+                
+                Button("") {
+                    let pathOrURL = selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !pathOrURL.isEmpty {
+                        fetchPreview(for: pathOrURL)
+                    }
+                }
+                .keyboardShortcut(.return, modifiers: .command)
+            }
+            .opacity(0)
+            .frame(width: 0, height: 0)
+        }
         .alert("Rename Analysis", isPresented: $showRenameAlert) {
             TextField("Name", text: $renameText)
             Button("Cancel", role: .cancel) { }
@@ -156,6 +191,39 @@ struct ContentView: View {
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(isPresented: $showOnboarding)
+        }
+        .sheet(isPresented: $showDatabaseSheet) {
+            DatabaseConnectionSheet(
+                isPresented: $showDatabaseSheet,
+                onImportSuccess: { csvPath, rowCount, columns in
+                    self.fileDetails = "Database Query (\(rowCount) rows)"
+                    self.selectedFileURL = URL(fileURLWithPath: csvPath)
+                    self.datasetURLInput = ""
+                    self.analysisConfig = AnalysisConfig()
+                    self.analysisConfig.trainFilePath = csvPath
+                    self.trainColumns = columns
+                    fetchPreview(for: csvPath)
+                }
+            )
+        }
+        .sheet(isPresented: $showSchedulerSheet) {
+            AnalysisSchedulerSheet(
+                isPresented: $showSchedulerSheet,
+                currentDatasetPath: analysisConfig.trainFilePath,
+                currentTargetColumn: analysisConfig.targetColumn.isEmpty ? nil : analysisConfig.targetColumn,
+                currentDatasetType: analysisConfig.datasetType,
+                currentConfig: analysisConfig
+            )
+        }
+        .sheet(isPresented: $showMergeSheet) {
+            FileMergeSheet(
+                file1Path: mergeFile1Path,
+                file2Path: mergeFile2Path,
+                isPresented: $showMergeSheet,
+                onMergeCompleted: { mergedPath in
+                    loadDroppedFile(URL(fileURLWithPath: mergedPath))
+                }
+            )
         }
         .onAppear {
             if !hasSeenOnboarding {
@@ -231,6 +299,11 @@ struct ContentView: View {
                                 } label: {
                                     Label("Paste Dataset URL...", systemImage: "link.badge.plus")
                                 }
+                                Button {
+                                    showDatabaseSheet = true
+                                } label: {
+                                    Label("Import from Database...", systemImage: "server.rack")
+                                }
                             } label: {
                                 HStack(spacing: 4) {
                                     Image(systemName: "square.and.arrow.down.on.square")
@@ -271,9 +344,9 @@ struct ContentView: View {
                                     .buttonStyle(.plain)
                                 }
                                 .padding(10)
-                                .background(Color.white.opacity(0.02))
+                                .background(Color.primary.opacity(0.02))
                                 .cornerRadius(10)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06)))
+                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
                             } else {
                                 VStack(spacing: 10) {
                                     Text("No test dataset selected")
@@ -338,19 +411,27 @@ struct ContentView: View {
                                     Menu {
                                         Button("Auto-detect target") {
                                             analysisConfig.targetColumn = ""
+                                            analysisConfig.taskTypeOverride = .auto
+                                        }
+                                        Button("None (Run Clustering)") {
+                                            analysisConfig.targetColumn = ""
+                                            analysisConfig.taskTypeOverride = .clustering
                                         }
                                         Divider()
                                         ForEach(columns, id: \.self) { col in
                                             Button(col) {
                                                 analysisConfig.targetColumn = col
                                                 analysisConfig.excludedColumns.remove(col)
+                                                if analysisConfig.taskTypeOverride == .clustering {
+                                                    analysisConfig.taskTypeOverride = .auto
+                                                }
                                             }
                                         }
                                     } label: {
                                         HStack {
-                                            Text(analysisConfig.targetColumn.isEmpty ? "Auto-detect target" : analysisConfig.targetColumn)
+                                            Text(analysisConfig.taskTypeOverride == .clustering ? "None (Clustering)" : (analysisConfig.targetColumn.isEmpty ? "Auto-detect target" : analysisConfig.targetColumn))
                                                 .font(.system(size: 12))
-                                                .foregroundColor(analysisConfig.targetColumn.isEmpty ? .secondary : .primary)
+                                                .foregroundColor((analysisConfig.targetColumn.isEmpty && analysisConfig.taskTypeOverride != .clustering) ? .secondary : .primary)
                                                 .lineLimit(1)
                                             Spacer()
                                             Image(systemName: "chevron.up.chevron.down")
@@ -359,7 +440,7 @@ struct ContentView: View {
                                         }
                                         .padding(.horizontal, 10)
                                         .padding(.vertical, 6)
-                                        .background(Color.white.opacity(0.03))
+                                        .background(Color.primary.opacity(0.03))
                                         .cornerRadius(6)
                                         .contentShape(Rectangle())
                                     }
@@ -371,7 +452,7 @@ struct ContentView: View {
                                     .font(.system(size: 12))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
-                                    .background(Color.white.opacity(0.03))
+                                    .background(Color.primary.opacity(0.03))
                                     .cornerRadius(6)
                                     .disabled(true)
                             }
@@ -400,7 +481,7 @@ struct ContentView: View {
                         .padding(.vertical, 11)
                         .background(
                             (cannotRun || isAnalyzing || isPreloading)
-                            ? AnyShapeStyle(Color.white.opacity(0.05))
+                            ? AnyShapeStyle(Color.primary.opacity(0.05))
                             : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
                         )
                         .cornerRadius(8)
@@ -430,7 +511,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                             
                             Button { loadSampleDataset(named: "iris.csv") } label: {
                                 HStack {
@@ -449,7 +530,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                             
                             Button { loadSampleDataset(named: "airline_passengers.csv") } label: {
                                 HStack {
@@ -468,7 +549,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                             
                             Button { loadSampleDataset(named: "movie_reviews.csv") } label: {
                                 HStack {
@@ -487,7 +568,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                             
                             Button { loadSampleDataset(named: "mnist_mini.npz") } label: {
                                 HStack {
@@ -506,7 +587,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                             
                             Button { loadSampleDataset(named: "drone_dataset") } label: {
                                 HStack {
@@ -595,7 +676,7 @@ struct ContentView: View {
                                     }
                                     
                                     if item.id != historyService.items.prefix(4).last?.id {
-                                        Divider().background(Color.white.opacity(0.05)).padding(.horizontal, 8)
+                                        Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                                     }
                                 }
                             }
@@ -607,7 +688,7 @@ struct ContentView: View {
             
             // 5. Sidebar Footer Panel pinned to bottom
             VStack(spacing: 10) {
-                Divider().background(Color.white.opacity(0.06))
+                Divider().background(Color.primary.opacity(0.06))
                 
                 HStack(spacing: 6) {
                     Circle()
@@ -636,6 +717,22 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                
+                Button {
+                    showSchedulerSheet = true
+                } label: {
+                    HStack {
+                        Image(systemName: "clock.fill")
+                        Text("Manage Schedules...")
+                        Spacer()
+                    }
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
             .padding(.top, 10)
             .padding(.bottom, 12)
@@ -653,7 +750,7 @@ struct ContentView: View {
                     title: progressMessage.isEmpty ? "Running analysis pipeline…" : progressMessage,
                     subtitle: "Fitting ML models and generating charts…",
                     fraction: progressFraction,
-                    onCancel: { PythonRunner.shared.cancelActiveAnalysis() }
+                    onCancel: { Task { await PythonRunner.shared.cancelActiveAnalysis() } }
                 )
 
             } else if isPreloading {
@@ -661,7 +758,7 @@ struct ContentView: View {
                     title: progressMessage.isEmpty ? "Loading dataset preview…" : progressMessage,
                     subtitle: "Downloading and parsing the file format…",
                     fraction: (progressFraction > 0.0 || !progressMessage.isEmpty) ? progressFraction : nil,
-                    onCancel: { PythonRunner.shared.cancelActiveAnalysis() }
+                    onCancel: { Task { await PythonRunner.shared.cancelActiveAnalysis() } }
                 )
 
             } else if let error = errorMessage {
@@ -676,6 +773,10 @@ struct ContentView: View {
                         Text("Correlations").tag("Correlations")
                         Text("Data").tag("Data")
                         Text("Cleaning").tag("Cleaning")
+                        Text("Diff").tag("Diff")
+                        if let res = result, res.taskType != "clustering" {
+                            Text("Predict").tag("Predict")
+                        }
                     }
                     .pickerStyle(.segmented)
                     .padding()
@@ -699,7 +800,7 @@ struct ContentView: View {
                                                     .font(.system(size: 10, weight: .semibold))
                                                     .padding(.horizontal, 10)
                                                     .padding(.vertical, 5)
-                                                    .background(selectedTargetName == targetName ? Color.purple : Color.white.opacity(0.05))
+                                                    .background(selectedTargetName == targetName ? Color.purple : Color.primary.opacity(0.05))
                                                     .foregroundColor(selectedTargetName == targetName ? .white : .secondary)
                                                     .cornerRadius(12)
                                             }
@@ -727,6 +828,9 @@ struct ContentView: View {
                                 onExportModelAndCode: { showModelExportSheet = true },
                                 onAskAI: { prompt in
                                     sendToChat(prompt)
+                                },
+                                onScheduleAnalysis: {
+                                    showSchedulerSheet = true
                                 }
                             )
                         case "Charts":
@@ -757,7 +861,7 @@ struct ContentView: View {
                                         .padding(.vertical, 8)
                                         Spacer()
                                     }
-                                    Divider().background(Color.white.opacity(0.06))
+                                    Divider().background(Color.primary.opacity(0.06))
                                 }
                                 
                                 let activePreview: FullTablePreview? = {
@@ -794,6 +898,19 @@ struct ContentView: View {
                                 onRunAnalysis: { runEDA() }
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case "Diff":
+                            AnalysisDiffView(
+                                currentResult: analysisResult,
+                                currentHistoryItemId: currentHistoryItemId
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        case "Predict":
+                            PredictionTabView(
+                                result: analysisResult.resultForTarget(selectedTargetName),
+                                csvPath: selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                config: analysisConfig
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
                         default:
                             Text("Select a tab")
                         }
@@ -820,8 +937,9 @@ struct ContentView: View {
 
             } else {
                 DragDropView(
-                    onFileDropped: { url in loadDroppedFile(url) },
+                    onFileDropped: { urls in handleDroppedFiles(urls) },
                     onSelectFileManually: { selectFileManually() },
+                    onImportFromDatabase: { showDatabaseSheet = true },
                     onURLSubmitted: { urlString in
                         datasetURLInput = urlString
                         selectedFileURL = nil
@@ -868,9 +986,9 @@ struct ContentView: View {
             .buttonStyle(.plain)
         }
         .padding(10)
-        .background(Color.white.opacity(0.02))
+        .background(Color.primary.opacity(0.02))
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.06)))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
     }
 
     private func loadingView(title: String, subtitle: String, fraction: Double? = nil, onCancel: (() -> Void)? = nil) -> some View {
@@ -881,6 +999,7 @@ struct ContentView: View {
                         .progressViewStyle(.linear)
                         .tint(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
                         .frame(width: 280)
+                    
                     
                     Text(String(format: "%.0f%%", fraction * 100))
                         .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -893,6 +1012,37 @@ struct ContentView: View {
             }
             Text(title).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary)
             Text(subtitle).font(.system(size: 11)).foregroundColor(.secondary)
+            
+            if !completedStages.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Completed Stages:")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(.primary)
+                    
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(completedStages) { stage in
+                                HStack(spacing: 8) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.green)
+                                        .font(.system(size: 11))
+                                    Text(stage.message)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Spacer()
+                                    Text(String(format: "%.1fs", stage.elapsed))
+                                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                                        .foregroundColor(.indigo)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 4)
+                    }
+                    .frame(height: min(CGFloat(completedStages.count) * 20, 100))
+                }
+                .frame(width: 280)
+                .padding(.top, 8)
+            }
             
             if let onCancel = onCancel {
                 Button(action: onCancel) {
@@ -969,7 +1119,7 @@ struct ContentView: View {
             .buttonStyle(.plain)
         }
         .padding(16)
-        .background(Color.white.opacity(0.02))
+        .background(Color.primary.opacity(0.02))
         .overlay(Divider(), alignment: .top)
     }
 
@@ -983,7 +1133,7 @@ struct ContentView: View {
         switch task.lowercased() {
         case "regression":        return "Reg"
         case "classification":    return "Clf"
-        case "time_series":       return "TS"
+        case "forecast":          return "FC"
         case "nlp":               return "NLP"
         case "image":             return "Img"
         case "object_detection":  return "Det"
@@ -995,7 +1145,7 @@ struct ContentView: View {
         switch task.lowercased() {
         case "regression":        return .purple
         case "classification":    return .indigo
-        case "time_series":       return .blue
+        case "forecast":          return .blue
         case "nlp":               return .green
         case "image":             return .orange
         case "object_detection":  return .red
@@ -1018,6 +1168,16 @@ struct ContentView: View {
     }
 
     // MARK: - File Handling
+
+    private func handleDroppedFiles(_ urls: [URL]) {
+        if urls.count == 2 {
+            self.mergeFile1Path = urls[0].path
+            self.mergeFile2Path = urls[1].path
+            self.showMergeSheet = true
+        } else if let first = urls.first {
+            loadDroppedFile(first)
+        }
+    }
 
     private func loadDroppedFile(_ url: URL) {
         selectedFileURL = url
@@ -1111,45 +1271,47 @@ struct ContentView: View {
             progressFraction = 0.0
             progressMessage = "Preparing preview..."
         }
-        PythonRunner.shared.runPreview(csvPathOrURL: pathOrURL, progress: { frac, msg in
-            DispatchQueue.main.async {
-                self.progressFraction = frac
-                self.progressMessage = msg
-            }
-        }) { response in
-            DispatchQueue.main.async {
-                withAnimation {
-                    self.isPreloading = false
-                    switch response {
-                    case .success(let previewData):
-                        self.previewResult = previewData
-                        if self.analysisConfig.trainFilePath == nil {
-                            self.analysisConfig.trainFilePath = previewData.localPath
-                        }
-                        if previewData.localPath == self.analysisConfig.trainFilePath {
-                            self.trainColumns = previewData.columns
-                        }
-                        if let inferred = previewData.inferredDatasetType,
-                           let type = DatasetType(rawValue: inferred) {
-                            self.analysisConfig.datasetType = type
-                        }
-                        
-                        // Automate test and validation pre-selection
-                        if let available = previewData.availableFiles {
-                            if self.analysisConfig.testFilePath == nil {
-                                if let testFile = available.first(where: { $0.lowercased().contains("test") }) {
-                                    self.analysisConfig.testFilePath = testFile
+        Task {
+            await PythonRunner.shared.runPreview(csvPathOrURL: pathOrURL, progress: { frac, msg in
+                DispatchQueue.main.async {
+                    self.progressFraction = frac
+                    self.progressMessage = msg
+                }
+            }) { response in
+                DispatchQueue.main.async {
+                    withAnimation {
+                        self.isPreloading = false
+                        switch response {
+                        case .success(let previewData):
+                            self.previewResult = previewData
+                            if self.analysisConfig.trainFilePath == nil {
+                                self.analysisConfig.trainFilePath = previewData.localPath
+                            }
+                            if previewData.localPath == self.analysisConfig.trainFilePath {
+                                self.trainColumns = previewData.columns
+                            }
+                            if let inferred = previewData.inferredDatasetType,
+                               let type = DatasetType(rawValue: inferred) {
+                                self.analysisConfig.datasetType = type
+                            }
+                            
+                            // Automate test and validation pre-selection
+                            if let available = previewData.availableFiles {
+                                if self.analysisConfig.testFilePath == nil {
+                                    if let testFile = available.first(where: { $0.lowercased().contains("test") }) {
+                                        self.analysisConfig.testFilePath = testFile
+                                    }
+                                }
+                                if self.analysisConfig.validationFilePath == nil {
+                                    if let valFile = available.first(where: { $0.lowercased().contains("val") || $0.lowercased().contains("valid") }) {
+                                        self.analysisConfig.validationFilePath = valFile
+                                    }
                                 }
                             }
-                            if self.analysisConfig.validationFilePath == nil {
-                                if let valFile = available.first(where: { $0.lowercased().contains("val") || $0.lowercased().contains("valid") }) {
-                                    self.analysisConfig.validationFilePath = valFile
-                                }
+                        case .failure(let error):
+                            if (error as NSError).code != -999 {
+                                self.errorMessage = error.localizedDescription
                             }
-                        }
-                    case .failure(let error):
-                        if (error as NSError).code != -999 {
-                            self.errorMessage = error.localizedDescription
                         }
                     }
                 }
@@ -1195,40 +1357,67 @@ struct ContentView: View {
             }
         }
 
+        // Reset timing stages
+        self.completedStages = []
+        self.currentStageMessage = ""
+        self.currentStageStartTime = Date()
+        
         let originalSource = selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
         
-        PythonRunner.shared.runAnalysis(
-            csvPath: csvPath,
-            targetColumn: targetParam,
-            config: finalConfig,
-            progress: { frac, msg in
-                Task { @MainActor in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        self.progressFraction = frac
-                        self.progressMessage = msg
+        Task {
+            await PythonRunner.shared.runAnalysis(
+                csvPath: csvPath,
+                targetColumn: targetParam,
+                config: finalConfig,
+                progress: { frac, msg in
+                    Task { @MainActor in
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            self.progressFraction = frac
+                            self.progressMessage = msg
+                            
+                            if self.currentStageMessage != msg {
+                                if !self.currentStageMessage.isEmpty {
+                                    let elapsed = Date().timeIntervalSince(self.currentStageStartTime)
+                                    let stage = ProgressStage(message: self.currentStageMessage, elapsed: elapsed)
+                                    if !self.completedStages.contains(where: { $0.message == stage.message }) {
+                                        self.completedStages.append(stage)
+                                    }
+                                }
+                                self.currentStageMessage = msg
+                                self.currentStageStartTime = Date()
+                            }
+                        }
                     }
                 }
-            }
-        ) { response in
-            DispatchQueue.main.async {
-                withAnimation {
-                    self.isAnalyzing = false
-                    switch response {
-                    case .success(let data):
-                        self.result = data
-                        if let targetsMap = data.targets, !targetsMap.isEmpty {
-                            self.selectedTargetName = targetsMap.keys.sorted().first ?? data.targetColumn
-                            self.analysisConfig.targetColumns = Array(targetsMap.keys).sorted()
-                        } else {
-                            self.selectedTargetName = data.targetColumn
-                            self.analysisConfig.targetColumn = data.targetColumn
+            ) { response in
+                DispatchQueue.main.async {
+                    withAnimation {
+                        if !self.currentStageMessage.isEmpty {
+                            let elapsed = Date().timeIntervalSince(self.currentStageStartTime)
+                            let stage = ProgressStage(message: self.currentStageMessage, elapsed: elapsed)
+                            if !self.completedStages.contains(where: { $0.message == stage.message }) {
+                                self.completedStages.append(stage)
+                            }
                         }
-                        self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
-                        self.chatViewModel.injectContext(data)
-                        if self.ollamaStatus.isAvailable { self.showAIPanel = true }
-                    case .failure(let error):
-                        if (error as NSError).code != -999 {
-                            self.errorMessage = error.localizedDescription
+                        self.isAnalyzing = false
+                        switch response {
+                        case .success(let data):
+                            self.result = data
+                            if let targetsMap = data.targets, !targetsMap.isEmpty {
+                                self.selectedTargetName = targetsMap.keys.sorted().first ?? data.targetColumn
+                                self.analysisConfig.targetColumns = Array(targetsMap.keys).sorted()
+                            } else {
+                                self.selectedTargetName = data.targetColumn
+                                self.analysisConfig.targetColumn = data.targetColumn
+                            }
+                            let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
+                            self.currentHistoryItemId = savedItem?.id
+                            self.chatViewModel.injectContext(data)
+                            if self.ollamaStatus.isAvailable { self.showAIPanel = true }
+                        case .failure(let error):
+                            if (error as NSError).code != -999 {
+                                self.errorMessage = error.localizedDescription
+                            }
                         }
                     }
                 }
@@ -1272,6 +1461,7 @@ struct ContentView: View {
             }
             if let loadedResult {
                 self.result = loadedResult
+                self.currentHistoryItemId = item.id
                 self.trainColumns = loadedResult.columns
                 self.chatViewModel.injectContext(loadedResult)
 
@@ -1345,11 +1535,11 @@ struct SidebarCard<Content: View>: View {
                 content
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.02))
+            .background(Color.primary.opacity(0.02))
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.white.opacity(0.04), lineWidth: 1)
+                    .stroke(Color.primary.opacity(0.04), lineWidth: 1)
             )
         }
         .padding(.horizontal, 16)

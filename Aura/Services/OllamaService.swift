@@ -44,13 +44,19 @@ struct OllamaMessageChunk: Decodable, Sendable {
 
 final class OllamaService: Sendable {
     static let shared = OllamaService()
-    private let baseURL = "http://localhost:11434"
+    
+    private var baseURL: String {
+        let saved = UserDefaults.standard.string(forKey: "Aura_OllamaBaseURL") ?? ""
+        return saved.isEmpty ? "http://localhost:11434" : saved
+    }
 
     // Check if Ollama is running
     func checkAvailability() async -> Bool {
         guard let url = URL(string: "\(baseURL)/api/tags") else { return false }
         do {
-            let (_, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 60
+            let (_, response) = try await URLSession.shared.data(for: request)
             let isAvailable = (response as? HTTPURLResponse)?.statusCode == 200
             await AppLogger.shared.info("Ollama availability checked. Active: \(isAvailable)", category: "Ollama")
             return isAvailable
@@ -64,7 +70,9 @@ final class OllamaService: Sendable {
     func listModels() async -> [OllamaModelInfo] {
         guard let url = URL(string: "\(baseURL)/api/tags") else { return [] }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 60
+            let (data, _) = try await URLSession.shared.data(for: request)
             let decoded = try JSONDecoder().decode(OllamaTagsResponse.self, from: data)
             await AppLogger.shared.info("Fetched \(decoded.models.count) installed models from Ollama.", category: "Ollama")
             return decoded.models
@@ -94,6 +102,7 @@ final class OllamaService: Sendable {
                 var request = URLRequest(url: url)
                 request.httpMethod = "POST"
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.timeoutInterval = 60
 
                 let body = OllamaChatRequest(
                     model: model,

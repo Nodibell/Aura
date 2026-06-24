@@ -2,8 +2,8 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, confusion_matrix
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from sklearn.model_selection import train_test_split
 from utils.helpers import print_progress, _export_model_and_code
@@ -178,7 +178,32 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             lr_preds = lr.predict(X_test)
             lr_acc = accuracy_score(y_test, lr_preds)
             
-            rf = RandomForestClassifier(n_estimators=100, max_depth=5, random_state=42, n_jobs=-1)
+            # 50-trial Optuna hyperparameter tuning for Random Forest (chronological split validation)
+            print_progress(0.66, "Tuning Time Series Random Forest with Optuna...")
+            import optuna
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            tuning_split_idx = int(len(X_train) * 0.8)
+            if tuning_split_idx >= 2:
+                tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
+                tuning_y_tr, tuning_y_val = y_train[:tuning_split_idx], y_train[tuning_split_idx:]
+                
+                def objective(trial):
+                    n_estimators = trial.suggest_int("n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("max_depth", 3, 10)
+                    clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                    clf.fit(tuning_X_tr, tuning_y_tr)
+                    preds = clf.predict(tuning_X_val)
+                    return accuracy_score(tuning_y_val, preds)
+                
+                study = optuna.create_study(direction="maximize")
+                study.optimize(objective, n_trials=50, timeout=8.0)
+                best_n = study.best_params.get("n_estimators", 100)
+                best_d = study.best_params.get("max_depth", 5)
+            else:
+                best_n, best_d = 100, 5
+                
+            rf = RandomForestClassifier(n_estimators=best_n, max_depth=best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_acc_rf = accuracy_score(y_test, rf_preds)
@@ -196,7 +221,7 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 
             models_compared = [
                 {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy"},
-                {"name": "Random Forest Classifier", "score": float(rf_acc_rf), "metric": "Accuracy"}
+                {"name": f"Random Forest Classifier (n={best_n}, d={best_d})", "score": float(rf_acc_rf), "metric": "Accuracy"}
             ]
             metrics = {
                 "model": best_model,
@@ -212,7 +237,32 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             lr_preds = lr.predict(X_test)
             lr_r2 = r2_score(y_test, lr_preds)
             
-            rf = RandomForestRegressor(n_estimators=100, max_depth=5, random_state=42, n_jobs=-1)
+            # 50-trial Optuna hyperparameter tuning for Random Forest (chronological split validation)
+            print_progress(0.66, "Tuning Time Series Random Forest with Optuna...")
+            import optuna
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            tuning_split_idx = int(len(X_train) * 0.8)
+            if tuning_split_idx >= 2:
+                tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
+                tuning_y_tr, tuning_y_val = y_train[:tuning_split_idx], y_train[tuning_split_idx:]
+                
+                def objective(trial):
+                    n_estimators = trial.suggest_int("n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("max_depth", 3, 10)
+                    reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                    reg.fit(tuning_X_tr, tuning_y_tr)
+                    preds = reg.predict(tuning_X_val)
+                    return r2_score(tuning_y_val, preds)
+                
+                study = optuna.create_study(direction="maximize")
+                study.optimize(objective, n_trials=50, timeout=8.0)
+                best_n = study.best_params.get("n_estimators", 100)
+                best_d = study.best_params.get("max_depth", 5)
+            else:
+                best_n, best_d = 100, 5
+                
+            rf = RandomForestRegressor(n_estimators=best_n, max_depth=best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_r2_rf = r2_score(y_test, rf_preds)

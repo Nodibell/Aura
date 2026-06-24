@@ -41,7 +41,7 @@ struct FullTableView: View {
         VStack(spacing: 0) {
             // ── Toolbar ──────────────────────────────────────────────────────
             toolbar
-            Divider().background(Color.white.opacity(0.06))
+            Divider().background(Color.primary.opacity(0.06))
 
             // ── Table (Sticky Header Layout) ─────────────────────────────────
             GeometryReader { geometry in
@@ -54,8 +54,8 @@ struct FullTableView: View {
                                 .font(.system(size: 10, weight: .bold, design: .rounded))
                                 .foregroundColor(.secondary.opacity(0.5))
                                 .frame(width: 42, height: 36, alignment: .center)
-                                .background(Color.white.opacity(0.04))
-                                .border(Color.white.opacity(0.06), width: 0.5)
+                                .background(Color.primary.opacity(0.04))
+                                .border(Color.primary.opacity(0.06), width: 0.5)
 
                             ForEach(preview.columns, id: \.self) { col in
                                 SortableHeaderCell(
@@ -86,8 +86,8 @@ struct FullTableView: View {
                                             .font(.system(size: 10, design: .monospaced))
                                             .foregroundColor(.secondary.opacity(0.4))
                                             .frame(width: 42, height: 32, alignment: .center)
-                                            .background(idx % 2 == 0 ? Color.white.opacity(0.015) : Color.clear)
-                                            .border(Color.white.opacity(0.04), width: 0.5)
+                                            .background(idx % 2 == 0 ? Color.primary.opacity(0.015) : Color.clear)
+                                            .border(Color.primary.opacity(0.04), width: 0.5)
 
                                         ForEach(0..<preview.columns.count, id: \.self) { colIdx in
                                             let val = colIdx < row.count ? row[colIdx] : ""
@@ -156,9 +156,9 @@ struct FullTableView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
-            .background(Color.white.opacity(0.04))
+            .background(Color.primary.opacity(0.04))
             .cornerRadius(8)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.white.opacity(0.07), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.07), lineWidth: 1))
             .frame(maxWidth: 260)
 
             Spacer()
@@ -211,8 +211,8 @@ private struct SortableHeaderCell: View {
             }
             .padding(.horizontal, 10)
             .frame(width: width, height: 36, alignment: .leading)
-            .background(isSorted ? Color.purple.opacity(0.08) : Color.white.opacity(0.04))
-            .border(Color.white.opacity(0.06), width: 0.5)
+            .background(isSorted ? Color.purple.opacity(0.08) : Color.primary.opacity(0.04))
+            .border(Color.primary.opacity(0.06), width: 0.5)
         }
         .buttonStyle(.plain)
         .help("Sort by \(title)")
@@ -234,8 +234,8 @@ private struct DataCellView: View {
             .truncationMode(.middle)
             .padding(.horizontal, 10)
             .frame(width: width, height: 32, alignment: .leading)
-            .background(rowIndex % 2 == 0 ? Color.white.opacity(0.015) : Color.clear)
-            .border(Color.white.opacity(0.04), width: 0.5)
+            .background(rowIndex % 2 == 0 ? Color.primary.opacity(0.015) : Color.clear)
+            .border(Color.primary.opacity(0.04), width: 0.5)
     }
 
     private var cellColor: Color {

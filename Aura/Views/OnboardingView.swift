@@ -244,16 +244,16 @@ struct OnboardingView: View {
             Spacer()
         }
         .padding(10)
-        .background(Color.white.opacity(0.01))
+        .background(Color.primary.opacity(0.01))
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.white.opacity(0.04), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.04), lineWidth: 1))
     }
     
     // MARK: - Bottom Panel
     
     private var bottomPanel: some View {
         VStack(spacing: 16) {
-            Divider().background(Color.white.opacity(0.06))
+            Divider().background(Color.primary.opacity(0.06))
             
             HStack {
                 // Page Indicator Dots
