@@ -102,5 +102,7 @@ def test_nlp_pipeline():
         # Predict on raw text
         test_sentences = ["This movie is outstanding and beautiful", "Terrible, boring waste of time"]
         preds = loaded["model"].predict(test_sentences)
+        if "label_encoder" in loaded and loaded["label_encoder"] is not None:
+            preds = loaded["label_encoder"].inverse_transform(preds)
         assert len(preds) == 2
         assert preds[0] in ["positive", "negative"]

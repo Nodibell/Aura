@@ -48,6 +48,14 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **PDF Report Compiler**: Standardized PDF report generation, compiling data profiles, visualizations, and local AI summaries.
 * **Clustering & Deep Learning Pipelines**: Added K-Means/DBSCAN clustering pipelines with PCA visualization, plus PyTorch tabular Neural Networks.
 
+### 9. Hardening, Optimization & UI Polish (New in v0.3.1)
+* **HDBSCAN Clustering**: Replaced standard DBSCAN with `HDBSCAN` in [clustering.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/clustering.py) to automatically determine cluster densities and avoid manual threshold settings, integrated with column mappings in [ChartsListView.swift](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/Views/ChartsListView.swift) for interactive drill-downs.
+* **PCA Image Squashing**: Compresses wide image arrays into 100 components using scikit-learn `Pipeline` and `PCA` inside the CV loop in [image.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/image.py) to optimize memory usage.
+* **Stepwise `pmdarima` Selection**: Automatically finds optimal $p, d, q$ ARIMA configurations using stepwise search in [timeseries.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/timeseries.py).
+* **Live Holt-Winters Forecasting**: Fully integrated Exponential Smoothing forecasting inside the interactive Live Inference prediction panel.
+* **Light Theme Report PDF**: Refactored HTML/PDF compiling engines in [ReportCompiler.swift](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/Services/ReportCompiler.swift) to dynamically render contrast-optimized light mode layouts for printed PDFs and premium dark mode interfaces for HTML exports.
+* **Interactive Chart Legend Selection**: Allows toggling and filtering data series dynamically in the SwiftUI SVD projection charts in real time.
+
 ---
 
 ## 🏗️ Architecture
