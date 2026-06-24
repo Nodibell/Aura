@@ -71,7 +71,7 @@ struct OllamaSetupView: View {
                 } label: {
                     if isChecking {
                         HStack(spacing: 6) {
-                            ProgressView().controlSize(.mini)
+                            NativeProgressView(controlSize: .mini)
                             Text("Checking...")
                         }
                     } else {

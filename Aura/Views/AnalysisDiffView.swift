@@ -57,7 +57,7 @@ struct AnalysisDiffView: View {
                 
                 if isLoadingCompare {
                     VStack {
-                        ProgressView()
+                        NativeProgressView(controlSize: .regular)
                         Text("Loading run details...")
                             .font(.caption)
                             .foregroundColor(.secondary)

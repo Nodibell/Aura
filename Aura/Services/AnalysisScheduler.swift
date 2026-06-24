@@ -59,6 +59,12 @@ final class AnalysisScheduler: @unchecked Sendable {
         }
     }
     
+    private func logWarning(_ message: String, category: String = "AnalysisScheduler") {
+        Task { @MainActor in
+            AppLogger.shared.warning(message, category: category)
+        }
+    }
+    
     private init() {
         loadTasks()
         startTimer()
@@ -294,7 +300,7 @@ final class AnalysisScheduler: @unchecked Sendable {
     private func requestNotificationPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if let error = error {
-                self.logError("Notification permission error: \(error.localizedDescription)")
+                self.logWarning("Notification permission not granted: \(error.localizedDescription)")
             } else {
                 self.logInfo("Notification permission status: \(granted)")
             }

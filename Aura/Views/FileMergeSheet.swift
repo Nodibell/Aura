@@ -50,7 +50,7 @@ struct FileMergeSheet: View {
             
             if isLoadingColumns {
                 VStack(spacing: 12) {
-                    ProgressView()
+                    NativeProgressView(controlSize: .regular)
                     Text("Loading columns from files...")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -146,7 +146,7 @@ struct FileMergeSheet: View {
                         
                         if isMerging {
                             HStack(spacing: 8) {
-                                ProgressView().controlSize(.small)
+                                NativeProgressView(controlSize: .small)
                                 Text(statusMessage.isEmpty ? "Merging tables..." : statusMessage)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
@@ -172,7 +172,7 @@ struct FileMergeSheet: View {
                 } label: {
                     HStack(spacing: 6) {
                         if isMerging {
-                            ProgressView().controlSize(.small)
+                            NativeProgressView(controlSize: .small)
                         } else {
                             Image(systemName: "plus.square.on.square")
                         }

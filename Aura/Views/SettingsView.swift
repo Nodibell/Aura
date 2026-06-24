@@ -81,8 +81,7 @@ struct SettingsView: View {
                     
                     if isChecking {
                         HStack(spacing: 8) {
-                            ProgressView()
-                                .controlSize(.small)
+                            NativeProgressView(controlSize: .small)
                             Text("Testing python environment...")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)

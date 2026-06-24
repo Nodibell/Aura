@@ -83,7 +83,7 @@ struct DatabaseConnectionSheet: View {
                             .foregroundColor(.secondary)
                         TextField("e.g. Production_Postgres", text: $connectionName)
                             .textFieldStyle(.roundedBorder)
-                            .onChange(of: connectionName) {
+                            .onChange(of: connectionName, initial: false) {
                                 loadConnectionFromKeychain()
                             }
                     }
@@ -101,7 +101,7 @@ struct DatabaseConnectionSheet: View {
                             }
                         }
                         .pickerStyle(.segmented)
-                        .onChange(of: dbType) { oldValue, newValue in
+                        .onChange(of: dbType, initial: false) { oldValue, newValue in
                             port = newValue.defaultPort
                             loadConnectionFromKeychain()
                         }
@@ -186,8 +186,7 @@ struct DatabaseConnectionSheet: View {
                 Spacer()
                 
                 if isExecuting {
-                    ProgressView()
-                        .scaleEffect(0.8)
+                    NativeProgressView(controlSize: .small)
                         .padding(.horizontal, 10)
                 } else {
                     Button(action: testQuery) {

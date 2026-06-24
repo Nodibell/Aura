@@ -468,7 +468,7 @@ struct ContentView: View {
                     Button(action: runEDA) {
                         HStack(spacing: 6) {
                             if isAnalyzing {
-                                ProgressView().controlSize(.small).padding(.trailing, 2)
+                                NativeProgressView(controlSize: .small).padding(.trailing, 2)
                             } else {
                                 Image(systemName: "play.fill")
                                     .font(.system(size: 11))
@@ -907,7 +907,7 @@ struct ContentView: View {
                         case "Predict":
                             PredictionTabView(
                                 result: analysisResult.resultForTarget(selectedTargetName),
-                                csvPath: selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                csvPath: analysisConfig.trainFilePath ?? previewResult?.localPath ?? selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
                                 config: analysisConfig
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1007,7 +1007,7 @@ struct ContentView: View {
                 }
                 .padding(.bottom, 8)
             } else {
-                ProgressView().scaleEffect(1.4)
+                NativeProgressView(controlSize: .regular)
                     .padding(.bottom, 8)
             }
             Text(title).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary)
@@ -1131,12 +1131,13 @@ struct ContentView: View {
 
     private func getTaskShortLabel(_ task: String) -> String {
         switch task.lowercased() {
-        case "regression":        return "Reg"
-        case "classification":    return "Clf"
-        case "forecast":          return "FC"
+        case "regression":        return "Regr"
+        case "classification":    return "Clsf"
+        case "clustering":        return "Clst"
+        case "forecast":          return "TSFC"
         case "nlp":               return "NLP"
         case "image":             return "Img"
-        case "object_detection":  return "Det"
+        case "object_detection":  return "ObDt"
         default: return task
         }
     }
@@ -1149,6 +1150,7 @@ struct ContentView: View {
         case "nlp":               return .green
         case "image":             return .orange
         case "object_detection":  return .red
+        case "clustering":        return .yellow
         default: return .secondary
         }
     }

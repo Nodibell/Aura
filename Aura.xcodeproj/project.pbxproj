@@ -52,6 +52,7 @@
 		954B4108D0D5DCB423F88591 /* AnalysisScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666FED69100D6A979729EF3E /* AnalysisScheduler.swift */; };
 		9A6F073BB849AE6DCE038137 /* image.py in Resources */ = {isa = PBXBuildFile; fileRef = D1EAB7206F26FEE6CA526B55 /* image.py */; };
 		9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */; };
+		677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF490890 /* NativeProgressView.swift */; };
 		9C799893B31E1D3DBA950DAD /* profiler.py in Resources */ = {isa = PBXBuildFile; fileRef = BFE0A9FA6A6821EF8D5A1728 /* profiler.py */; };
 		9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E79BF77BFF47CAD77B65137 /* ContentView.swift */; };
 		A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */; };
@@ -157,6 +158,7 @@
 		D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D94A9C43791F93BBFF10727E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
 		DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */ = {isa = PBXFileReference; path = "deep_learning.cpython-311.pyc"; sourceTree = "<group>"; };
+		9ED2F02669746860CF490890 /* NativeProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProgressView.swift; sourceTree = "<group>"; };
 		E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelExportSheet.swift; sourceTree = "<group>"; };
 		E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullTableView.swift; sourceTree = "<group>"; };
 		E3FBB74FD6B5716449BF2ABB /* nlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = nlp.py; sourceTree = "<group>"; };
@@ -230,6 +232,7 @@
 				401068CD37570487457B1D3C /* ExportReportSheet.swift */,
 				01C2636FCB70D8699271BDF3 /* FileMergeSheet.swift */,
 				E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */,
+				9ED2F02669746860CF490890 /* NativeProgressView.swift */,
 				E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */,
 				16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */,
 				0709C15E39493935E745814C /* OnboardingView.swift */,
@@ -478,6 +481,7 @@
 				49724A22ABE69218A52C185A /* HTMLToPDFConverter.swift in Sources */,
 				6D9368CDB7207045A93E27A7 /* HistoryItem.swift in Sources */,
 				A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */,
+				677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */,
 				C8CDF47496C18A6FD7467217 /* ModelExportSheet.swift in Sources */,
 				085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */,
 				0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */,

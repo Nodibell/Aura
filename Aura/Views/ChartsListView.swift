@@ -94,11 +94,14 @@ struct ChartsListView: View {
         if lowerTitle.contains("target class") || lowerTitle.contains("target value") || lowerTitle.contains("predictions vs actual") {
             return targetColumn
         }
-        if lowerTitle.contains("k-means cluster") {
+        if lowerTitle.contains("k-means") || lowerTitle.contains("kmeans") {
             return "K-Means Cluster"
         }
-        if lowerTitle.contains("dbscan cluster") {
+        if lowerTitle.contains("dbscan") {
             return "DBSCAN Cluster"
+        }
+        if lowerTitle.contains("hdbscan") {
+            return "HDBSCAN Cluster"
         }
         
         // Check if any column name is in the title
@@ -912,6 +915,12 @@ struct LineChartView: View {
 
 struct ScatterChartView: View {
     let config: ChartConfig
+    @State private var visibleSeries: Set<String> = []
+
+    private func resetVisibleSeries() {
+        let unique = Set(config.data.compactMap { $0.series })
+        visibleSeries = unique
+    }
 
     var body: some View {
         let xValues = config.data.compactMap { $0.xNum }
@@ -921,70 +930,138 @@ struct ScatterChartView: View {
                                   config.title.lowercased().contains("actual vs predicted")
         let isResidualPlot = config.title.lowercased().contains("residual")
         
-        let hasMultipleSeries = config.data.contains(where: { $0.series != nil })
-
-        let baseChart = Chart {
-            // Perfect prediction reference line (y=x) ONLY for prediction comparisons
-            if isPredictedVsActual, let minX = xValues.min(), let maxX = xValues.max(),
-                                    let minY = yValues.min(), let maxY = yValues.max() {
-                let idealMin = min(minX, minY)
-                let idealMax = max(maxX, maxY)
-                
-                LineMark(x: .value("Ideal", idealMin), y: .value("Ideal", idealMin))
-                    .foregroundStyle(Color.green.opacity(0.4))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-                LineMark(x: .value("Ideal", idealMax), y: .value("Ideal", idealMax))
-                    .foregroundStyle(Color.green.opacity(0.4))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+        let uniqueSeries = Set(config.data.compactMap { $0.series })
+        let hasMultipleSeries = uniqueSeries.count > 1
+        
+        let filteredData = config.data.filter { point in
+            if let series = point.series {
+                return visibleSeries.contains(series)
             }
+            return true
+        }
 
-            // Zero-reference line (y=0) for residual plots
-            if isResidualPlot {
-                RuleMark(y: .value("Zero Reference", 0.0))
-                    .foregroundStyle(Color.red.opacity(0.4))
-                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
-            }
-
-            ForEach(config.data) { point in
-                if let xVal = point.xVal {
-                    PointMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
-                        .symbolSize(30)
-                } else if let xNum = point.xNum {
-                    PointMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
-                        .symbolSize(28)
+        VStack(alignment: .leading, spacing: 10) {
+            if hasMultipleSeries {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Button(action: {
+                            if visibleSeries.count == uniqueSeries.count {
+                                visibleSeries.removeAll()
+                            } else {
+                                visibleSeries = uniqueSeries
+                            }
+                        }) {
+                            Text(visibleSeries.count == uniqueSeries.count ? "Deselect All" : "Select All")
+                                .font(.caption.bold())
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.primary.opacity(0.08))
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        ForEach(Array(uniqueSeries).sorted(), id: \.self) { series in
+                            let isSelected = visibleSeries.contains(series)
+                            Button(action: {
+                                if isSelected {
+                                    visibleSeries.remove(series)
+                                } else {
+                                    visibleSeries.insert(series)
+                                }
+                            }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                                        .foregroundColor(isSelected ? .purple : .secondary)
+                                    Text(series)
+                                        .foregroundColor(isSelected ? .primary : .secondary)
+                                }
+                                .font(.caption)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 6)
+                                        .stroke(isSelected ? Color.purple.opacity(0.5) : Color.primary.opacity(0.1), lineWidth: 1)
+                                        .background(isSelected ? Color.purple.opacity(0.1) : Color.clear)
+                                )
+                                .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
                 }
             }
-        }
-        .chartXAxis {
-            AxisMarks()
-        }
-        .chartYAxis {
-            AxisMarks(position: .leading)
-        }
-        .chartLegend(hasMultipleSeries ? .visible : .hidden)
+            
+            let baseChart = Chart {
+                // Perfect prediction reference line (y=x) ONLY for prediction comparisons
+                if isPredictedVsActual, let minX = xValues.min(), let maxX = xValues.max(),
+                                        let minY = yValues.min(), let maxY = yValues.max() {
+                    let idealMin = min(minX, minY)
+                    let idealMax = max(maxX, maxY)
+                    
+                    LineMark(x: .value("Ideal", idealMin), y: .value("Ideal", idealMin))
+                        .foregroundStyle(Color.green.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                    LineMark(x: .value("Ideal", idealMax), y: .value("Ideal", idealMax))
+                        .foregroundStyle(Color.green.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                }
 
-        // Apply strict scale bounds dynamically
-        if xValues.isEmpty {
-            // Categorical X-Axis
-            baseChart
-                .chartYScale(domain: .automatic(includesZero: false))
-        } else {
-            // Numeric X-Axis: Calculate exact bounds with a 5% visual padding
-            let minX = xValues.min() ?? 0
-            let maxX = xValues.max() ?? 1
-            let minY = yValues.min() ?? 0
-            let maxY = yValues.max() ?? 1
-            
-            let xPad = max((maxX - minX) * 0.1, 0.1)
-            let yPad = max((maxY - minY) * 0.1, 0.1)
-            
-            baseChart
-                .chartXScale(domain: (minX - xPad)...(maxX + xPad))
-                .chartYScale(domain: (minY - yPad)...(maxY + yPad))
+                // Zero-reference line (y=0) for residual plots
+                if isResidualPlot {
+                    RuleMark(y: .value("Zero Reference", 0.0))
+                        .foregroundStyle(Color.red.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                }
+
+                ForEach(filteredData) { point in
+                    if let xVal = point.xVal {
+                        PointMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                            .foregroundStyle(by: .value("Series", point.series ?? "Value"))
+                            .symbolSize(30)
+                    } else if let xNum = point.xNum {
+                        PointMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                            .foregroundStyle(by: .value("Series", point.series ?? "Value"))
+                            .symbolSize(28)
+                    }
+                }
+            }
+            .chartXAxis {
+                AxisMarks()
+            }
+            .chartYAxis {
+                AxisMarks(position: .leading)
+            }
+            .chartLegend(hasMultipleSeries ? .visible : .hidden)
+
+            // Apply scale bounds dynamically
+            if xValues.isEmpty {
+                // Categorical X-Axis
+                baseChart
+                    .chartYScale(domain: .automatic(includesZero: false))
+            } else {
+                // Numeric X-Axis: Calculate exact bounds with a 10% visual padding
+                let minX = xValues.min() ?? 0
+                let maxX = xValues.max() ?? 1
+                let minY = yValues.min() ?? 0
+                let maxY = yValues.max() ?? 1
+                
+                let xPad = max((maxX - minX) * 0.1, 0.1)
+                let yPad = max((maxY - minY) * 0.1, 0.1)
+                
+                baseChart
+                    .chartXScale(domain: (minX - xPad)...(maxX + xPad))
+                    .chartYScale(domain: (minY - yPad)...(maxY + yPad))
+            }
         }
-}
+        .onAppear {
+            resetVisibleSeries()
+        }
+        .onChange(of: config.id, initial: false) {
+            resetVisibleSeries()
+        }
+    }
 }
 
 // MARK: - SHAP Beeswarm Chart

@@ -737,7 +737,17 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             n_splits = min(5, min_class_size)
             if n_splits >= 2:
                 cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-                model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
+                n_features = X_flat.shape[1]
+                if n_features > 100:
+                    from sklearn.pipeline import Pipeline
+                    from sklearn.decomposition import PCA
+                    n_comps = min(100, N, n_features)
+                    model = Pipeline([
+                        ('pca', PCA(n_components=n_comps, random_state=42)),
+                        ('lr', LogisticRegression(max_iter=500, random_state=42, solver='lbfgs'))
+                    ])
+                else:
+                    model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
                 
                 dummy = DummyClassifier(strategy="most_frequent")
                 dummy.fit(X_flat, y_encoded)
@@ -768,7 +778,17 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                     "values": [[int(val) for val in row] for row in raw_cm]
                 }
             else:
-                model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
+                n_features = X_flat.shape[1]
+                if n_features > 100:
+                    from sklearn.pipeline import Pipeline
+                    from sklearn.decomposition import PCA
+                    n_comps = min(100, N, n_features)
+                    model = Pipeline([
+                        ('pca', PCA(n_components=n_comps, random_state=42)),
+                        ('lr', LogisticRegression(max_iter=500, random_state=42, solver='lbfgs'))
+                    ])
+                else:
+                    model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
                 model.fit(X_flat, y_encoded)
                 if X_test_images is not None:
                     X_test_flat = X_test_images.reshape((len(X_test_images), int(np.prod(X_test_images.shape[1:]))))

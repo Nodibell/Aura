@@ -7,7 +7,7 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.cluster import KMeans, DBSCAN
+from sklearn.cluster import KMeans, HDBSCAN
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
@@ -105,10 +105,9 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
         if sample_size >= 10:
             kmeans_silhouette = float(silhouette_score(X_processed[indices], kmeans_labels[indices]))
             
-        print_progress(0.70, "Running DBSCAN clustering...")
-        # 4. DBSCAN clustering
-        # We standard scale X_processed to make default eps=0.5 reasonable
-        dbscan = DBSCAN(eps=0.5, min_samples=5)
+        print_progress(0.70, "Running HDBSCAN clustering...")
+        # 4. HDBSCAN clustering
+        dbscan = HDBSCAN(min_cluster_size=5, min_samples=5)
         dbscan_labels = dbscan.fit_predict(X_processed)
         
         n_dbscan_clusters = len(set(dbscan_labels)) - (1 if -1 in dbscan_labels else 0)
@@ -146,7 +145,7 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
                 db_labels_str.append("Noise")
             else:
                 db_labels_str.append(f"Cluster {l}")
-        df_display["DBSCAN Cluster"] = db_labels_str
+        df_display["HDBSCAN Cluster"] = db_labels_str
         
         preview_df = df_display.head(500).fillna("").astype(str)
         updated_full_preview = {
@@ -176,7 +175,7 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
             "data": pca_km_data[:2000] # Cap points for performance
         })
         
-        # PCA colored by DBSCAN
+        # PCA colored by HDBSCAN
         pca_db_data = []
         for i in range(len(X_pca)):
             series_name = "Noise" if dbscan_labels[i] == -1 else f"Cluster {dbscan_labels[i]}"
@@ -188,7 +187,7 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
             })
         charts.append({
             "type": "scatter",
-            "title": "PCA 2D Cluster Projection (DBSCAN)",
+            "title": "PCA 2D Cluster Projection (HDBSCAN)",
             "x_label": "Principal Component 1",
             "y_label": "Principal Component 2",
             "data": pca_db_data[:2000]
@@ -223,7 +222,7 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
                 })
             charts.append({
                 "type": "scatter",
-                "title": "t-SNE 2D Cluster Projection (DBSCAN)",
+                "title": "t-SNE 2D Cluster Projection (HDBSCAN)",
                 "x_label": "t-SNE Component 1",
                 "y_label": "t-SNE Component 2",
                 "data": tsne_db_data[:2000]
@@ -249,27 +248,27 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
         summary += f"- **Rows:** {row_count:,} | **Columns:** {col_count:,}\n"
         summary += f"- **K-Means configuration:** Inferred optimal clusters `k = {best_k}`\n"
         summary += f"- **K-Means Silhouette Score:** `{kmeans_silhouette:.4f}`\n"
-        summary += f"- **DBSCAN configuration:** Found `{n_dbscan_clusters}` clusters, `{n_noise_points}` noise points\n"
+        summary += f"- **HDBSCAN configuration:** Found `{n_dbscan_clusters}` clusters, `{n_noise_points}` noise points\n"
         if n_dbscan_clusters >= 2:
-            summary += f"- **DBSCAN Silhouette Score:** `{dbscan_silhouette:.4f}`\n"
+            summary += f"- **HDBSCAN Silhouette Score:** `{dbscan_silhouette:.4f}`\n"
         else:
-            summary += f"- **DBSCAN Silhouette Score:** N/A (fewer than 2 clusters found)\n"
+            summary += f"- **HDBSCAN Silhouette Score:** N/A (fewer than 2 clusters found)\n"
             
         # Compile model metrics structure
         metrics = {
-            "model": "K-Means + DBSCAN Clustering",
+            "model": "K-Means + HDBSCAN Clustering",
             "score_type": "Silhouette Score",
             "score": kmeans_silhouette,
             "additional_metrics": {
                 "Optimal K": float(best_k),
-                "DBSCAN Clusters": float(n_dbscan_clusters),
-                "DBSCAN Noise": float(n_noise_points)
+                "HDBSCAN Clusters": float(n_dbscan_clusters),
+                "HDBSCAN Noise": float(n_noise_points)
             }
         }
         
         models_compared = [
             {"name": f"K-Means (k={best_k})", "score": kmeans_silhouette, "metric": "Silhouette Score"},
-            {"name": "DBSCAN", "score": dbscan_silhouette, "metric": "Silhouette Score"}
+            {"name": "HDBSCAN", "score": dbscan_silhouette, "metric": "Silhouette Score"}
         ]
         
         return {

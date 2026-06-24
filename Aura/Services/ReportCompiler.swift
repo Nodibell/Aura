@@ -148,74 +148,15 @@ struct ReportCompiler {
         return md
     }
 
-    static func buildHTMLReport(result: AnalysisResult, narrative: String?, includeTable: Bool = false) -> String {
+    static func buildHTMLReport(result: AnalysisResult, narrative: String?, includeTable: Bool = false, isForPDF: Bool = false) -> String {
         let targetColEscaped = result.targetColumn.replacingOccurrences(of: "\"", with: "\\\"")
         
         let modelsComparedData = try? JSONEncoder().encode(result.modelsCompared)
         let modelsComparedJSON = modelsComparedData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
         
-        var shapImportanceJSON = "[]"
-        if let importanceChart = result.charts.first(where: { $0.title.lowercased().contains("importance") }) {
-            let chartPoints = importanceChart.data.map { pt -> [String: Any] in
-                return ["x_val": pt.xVal ?? "", "y": pt.y]
-            }
-            if let data = try? JSONSerialization.data(withJSONObject: chartPoints),
-               let jsonStr = String(data: data, encoding: .utf8) {
-                shapImportanceJSON = jsonStr
-            }
-        }
-        
-        var beeswarmJSON = "[]"
-        if let beeswarmChart = result.charts.first(where: { $0.type == "shap_beeswarm" }) {
-            let chartPoints = beeswarmChart.data.map { pt -> [String: Any] in
-                return ["x_val": pt.xVal ?? "", "x_num": pt.xNum ?? 0.0, "y": pt.y]
-            }
-            if let data = try? JSONSerialization.data(withJSONObject: chartPoints),
-               let jsonStr = String(data: data, encoding: .utf8) {
-                beeswarmJSON = jsonStr
-            }
-        }
-        
-        var pdpJSON = "[]"
-        let pdpCharts = result.charts.filter { $0.type == "pdp_ice" }
-        let pdpList = pdpCharts.map { chart -> [String: Any] in
-            let points = chart.data.map { pt -> [String: Any] in
-                return ["x_num": pt.xNum ?? 0.0, "y": pt.y, "series": pt.series ?? ""]
-            }
-            return [
-                "title": chart.title,
-                "x_label": chart.xLabel,
-                "y_label": chart.yLabel,
-                "data": points
-            ]
-        }
-        if let data = try? JSONSerialization.data(withJSONObject: pdpList),
-           let jsonStr = String(data: data, encoding: .utf8) {
-            pdpJSON = jsonStr
-        }
-
-        var historyRowsHTML = ""
-        let historyItems = AnalysisHistoryService.shared.items
-        if historyItems.isEmpty {
-            historyRowsHTML = "<tr><td colspan='7' style='text-align: center; color: #94a3b8;'>No previous analyses in history.</td></tr>"
-        } else {
-            for item in historyItems {
-                let dateStr = item.timestamp.formatted(date: .abbreviated, time: .shortened)
-                let bestScoreStr = item.bestScore.map { String(format: "%.4f", $0) } ?? "—"
-                let rowsColsStr = (item.rowCount != nil && item.colCount != nil) ? "\(item.rowCount!) × \(item.colCount!)" : "—"
-                historyRowsHTML += """
-                <tr>
-                    <td>\(item.datasetName)</td>
-                    <td><code>\(item.targetColumn ?? "—")</code></td>
-                    <td><span class='badge badge-info'>\(item.taskType?.capitalized ?? "—")</span></td>
-                    <td>\(item.bestModel ?? "—")</td>
-                    <td>\(bestScoreStr) (\(item.scoreType ?? "—"))</td>
-                    <td>\(rowsColsStr)</td>
-                    <td>\(dateStr)</td>
-                </tr>
-                """
-            }
-        }
+        let encoder = JSONEncoder()
+        let chartsData = try? encoder.encode(result.charts)
+        let chartsJSON = chartsData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
 
         let narrativeMarkdownEscaped = (narrative ?? "").replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "`", with: "\\`")
@@ -230,11 +171,11 @@ struct ReportCompiler {
             <title>Aura Analysis Report - \(targetColEscaped)</title>
             <style>
                 :root {
-                    --bg-color: #0b0c10;
-                    --card-bg: #1a1c23;
-                    --border-color: rgba(255, 255, 255, 0.06);
-                    --text-color: #e2e8f0;
-                    --text-secondary: #94a3b8;
+                    --bg-color: \(isForPDF ? "#ffffff" : "#0b0c10");
+                    --card-bg: \(isForPDF ? "#ffffff" : "#1a1c23");
+                    --border-color: \(isForPDF ? "#e2e8f0" : "rgba(255, 255, 255, 0.06)");
+                    --text-color: \(isForPDF ? "#0f172a" : "#e2e8f0");
+                    --text-secondary: \(isForPDF ? "#475569" : "#94a3b8");
                     --purple-accent: #a78bfa;
                     --indigo-accent: #6366f1;
                 }
@@ -295,7 +236,7 @@ struct ReportCompiler {
                     font-size: 1.8rem;
                     font-weight: 700;
                     margin-bottom: 4px;
-                    color: #fff;
+                    color: var(--text-color);
                 }
                 .stat-label {
                     font-size: 0.8rem;
@@ -309,7 +250,7 @@ struct ReportCompiler {
                     border-radius: 16px;
                     padding: 24px;
                     margin-bottom: 24px;
-                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+                    box-shadow: \(isForPDF ? "none" : "0 4px 20px rgba(0, 0, 0, 0.2)");
                 }
                 .card-title {
                     font-size: 1.15rem;
@@ -330,7 +271,7 @@ struct ReportCompiler {
                 }
                 .grid-2 {
                     display: grid;
-                    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+                    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
                     gap: 20px;
                     margin-bottom: 24px;
                 }
@@ -347,6 +288,7 @@ struct ReportCompiler {
                     padding: 10px 14px;
                     border-bottom: 1px solid var(--border-color);
                     font-size: 0.9rem;
+                    color: var(--text-color);
                 }
                 th {
                     background-color: rgba(255, 255, 255, 0.02);
@@ -375,7 +317,7 @@ struct ReportCompiler {
                 }
                 .narrative {
                     line-height: 1.6;
-                    color: #cbd5e1;
+                    color: var(--text-color);
                 }
                 .narrative h2, .narrative h3 {
                     color: var(--purple-accent);
@@ -524,33 +466,17 @@ struct ReportCompiler {
                 <!-- Data Quality Warnings -->
                 \(compileWarningsHTML(result: result))
 
-                <div class="grid-2 page-break">
-                    <!-- Model Performance Card -->
-                    <div class="card">
-                        <div class="card-title">🤖 Model Performance Leaderboard</div>
-                        <div id="model-chart" class="chart-container"></div>
-                    </div>
-
-                    <!-- Feature Importance Card -->
-                    <div class="card">
-                        <div class="card-title">📊 Global Feature Importance (SHAP)</div>
-                        <div id="importance-chart" class="chart-container"></div>
-                    </div>
+                <!-- Model Performance Card -->
+                <div class="card page-break">
+                    <div class="card-title">🤖 Model Performance Leaderboard</div>
+                    <div id="model-chart" class="chart-container" style="height: 300px;"></div>
                 </div>
 
-                <!-- SHAP Beeswarm Plot -->
-                <div id="beeswarm-card" class="card page-break" style="display: none;">
-                    <div class="card-title">🐝 SHAP Feature Impact (Beeswarm)</div>
-                    <div id="beeswarm-chart" class="chart-container" style="height: 480px;"></div>
-                </div>
-
-                <!-- PDP / ICE Curves Section -->
-                <div id="pdp-section" class="page-break" style="display: none;">
-                    <div class="card">
-                        <div class="card-title">📈 Partial Dependence (PDP) & ICE Curves</div>
-                        <div id="pdp-container" class="grid-2">
-                            <!-- Dynamic PDP charts will be appended here -->
-                        </div>
+                <!-- Analysis & Diagnostic Charts -->
+                <div id="charts-section" class="page-break" style="margin-top: 30px;">
+                    <h2 style="color: var(--purple-accent); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 20px;">📊 Analysis & Diagnostic Visualizations</h2>
+                    <div id="charts-grid" class="grid-2">
+                        <!-- Dynamic charts will be appended here -->
                     </div>
                 </div>
 
@@ -563,29 +489,6 @@ struct ReportCompiler {
                 <!-- Top Correlations -->
                 \(compileCorrelationsSectionHTML(result: result))
 
-                <!-- Previous Analysis History -->
-                <div class="card page-break">
-                    <div class="card-title">📜 Analysis History</div>
-                    <div class="table-wrapper">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Dataset Name</th>
-                                    <th>Target Column</th>
-                                    <th>Task Type</th>
-                                    <th>Best Model</th>
-                                    <th>Best Score</th>
-                                    <th>Rows / Cols</th>
-                                    <th>Timestamp</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                \(historyRowsHTML)
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
                 <!-- Dataset Sample -->
                 \(compileSampleTableHTML(result: result, includeTable: includeTable))
             </div>
@@ -594,9 +497,13 @@ struct ReportCompiler {
                 // Injected data
                 var narrativeMarkdown = `\(narrativeMarkdownEscaped)`;
                 var modelData = \(modelsComparedJSON);
-                var importanceData = \(shapImportanceJSON);
-                var beeswarmRaw = \(beeswarmJSON);
-                var pdpDataList = \(pdpJSON);
+                var chartsList = \(chartsJSON);
+                var isPDF = \(isForPDF ? "true" : "false");
+                
+                // Color configuration matching active theme context
+                var textColor = isPDF ? '#334155' : '#e2e8f0';
+                var axisLineColor = isPDF ? '#cbd5e1' : 'rgba(255,255,255,0.1)';
+                var splitLineColor = isPDF ? '#f1f5f9' : 'rgba(255,255,255,0.04)';
                 
                 // Render narrative
                 if (narrativeMarkdown.trim().length > 0) {
@@ -610,9 +517,20 @@ struct ReportCompiler {
                     chart.setOption({
                         animation: false,
                         tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                        grid: { left: '3%', right: '4%', bottom: '8%', top: '5%', containLabel: true },
-                        xAxis: { type: 'category', data: modelData.map(m => m.name), axisLabel: { interval: 0, rotate: 15 } },
-                        yAxis: { type: 'value', name: 'Score' },
+                        grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+                        xAxis: { 
+                            type: 'category', 
+                            data: modelData.map(m => m.name), 
+                            axisLabel: { interval: 0, rotate: modelData.length > 4 ? 15 : 0, color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } }
+                        },
+                        yAxis: { 
+                            type: 'value', 
+                            name: 'Score',
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
                         series: [{
                             data: modelData.map(m => m.score),
                             type: 'bar',
@@ -621,33 +539,61 @@ struct ReportCompiler {
                     });
                 }
 
-                // Render Feature Importance
-                if (importanceData && importanceData.length > 0) {
-                    var chart = echarts.init(document.getElementById('importance-chart'));
-                    chart.setOption({
+                // ECharts Boxplot config builder
+                function getBoxplotOption(cfg) {
+                    var stats = cfg.box_stats;
+                    if (!stats) return null;
+                    var boxData = [[stats.min, stats.q1, stats.median, stats.q3, stats.max]];
+                    var outlierData = (stats.outliers || []).map(val => [0, val]);
+                    
+                    var series = [{
+                        name: 'Boxplot',
+                        type: 'boxplot',
+                        data: boxData,
+                        itemStyle: {
+                            color: isPDF ? 'rgba(99, 102, 241, 0.15)' : 'rgba(167, 139, 250, 0.25)',
+                            borderColor: '#a78bfa',
+                            borderWidth: 2
+                        }
+                    }];
+                    if (outlierData.length > 0) {
+                        series.push({
+                            name: 'Outlier',
+                            type: 'scatter',
+                            data: outlierData,
+                            itemStyle: { color: '#f43f5e' },
+                            symbolSize: 8
+                        });
+                    }
+                    
+                    return {
                         animation: false,
-                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-                        grid: { left: '3%', right: '4%', bottom: '3%', top: '5%', containLabel: true },
-                        xAxis: { type: 'value', name: 'Mean |SHAP|' },
-                        yAxis: { type: 'category', data: importanceData.map(i => i.x_val).reverse() },
-                        series: [{
-                            data: importanceData.map(i => i.y).reverse(),
-                            type: 'bar',
-                            itemStyle: { color: '#a78bfa', borderRadius: [0, 4, 4, 0] }
-                        }]
-                    });
+                        tooltip: { trigger: 'item' },
+                        grid: { left: '8%', right: '8%', bottom: '10%', top: '10%', containLabel: true },
+                        xAxis: {
+                            type: 'category',
+                            data: [cfg.y_label || 'Stats'],
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { show: false }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
+                        series: series
+                    };
                 }
 
-                // Render Beeswarm Chart
-                if (beeswarmRaw && beeswarmRaw.length > 0) {
-                    document.getElementById('beeswarm-card').style.display = 'block';
-                    var features = [...new Set(beeswarmRaw.map(pt => pt.x_val))];
+                // ECharts SHAP Beeswarm config builder
+                function getBeeswarmOption(cfg) {
+                    var features = [...new Set(cfg.data.map(pt => pt.x_val))];
                     var dataPoints = [];
                     
-                    // Group by feature to compute stacked Y positions (beeswarm density)
-                    var stackedPoints = [];
                     features.forEach((feat, fIdx) => {
-                        var pts = beeswarmRaw.filter(pt => pt.x_val === feat).sort((a,b) => a.x_num - b.x_num);
+                        var pts = cfg.data.filter(pt => pt.x_val === feat).sort((a,b) => a.x_num - b.x_num);
                         var placed = [];
                         var cellWidth = 0.015;
                         if (pts.length > 0) {
@@ -689,8 +635,7 @@ struct ReportCompiler {
                         });
                     });
 
-                    var chart = echarts.init(document.getElementById('beeswarm-chart'));
-                    chart.setOption({
+                    return {
                         animation: false,
                         tooltip: {
                             trigger: 'item',
@@ -698,19 +643,27 @@ struct ReportCompiler {
                                 return 'Feature: ' + params.value[3] + '<br/>SHAP Value: ' + params.value[0].toFixed(4) + '<br/>Feature Value: ' + params.value[2].toFixed(4);
                             }
                         },
-                        grid: { left: '8%', right: '4%', bottom: '15%', top: '5%' },
-                        xAxis: { type: 'value', name: 'SHAP Value (Impact on Prediction)' },
+                        grid: { left: '15%', right: '5%', bottom: '15%', top: '5%', containLabel: true },
+                        xAxis: { 
+                            type: 'value', 
+                            name: 'SHAP Value (Impact on Prediction)',
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
                         yAxis: {
                             type: 'value',
-                            name: 'Feature',
                             min: -0.5,
                             max: features.length - 0.5,
                             interval: 1,
                             axisLabel: {
+                                color: textColor,
                                 formatter: function (value) {
                                     return features[Math.round(value)] || '';
                                 }
-                            }
+                            },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { show: false }
                         },
                         visualMap: {
                             min: 0,
@@ -721,6 +674,7 @@ struct ReportCompiler {
                             left: 'center',
                             bottom: '0%',
                             text: ['High', 'Low'],
+                            textStyle: { color: textColor },
                             inRange: {
                                 color: ['#2563eb', '#a855f7', '#ec4899', '#ef4444']
                             }
@@ -730,80 +684,230 @@ struct ReportCompiler {
                             symbolSize: 6,
                             data: dataPoints
                         }]
-                    });
+                    };
                 }
 
-                // Render PDP & ICE charts
-                if (pdpDataList && pdpDataList.length > 0) {
-                    document.getElementById('pdp-section').style.display = 'block';
-                    var container = document.getElementById('pdp-container');
+                // ECharts PDP & ICE curves builder
+                function getPdpOption(cfg) {
+                    var seriesMap = {};
+                    cfg.data.forEach(pt => {
+                        var s = pt.series || 'PDP';
+                        if (!seriesMap[s]) seriesMap[s] = [];
+                        seriesMap[s].push([pt.x_num, pt.y]);
+                    });
+
+                    var seriesConfig = [];
+                    Object.keys(seriesMap).forEach(s => {
+                        if (s !== 'PDP') {
+                            seriesConfig.push({
+                                name: s,
+                                type: 'line',
+                                data: seriesMap[s].sort((a,b) => a[0] - b[0]),
+                                lineStyle: { width: 0.8, color: '#94a3b8', opacity: 0.15 },
+                                showSymbol: false,
+                                animation: false
+                            });
+                        }
+                    });
+                    if (seriesMap['PDP']) {
+                        seriesConfig.push({
+                            name: 'PDP',
+                            type: 'line',
+                            data: seriesMap['PDP'].sort((a,b) => a[0] - b[0]),
+                            lineStyle: { width: 3, color: '#a78bfa' },
+                            showSymbol: false,
+                            animation: false
+                        });
+                    }
+
+                    return {
+                        animation: false,
+                        tooltip: { trigger: 'axis' },
+                        grid: { left: '3%', right: '4%', bottom: '5%', top: '5%', containLabel: true },
+                        xAxis: { 
+                            type: 'value', 
+                            name: cfg.x_label, 
+                            nameLocation: 'middle', 
+                            nameGap: 20,
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
+                        yAxis: { 
+                            type: 'value', 
+                            name: cfg.y_label,
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
+                        series: seriesConfig
+                    };
+                }
+
+                // Standard ECharts Line / Bar / Scatter builder
+                function getStandardChartOption(cfg) {
+                    var seriesMap = {};
+                    cfg.data.forEach(pt => {
+                        var sName = pt.series || 'Value';
+                        if (!seriesMap[sName]) seriesMap[sName] = [];
+                        var xVal = pt.x_val !== null ? pt.x_val : pt.x_num;
+                        seriesMap[sName].push([xVal, pt.y]);
+                    });
                     
-                    pdpDataList.forEach((cfg, idx) => {
-                        var chartId = 'pdp-chart-' + idx;
-                        
+                    var seriesList = [];
+                    var categories = [];
+                    var isCategoricalX = cfg.data.some(pt => pt.x_val !== null);
+                    
+                    if (isCategoricalX) {
+                        var catSet = new Set();
+                        cfg.data.forEach(pt => {
+                            if (pt.x_val !== null) catSet.add(pt.x_val);
+                        });
+                        categories = Array.from(catSet);
+                    }
+                    
+                    Object.keys(seriesMap).forEach(sName => {
+                        var sData = seriesMap[sName];
+                        if (isCategoricalX) {
+                            var mappedData = categories.map(cat => {
+                                var match = sData.find(d => d[0] === cat);
+                                return match ? match[1] : 0;
+                            });
+                            seriesList.push({
+                                name: sName,
+                                type: cfg.type,
+                                data: mappedData,
+                                itemStyle: { borderRadius: cfg.type === 'bar' ? [4, 4, 0, 0] : 0 }
+                            });
+                        } else {
+                            seriesList.push({
+                                name: sName,
+                                type: cfg.type,
+                                data: sData.sort((a, b) => a[0] - b[0]),
+                                showSymbol: cfg.type !== 'line',
+                                lineStyle: { width: 2 }
+                            });
+                        }
+                    });
+                    
+                    return {
+                        animation: false,
+                        tooltip: { trigger: 'axis' },
+                        legend: { 
+                            show: Object.keys(seriesMap).length > 1,
+                            textStyle: { color: textColor },
+                            bottom: 0
+                        },
+                        grid: { left: '3%', right: '4%', bottom: Object.keys(seriesMap).length > 1 ? '12%' : '8%', top: '10%', containLabel: true },
+                        xAxis: {
+                            type: isCategoricalX ? 'category' : 'value',
+                            data: isCategoricalX ? categories : undefined,
+                            name: cfg.x_label,
+                            nameLocation: 'middle',
+                            nameGap: 25,
+                            axisLabel: { color: textColor, rotate: isCategoricalX && categories.length > 8 ? 20 : 0 },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            name: cfg.y_label,
+                            axisLabel: { color: textColor },
+                            axisLine: { lineStyle: { color: axisLineColor } },
+                            splitLine: { lineStyle: { color: splitLineColor } }
+                        },
+                        series: seriesList,
+                        color: ['#6366f1', '#a78bfa', '#ec4899', '#f43f5e', '#3b82f6', '#10b981', '#f59e0b']
+                    };
+                }
+
+                // HTML WordCloud renderer
+                function renderWordCloud(cfg) {
+                    var maxWeight = Math.max(...cfg.data.map(pt => pt.y)) || 1.0;
+                    var minWeight = Math.min(...cfg.data.map(pt => pt.y)) || 0.0;
+                    var weightRange = Math.max(0.0001, maxWeight - minWeight);
+                    var colors = ['#3b82f6', '#a78bfa', '#ec4899', '#6366f1', '#14b8a6', '#f59e0b', '#06b6d4', '#10b981'];
+                    
+                    var html = '<div style="display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 8px; padding: 20px; background: rgba(255,255,255,0.02); border-radius: 8px; min-height: 200px;">';
+                    cfg.data.forEach((pt, index) => {
+                        if (pt.x_val) {
+                            var norm = (pt.y - minWeight) / weightRange;
+                            var size = 12 + norm * 20; // 12px to 32px
+                            var col = colors[index % colors.length];
+                            html += `<span style="font-size: ${size}px; color: ${col}; font-weight: 600; padding: 4px 8px; margin: 4px; background: ${col}10; border-radius: 4px; display: inline-block;">${pt.x_val}</span>`;
+                        }
+                    });
+                    html += '</div>';
+                    return html;
+                }
+
+                // HTML ImageGrid renderer
+                function renderImageGrid(cfg) {
+                    var html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 16px; padding: 10px;">';
+                    (cfg.images || []).forEach(img => {
+                        html += `
+                        <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); break-inside: avoid;">
+                            <img src="data:image/png;base64,${img.base64}" style="width: 100px; height: 100px; object-fit: contain; border-radius: 4px;" />
+                            <div style="font-size: 0.75rem; margin-top: 6px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: ${textColor};">${img.label}</div>
+                        </div>
+                        `;
+                    });
+                    html += '</div>';
+                    return html;
+                }
+
+                // Initialize all analysis charts
+                if (chartsList && chartsList.length > 0) {
+                    var container = document.getElementById('charts-grid');
+                    chartsList.forEach(function(chart, index) {
                         var card = document.createElement('div');
-                        card.style.padding = '12px';
-                        card.style.backgroundColor = 'rgba(255,255,255,0.01)';
-                        card.style.borderRadius = '8px';
-                        card.style.border = '1px solid rgba(255,255,255,0.03)';
+                        card.className = 'card';
                         card.style.breakInside = 'avoid';
                         
                         var title = document.createElement('div');
-                        title.style.fontSize = '0.95rem';
-                        title.style.fontWeight = '600';
-                        title.style.marginBottom = '8px';
-                        title.style.color = '#fff';
-                        title.innerText = cfg.title;
+                        title.className = 'card-title';
+                        title.innerText = chart.title;
                         card.appendChild(title);
                         
-                        var chartDiv = document.createElement('div');
-                        chartDiv.id = chartId;
-                        chartDiv.className = 'chart-container';
-                        chartDiv.style.height = '280px';
-                        card.appendChild(chartDiv);
-                        
-                        container.appendChild(card);
-                        
-                        var chart = echarts.init(chartDiv);
-                        var seriesMap = {};
-                        cfg.data.forEach(pt => {
-                            var s = pt.series || 'PDP';
-                            if (!seriesMap[s]) seriesMap[s] = [];
-                            seriesMap[s].push([pt.x_num, pt.y]);
-                        });
-
-                        var seriesConfig = [];
-                        Object.keys(seriesMap).forEach(s => {
-                            if (s !== 'PDP') {
-                                  seriesConfig.push({
-                                      name: s,
-                                      type: 'line',
-                                      data: seriesMap[s].sort((a,b) => a[0] - b[0]),
-                                      lineStyle: { width: 0.8, color: '#94a3b8', opacity: 0.15 },
-                                      showSymbol: false,
-                                      animation: false
-                                  });
+                        if (chart.type === 'wordcloud') {
+                            var cloudDiv = document.createElement('div');
+                            cloudDiv.innerHTML = renderWordCloud(chart);
+                            card.appendChild(cloudDiv);
+                            container.appendChild(card);
+                        } else if (chart.type === 'image_grid') {
+                            var gridDiv = document.createElement('div');
+                            gridDiv.innerHTML = renderImageGrid(chart);
+                            card.appendChild(gridDiv);
+                            container.appendChild(card);
+                        } else {
+                            var chartDiv = document.createElement('div');
+                            var chartId = 'analysis-chart-' + index;
+                            chartDiv.id = chartId;
+                            chartDiv.className = 'chart-container';
+                            if (chart.type === 'shap_beeswarm') {
+                                chartDiv.style.height = '480px';
+                            } else if (chart.type === 'boxplot' || chart.type === 'pdp_ice') {
+                                chartDiv.style.height = '280px';
                             }
-                        });
-                        if (seriesMap['PDP']) {
-                            seriesConfig.push({
-                                    name: 'PDP',
-                                    type: 'line',
-                                    data: seriesMap['PDP'].sort((a,b) => a[0] - b[0]),
-                                    lineStyle: { width: 3, color: '#a78bfa' },
-                                    showSymbol: false,
-                                    animation: false
-                            });
+                            card.appendChild(chartDiv);
+                            container.appendChild(card);
+                            
+                            var myChart = echarts.init(chartDiv);
+                            var option = null;
+                            if (chart.type === 'boxplot') {
+                                option = getBoxplotOption(chart);
+                            } else if (chart.type === 'shap_beeswarm') {
+                                option = getBeeswarmOption(chart);
+                            } else if (chart.type === 'pdp_ice') {
+                                option = getPdpOption(chart);
+                            } else {
+                                option = getStandardChartOption(chart);
+                            }
+                            
+                            if (option) {
+                                myChart.setOption(option);
+                            }
                         }
-
-                        chart.setOption({
-                            animation: false,
-                            tooltip: { trigger: 'axis' },
-                            grid: { left: '3%', right: '4%', bottom: '5%', top: '5%', containLabel: true },
-                            xAxis: { type: 'value', name: cfg.x_label, nameLocation: 'middle', nameGap: 20 },
-                            yAxis: { type: 'value', name: cfg.y_label },
-                            series: seriesConfig
-                        });
                     });
                 }
             </script>

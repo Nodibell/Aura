@@ -52,8 +52,7 @@ struct PredictionTabView: View {
             VStack(spacing: 0) {
                 if isPredicting {
                     VStack(spacing: 12) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
+                        NativeProgressView(controlSize: .regular)
                         Text("Running Inference...")
                             .foregroundColor(.secondary)
                     }
@@ -193,6 +192,54 @@ struct PredictionTabView: View {
     
     // MARK: - Input Binding Helper Views
     
+    private func isDateField(_ feature: String) -> Bool {
+        let profile = result.profiling?.columns[feature]
+        if profile?.type == "datetime" {
+            return true
+        }
+        
+        let lowerName = feature.lowercased()
+        if lowerName.contains("date") || 
+           lowerName.contains("time") || 
+           lowerName.contains("timestamp") ||
+           lowerName.contains("year") ||
+           lowerName.contains("month") ||
+           lowerName.contains("day") ||
+           lowerName.contains("period") ||
+           lowerName == "ds" {
+            return true
+        }
+        
+        // If the first category can be successfully parsed as a date, treat as date field
+        if let firstCat = profile?.topCategories?.first?.value,
+           parseDateString(firstCat) != nil {
+            return true
+        }
+        
+        return false
+    }
+    
+    private func parseDateString(_ str: String) -> Date? {
+        let cleanStr = str.components(separatedBy: " (").first ?? str
+        let formatters = [
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd",
+            "MM/dd/yyyy",
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+        ].map { fmt -> DateFormatter in
+            let df = DateFormatter()
+            df.dateFormat = fmt
+            return df
+        }
+        for formatter in formatters {
+            if let date = formatter.date(from: cleanStr) {
+                return date
+            }
+        }
+        return nil
+    }
+
     @ViewBuilder
     private func featureInputView(for feature: String) -> some View {
         let profile = result.profiling?.columns[feature]
@@ -214,7 +261,9 @@ struct PredictionTabView: View {
                 }
             }
             
-            if isNumeric, let stats = profile?.stats {
+            if isDateField(feature) {
+                dateInputView(feature: feature)
+            } else if isNumeric, let stats = profile?.stats {
                 numericInputView(feature: feature, stats: stats)
             } else if let categories = profile?.topCategories, !categories.isEmpty {
                 categoricalInputView(feature: feature, categories: categories)
@@ -227,6 +276,18 @@ struct PredictionTabView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
         )
+    }
+    
+    @ViewBuilder
+    private func dateInputView(feature: String) -> some View {
+        let currentDate = Binding<Date>(
+            get: { (inputValues[feature] as? Date) ?? Date() },
+            set: { inputValues[feature] = $0 }
+        )
+        
+        DatePicker("", selection: currentDate)
+            .labelsHidden()
+            .datePickerStyle(.compact)
     }
     
     @ViewBuilder
@@ -290,7 +351,14 @@ struct PredictionTabView: View {
         guard inputValues.isEmpty else { return }
         for feature in features {
             let profile = result.profiling?.columns[feature]
-            if profile?.type == "numeric", let stats = profile?.stats {
+            if isDateField(feature) {
+                if let firstCat = profile?.topCategories?.first?.value,
+                   let parsedDate = parseDateString(firstCat) {
+                    inputValues[feature] = parsedDate
+                } else {
+                    inputValues[feature] = Date()
+                }
+            } else if profile?.type == "numeric", let stats = profile?.stats {
                 inputValues[feature] = stats.p50
             } else if let categories = profile?.topCategories, !categories.isEmpty {
                 inputValues[feature] = categories.first?.value ?? ""
@@ -322,9 +390,22 @@ struct PredictionTabView: View {
             }
         }
         
+        // Prepare inputs (convert Date to formatted string)
+        var serializedInputs: [String: Any] = [:]
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        
+        for (key, val) in inputValues {
+            if let dateVal = val as? Date {
+                serializedInputs[key] = dateFormatter.string(from: dateVal)
+            } else {
+                serializedInputs[key] = val
+            }
+        }
+        
         Task {
             do {
-                let response = try await PythonRunner.shared.runInference(modelPath: path, inputData: inputValues)
+                let response = try await PythonRunner.shared.runInference(modelPath: path, inputData: serializedInputs)
                 await MainActor.run {
                     self.predictionResult = response
                     self.isPredicting = false

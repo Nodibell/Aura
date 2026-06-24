@@ -141,7 +141,7 @@ struct ExportReportSheet: View {
                     // ── Generation Status ─────────────────────────────────────
                     if isGenerating {
                         HStack(spacing: 8) {
-                            ProgressView().controlSize(.small)
+                            NativeProgressView(controlSize: .small)
                             Text(generationStatus.isEmpty ? "Generating report…" : generationStatus)
                                 .font(.system(size: 12))
                                 .foregroundColor(.secondary)
@@ -169,7 +169,7 @@ struct ExportReportSheet: View {
                 } label: {
                     HStack(spacing: 6) {
                         if isGenerating {
-                            ProgressView().controlSize(.small)
+                            NativeProgressView(controlSize: .small)
                         } else {
                             Image(systemName: "square.and.arrow.up")
                         }
@@ -244,7 +244,7 @@ struct ExportReportSheet: View {
             
         case .html:
             generationStatus = "Building HTML report…"
-            let html = buildHTMLReport(narrative: narrativeText)
+            let html = buildHTMLReport(narrative: narrativeText, isForPDF: false)
             generationStatus = "Opening save dialog…"
             await saveFile(filenameExtension: "html", defaultName: "Aura_Report_\(result.targetColumn).html") { url in
                 try html.write(to: url, atomically: true, encoding: .utf8)
@@ -252,7 +252,7 @@ struct ExportReportSheet: View {
             
         case .pdf:
             generationStatus = "Building HTML report for PDF…"
-            let html = buildHTMLReport(narrative: narrativeText)
+            let html = buildHTMLReport(narrative: narrativeText, isForPDF: true)
             generationStatus = "Rendering PDF (takes a moment)…"
             do {
                 let pdfData = try await HTMLToPDFConverter.shared.convert(html: html)
@@ -278,11 +278,12 @@ struct ExportReportSheet: View {
         )
     }
 
-    private func buildHTMLReport(narrative: String?) -> String {
+    private func buildHTMLReport(narrative: String?, isForPDF: Bool) -> String {
         ReportCompiler.buildHTMLReport(
             result: result,
             narrative: narrative,
-            includeTable: includeTable
+            includeTable: includeTable,
+            isForPDF: isForPDF
         )
     }
 

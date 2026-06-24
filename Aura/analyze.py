@@ -820,7 +820,7 @@ def run_predict(model_path, input_data_json):
     # ---------------------------------------------------------
     # ROUTING: statsmodels Time Series vs. scikit-learn
     # ---------------------------------------------------------
-    if model_type_name in ["ARIMAResultsWrapper", "SARIMAXResultsWrapper"]:
+    if model_type_name in ["ARIMAResultsWrapper", "SARIMAXResultsWrapper", "HoltWintersResultsWrapper"]:
         _log("Routing to statsmodels forecast API...")
         try:
             # statsmodels needs strictly numeric exogenous features (drop datetime strings)

@@ -259,6 +259,152 @@ def analyze_nlp(df, target_col, task_type_override,
                 "y_label": "Sentiment Polarity",
                 "data": scatter_pol_target[:1000]
             })
+
+        # 8. Most Informative Features (Model Coefficients) Diverging Bar Chart
+        if is_classification:
+            try:
+                # We extract coefficients if best_model is Logistic Regression or Linear SVC
+                if best_model in ["Logistic Regression", "Linear SVC"]:
+                    coefs = best_clf.coef_
+                    # Take first class for multiclass, or the single vector for binary
+                    if len(coefs.shape) > 1 and coefs.shape[0] > 0:
+                        flat_coefs = coefs[0]
+                    else:
+                        flat_coefs = coefs
+                    
+                    # Sort indices by absolute weight
+                    sorted_indices = np.argsort(np.abs(flat_coefs))
+                    # Take top 15 highest weight features
+                    top_indices = sorted_indices[-15:] if len(sorted_indices) >= 15 else sorted_indices
+                    
+                    coef_chart_data = []
+                    for idx in top_indices:
+                        coef_chart_data.append({
+                            "x_val": str(feature_names[idx]),
+                            "x_num": None,
+                            "y": float(flat_coefs[idx])
+                        })
+                    # Sort top indices by value so the bar chart looks clean
+                    coef_chart_data.sort(key=lambda x: x["y"])
+                    
+                    charts.append({
+                        "type": "bar",
+                        "title": "Model Coefficients: Most Informative Words",
+                        "x_label": "Word",
+                        "y_label": "Coefficient Impact",
+                        "data": coef_chart_data
+                    })
+            except Exception as coef_err:
+                sys.stderr.write(f"Warning: Failed to compile model coefficients chart: {str(coef_err)}\n")
+
+        # 9. Document Embedding 2D Projection using TruncatedSVD (max 1000 points)
+        try:
+            from sklearn.decomposition import TruncatedSVD
+            svd = TruncatedSVD(n_components=2, random_state=42)
+            X_svd = svd.fit_transform(X_processed)
+            
+            n_samples = len(df)
+            sample_size = min(1000, n_samples)
+            if n_samples > 1000:
+                np.random.seed(42)
+                sample_indices = np.random.choice(n_samples, sample_size, replace=False)
+            else:
+                sample_indices = range(n_samples)
+                
+            projection_data = []
+            for idx in sample_indices:
+                x_val = float(X_svd[idx, 0])
+                y_val = float(X_svd[idx, 1])
+                class_label = str(y[idx]) if is_classification else "Document"
+                projection_data.append({
+                    "x_val": None,
+                    "x_num": x_val,
+                    "y": y_val,
+                    "series": class_label
+                })
+                
+            charts.append({
+                "type": "scatter",
+                "title": "Document Semantic Space (2D SVD Projection)",
+                "x_label": "SVD Component 1",
+                "y_label": "SVD Component 2",
+                "data": projection_data
+            })
+        except Exception as svd_err:
+            sys.stderr.write(f"Warning: Failed to generate document SVD projection: {str(svd_err)}\n")
+
+        # 10. Lexical Diversity Boxplots by Class
+        if is_classification:
+            try:
+                # We calculate stats of word counts grouped by target class
+                for cls in np.unique(y):
+                    mask = (y == cls)
+                    cls_wcs = word_counts[mask].values
+                    if len(cls_wcs) >= 5:
+                        sorted_wcs = np.sort(cls_wcs)
+                        q1 = float(np.percentile(sorted_wcs, 25))
+                        median = float(np.percentile(sorted_wcs, 50))
+                        q3 = float(np.percentile(sorted_wcs, 75))
+                        iqr = q3 - q1
+                        
+                        if iqr <= 0.0:
+                            lower_whisker = float(sorted_wcs.min())
+                            upper_whisker = float(sorted_wcs.max())
+                            outliers_list = []
+                        else:
+                            lower_fence = q1 - 1.5 * iqr
+                            upper_fence = q3 + 1.5 * iqr
+                            non_outliers = sorted_wcs[(sorted_wcs >= lower_fence) & (sorted_wcs <= upper_fence)]
+                            lower_whisker = float(non_outliers.min()) if len(non_outliers) > 0 else q1
+                            upper_whisker = float(non_outliers.max()) if len(non_outliers) > 0 else q3
+                            outliers = sorted_wcs[(sorted_wcs < lower_whisker) | (sorted_wcs > upper_whisker)]
+                            outliers_list = [float(x) for x in outliers[:100]]
+                            
+                        charts.append({
+                            "type": "boxplot",
+                            "title": f"Lexical Complexity Boxplot: Class {cls}",
+                            "x_label": "",
+                            "y_label": "Word Count",
+                            "data": [],
+                            "box_stats": {
+                                "min": lower_whisker,
+                                "q1": q1,
+                                "median": median,
+                                "q3": q3,
+                                "max": upper_whisker,
+                                "outliers": outliers_list
+                            }
+                        })
+            except Exception as box_err:
+                sys.stderr.write(f"Warning: Failed to generate lexical diversity boxplots: {str(box_err)}\n")
+
+        # 11. Class-Specific Top TF-IDF Terms Grouped Bar Chart
+        if is_classification:
+            try:
+                class_words_data = []
+                for cls in np.unique(y):
+                    class_mask = (y == cls)
+                    class_tfidf_sum = X_processed[class_mask].sum(axis=0)
+                    
+                    # Sort words for this class
+                    top_word_indices = np.argsort(class_tfidf_sum)[-5:]
+                    for idx in top_word_indices:
+                        class_words_data.append({
+                            "x_val": str(feature_names[idx]),
+                            "x_num": None,
+                            "y": float(class_tfidf_sum[idx]),
+                            "series": f"Class {cls}"
+                        })
+                charts.append({
+                    "type": "bar",
+                    "title": "Class-Specific Top TF-IDF Words",
+                    "x_label": "Word",
+                    "y_label": "Cumulative TF-IDF Score",
+                    "data": class_words_data
+                })
+            except Exception as tfidf_cls_err:
+                sys.stderr.write(f"Warning: Failed to generate class-specific top words: {str(tfidf_cls_err)}\n")
+
         X_val, y_val = None, None
         val_metrics = None
         val_confusion_matrix_data = None
@@ -321,30 +467,109 @@ def analyze_nlp(df, target_col, task_type_override,
         confusion_matrix = None
         
         if is_classification:
-            from sklearn.naive_bayes import MultinomialNB
-            from sklearn.linear_model import LogisticRegression
+            from sklearn.naive_bayes import MultinomialNB, ComplementNB
+            from sklearn.linear_model import LogisticRegression, SGDClassifier
+            from sklearn.svm import LinearSVC
             from sklearn.metrics import accuracy_score, f1_score, confusion_matrix as sklearn_cm
+            from sklearn.preprocessing import LabelEncoder
+            import optuna
+            from xgboost import XGBClassifier
+            
+            le = LabelEncoder()
+            y_train_encoded = le.fit_transform(y_train)
+            y_test_encoded = le.transform(y_test)
             
             nb = MultinomialNB()
             nb.fit(X_train, y_train)
             nb_preds = nb.predict(X_test)
             nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
             
+            cnb = ComplementNB()
+            cnb.fit(X_train, y_train)
+            cnb_preds = cnb.predict(X_test)
+            cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
+            
             lr = LogisticRegression(max_iter=1000, random_state=42)
             lr.fit(X_train, y_train)
             lr_preds = lr.predict(X_test)
             lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
             
-            if lr_f1 >= nb_f1:
-                best_model = "Logistic Regression"
-                best_score = lr_f1
-                best_preds = lr_preds
-                best_clf = lr
+            svc = LinearSVC(random_state=42, max_iter=2000)
+            svc.fit(X_train, y_train)
+            svc_preds = svc.predict(X_test)
+            svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
+            
+            sgd = SGDClassifier(random_state=42, max_iter=2000)
+            sgd.fit(X_train, y_train)
+            sgd_preds = sgd.predict(X_test)
+            sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
+            
+            print_progress(0.66, "Tuning XGBoost Text Classifier with Optuna...")
+            optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            tuning_split_idx = int(len(X_train) * 0.8)
+            if tuning_split_idx >= 2:
+                tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
+                tuning_y_tr_encoded = y_train_encoded[:tuning_split_idx]
+                tuning_y_val_encoded = y_train_encoded[tuning_split_idx:]
+                
+                def objective(trial):
+                    n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                    max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                    learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                    clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                    clf.fit(tuning_X_tr, tuning_y_tr_encoded)
+                    preds = clf.predict(tuning_X_val)
+                    return f1_score(tuning_y_val_encoded, preds, average='weighted', zero_division=0)
+                
+                study = optuna.create_study(direction="maximize")
+                study.optimize(objective, n_trials=30, timeout=8.0)
+                xgb_best_n = study.best_params.get("xgb_n_estimators", 50)
+                xgb_best_d = study.best_params.get("xgb_max_depth", 5)
+                xgb_best_lr = study.best_params.get("xgb_learning_rate", 0.1)
             else:
+                xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
+                
+            xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+            xgb.fit(X_train, y_train_encoded)
+            xgb_preds_encoded = xgb.predict(X_test)
+            xgb_preds = le.inverse_transform(xgb_preds_encoded)
+            xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+            
+            best_model = "Logistic Regression"
+            best_score = lr_f1
+            best_preds = lr_preds
+            best_clf = lr
+            
+            if nb_f1 >= best_score:
                 best_model = "Multinomial Naive Bayes"
                 best_score = nb_f1
                 best_preds = nb_preds
                 best_clf = nb
+                
+            if cnb_f1 >= best_score:
+                best_model = "Complement Naive Bayes"
+                best_score = cnb_f1
+                best_preds = cnb_preds
+                best_clf = cnb
+                
+            if svc_f1 >= best_score:
+                best_model = "Linear SVC"
+                best_score = svc_f1
+                best_preds = svc_preds
+                best_clf = svc
+                
+            if sgd_f1 >= best_score:
+                best_model = "SGD Classifier"
+                best_score = sgd_f1
+                best_preds = sgd_preds
+                best_clf = sgd
+                
+            if xgb_f1 >= best_score:
+                best_model = "Tuned XGBoost Classifier"
+                best_score = xgb_f1
+                best_preds = xgb_preds
+                best_clf = xgb
                 
             from sklearn.metrics import classification_report
             report = classification_report(y_test, best_preds, output_dict=True, zero_division=0)
@@ -381,7 +606,11 @@ def analyze_nlp(df, target_col, task_type_override,
             
             models_compared = [
                 {"name": "Multinomial Naive Bayes", "score": float(nb_f1), "metric": "Weighted F1"},
-                {"name": "Logistic Regression", "score": float(lr_f1), "metric": "Weighted F1"}
+                {"name": "Complement Naive Bayes", "score": float(cnb_f1), "metric": "Weighted F1"},
+                {"name": "Logistic Regression", "score": float(lr_f1), "metric": "Weighted F1"},
+                {"name": "Linear SVC", "score": float(svc_f1), "metric": "Weighted F1"},
+                {"name": "SGD Classifier", "score": float(sgd_f1), "metric": "Weighted F1"},
+                {"name": f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})", "score": float(xgb_f1), "metric": "Weighted F1"}
             ]
             metrics = {
                 "model": best_model,

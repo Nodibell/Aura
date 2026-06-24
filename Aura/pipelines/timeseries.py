@@ -178,50 +178,86 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             lr_preds = lr.predict(X_test)
             lr_acc = accuracy_score(y_test, lr_preds)
             
-            # 50-trial Optuna hyperparameter tuning for Random Forest (chronological split validation)
-            print_progress(0.66, "Tuning Time Series Random Forest with Optuna...")
+            # 50-trial Optuna hyperparameter tuning for Random Forest & XGBoost (chronological split validation)
+            print_progress(0.66, "Tuning Time Series models with Optuna...")
             import optuna
+            from xgboost import XGBClassifier
+            from sklearn.preprocessing import LabelEncoder
             optuna.logging.set_verbosity(optuna.logging.WARNING)
+            
+            le = LabelEncoder()
+            y_train_encoded = le.fit_transform(y_train)
+            y_test_encoded = le.transform(y_test)
             
             tuning_split_idx = int(len(X_train) * 0.8)
             if tuning_split_idx >= 2:
                 tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
-                tuning_y_tr, tuning_y_val = y_train[:tuning_split_idx], y_train[tuning_split_idx:]
+                tuning_y_tr_encoded = y_train_encoded[:tuning_split_idx]
+                tuning_y_val_encoded = y_train_encoded[tuning_split_idx:]
                 
                 def objective(trial):
-                    n_estimators = trial.suggest_int("n_estimators", 10, 100)
-                    max_depth = trial.suggest_int("max_depth", 3, 10)
-                    clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
-                    clf.fit(tuning_X_tr, tuning_y_tr)
-                    preds = clf.predict(tuning_X_val)
-                    return accuracy_score(tuning_y_val, preds)
+                    model_type = trial.suggest_categorical("model_type", ["rf", "xgb"])
+                    if model_type == "rf":
+                        n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
+                        max_depth = trial.suggest_int("rf_max_depth", 3, 10)
+                        clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                        clf.fit(tuning_X_tr, tuning_y_tr_encoded)
+                        preds = clf.predict(tuning_X_val)
+                        return accuracy_score(tuning_y_val_encoded, preds)
+                    else:
+                        n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                        max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                        learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                        clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                        clf.fit(tuning_X_tr, tuning_y_tr_encoded)
+                        preds = clf.predict(tuning_X_val)
+                        return accuracy_score(tuning_y_val_encoded, preds)
                 
                 study = optuna.create_study(direction="maximize")
                 study.optimize(objective, n_trials=50, timeout=8.0)
-                best_n = study.best_params.get("n_estimators", 100)
-                best_d = study.best_params.get("max_depth", 5)
+                best_params = study.best_params
             else:
-                best_n, best_d = 100, 5
+                best_params = {}
                 
-            rf = RandomForestClassifier(n_estimators=best_n, max_depth=best_d, random_state=42, n_jobs=-1)
+            # Train Tuned RF
+            rf_best_n = best_params.get("rf_n_estimators", 100)
+            rf_best_d = best_params.get("rf_max_depth", 5)
+            rf = RandomForestClassifier(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_acc_rf = accuracy_score(y_test, rf_preds)
             
-            if rf_acc_rf >= lr_acc:
+            # Train Tuned XGBoost
+            xgb_best_n = best_params.get("xgb_n_estimators", 100)
+            xgb_best_d = best_params.get("xgb_max_depth", 5)
+            xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
+            xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+            xgb.fit(X_train, y_train_encoded)
+            xgb_preds_encoded = xgb.predict(X_test)
+            xgb_preds = le.inverse_transform(xgb_preds_encoded)
+            xgb_acc_xgb = accuracy_score(y_test, xgb_preds)
+            
+            best_model = "Logistic Regression"
+            best_score = lr_acc
+            best_preds = lr_preds
+            best_clf = lr
+            
+            if rf_acc_rf >= best_score:
                 best_model = "Random Forest Classifier"
                 best_score = rf_acc_rf
                 best_preds = rf_preds
                 best_clf = rf
-            else:
-                best_model = "Logistic Regression"
-                best_score = lr_acc
-                best_preds = lr_preds
-                best_clf = lr
+                
+            if xgb_acc_xgb >= best_score:
+                best_model = "Tuned XGBoost Classifier"
+                best_score = xgb_acc_xgb
+                best_preds = xgb_preds
+                best_clf = xgb
                 
             models_compared = [
                 {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy"},
-                {"name": f"Random Forest Classifier (n={best_n}, d={best_d})", "score": float(rf_acc_rf), "metric": "Accuracy"}
+                {"name": f"Random Forest Classifier (n={rf_best_n}, d={rf_best_d})", "score": float(rf_acc_rf), "metric": "Accuracy"},
+                {"name": f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d}, lr={xgb_best_lr:.4f})", "score": float(xgb_acc_xgb), "metric": "Accuracy"}
             ]
             metrics = {
                 "model": best_model,
@@ -237,9 +273,21 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             lr_preds = lr.predict(X_test)
             lr_r2 = r2_score(y_test, lr_preds)
             
-            # 50-trial Optuna hyperparameter tuning for Random Forest (chronological split validation)
-            print_progress(0.66, "Tuning Time Series Random Forest with Optuna...")
+            from sklearn.linear_model import Ridge, Lasso
+            ridge = Ridge(alpha=1.0)
+            ridge.fit(X_train, y_train)
+            ridge_preds = ridge.predict(X_test)
+            ridge_r2 = r2_score(y_test, ridge_preds)
+            
+            lasso = Lasso(alpha=0.1, max_iter=2000)
+            lasso.fit(X_train, y_train)
+            lasso_preds = lasso.predict(X_test)
+            lasso_r2 = r2_score(y_test, lasso_preds)
+            
+            # 50-trial Optuna hyperparameter tuning for Random Forest & XGBoost (chronological split validation)
+            print_progress(0.66, "Tuning Time Series models with Optuna...")
             import optuna
+            from xgboost import XGBRegressor
             optuna.logging.set_verbosity(optuna.logging.WARNING)
             
             tuning_split_idx = int(len(X_train) * 0.8)
@@ -248,26 +296,47 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 tuning_y_tr, tuning_y_val = y_train[:tuning_split_idx], y_train[tuning_split_idx:]
                 
                 def objective(trial):
-                    n_estimators = trial.suggest_int("n_estimators", 10, 100)
-                    max_depth = trial.suggest_int("max_depth", 3, 10)
-                    reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
-                    reg.fit(tuning_X_tr, tuning_y_tr)
-                    preds = reg.predict(tuning_X_val)
-                    return r2_score(tuning_y_val, preds)
+                    model_type = trial.suggest_categorical("model_type", ["rf", "xgb"])
+                    if model_type == "rf":
+                        n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
+                        max_depth = trial.suggest_int("rf_max_depth", 3, 10)
+                        reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                        reg.fit(tuning_X_tr, tuning_y_tr)
+                        preds = reg.predict(tuning_X_val)
+                        return r2_score(tuning_y_val, preds)
+                    else:
+                        n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                        max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                        learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                        reg = XGBRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1)
+                        reg.fit(tuning_X_tr, tuning_y_tr)
+                        preds = reg.predict(tuning_X_val)
+                        return r2_score(tuning_y_val, preds)
                 
                 study = optuna.create_study(direction="maximize")
                 study.optimize(objective, n_trials=50, timeout=8.0)
-                best_n = study.best_params.get("n_estimators", 100)
-                best_d = study.best_params.get("max_depth", 5)
+                best_params = study.best_params
             else:
-                best_n, best_d = 100, 5
+                best_params = {}
                 
-            rf = RandomForestRegressor(n_estimators=best_n, max_depth=best_d, random_state=42, n_jobs=-1)
+            # Train Tuned RF
+            rf_best_n = best_params.get("rf_n_estimators", 100)
+            rf_best_d = best_params.get("rf_max_depth", 5)
+            rf = RandomForestRegressor(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
             rf.fit(X_train, y_train)
             rf_preds = rf.predict(X_test)
             rf_r2_rf = r2_score(y_test, rf_preds)
             
-            # Holt-Winters Exponential Smoothing (Phase 4)
+            # Train Tuned XGBoost
+            xgb_best_n = best_params.get("xgb_n_estimators", 100)
+            xgb_best_d = best_params.get("xgb_max_depth", 5)
+            xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
+            xgb = XGBRegressor(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1)
+            xgb.fit(X_train, y_train)
+            xgb_preds = xgb.predict(X_test)
+            xgb_r2_xgb = r2_score(y_test, xgb_preds)
+            
+            # Holt-Winters Exponential Smoothing
             es_fit = None
             es_preds = None
             es_r2 = -100.0
@@ -290,32 +359,94 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 except Exception:
                     es_fit = None
             
+            # Dynamic SARIMAX (ARIMA) search
+            arima_fit = None
+            arima_preds = None
+            arima_r2 = -100.0
+            best_order = (1, 1, 1)
+            try:
+                import pmdarima as pm
+                sys.stderr.write("Running pmdarima auto_arima to select p, d, q dynamically...\n")
+                
+                # Run auto_arima to select best p, d, q parameters dynamically
+                stepwise_fit = pm.auto_arima(
+                    y_train,
+                    start_p=0, start_q=0,
+                    max_p=3, max_q=3,
+                    seasonal=False,
+                    trace=False,
+                    error_action='ignore',
+                    suppress_warnings=True,
+                    stepwise=True
+                )
+                
+                best_order = stepwise_fit.order
+                # We serialize the statsmodels ResultsWrapper arima_res_ so that the prediction routing
+                # in analyze.py remains fully compatible and does not require pmdarima at predict time.
+                arima_fit = stepwise_fit.arima_res_
+                forecast_res = arima_fit.forecast(steps=len(y_test))
+                arima_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
+                arima_r2 = max(r2_score(y_test, arima_preds), -100.0)
+                sys.stderr.write(f"pmdarima auto_arima selected order: {best_order} with R²: {arima_r2:.4f}\n")
+                
+            except Exception as pm_err:
+                sys.stderr.write(f"Warning: pmdarima auto_arima search failed: {str(pm_err)}. Falling back to statsmodels grid search...\n")
+                try:
+                    from statsmodels.tsa.statespace.sarimax import SARIMAX
+                    best_aic = float("inf")
+                    d_val = 0 if (adf_p is not None and adf_p < 0.05) else 1
+                    
+                    # Fast grid search for p, q to minimize AIC
+                    for p_val in [0, 1, 2]:
+                        for q_val in [0, 1, 2]:
+                            if p_val == 0 and q_val == 0:
+                                continue
+                            try:
+                                test_model = SARIMAX(y_train, order=(p_val, d_val, q_val), enforce_stationarity=False, enforce_invertibility=False)
+                                test_results = test_model.fit(disp=False, maxiter=50)
+                                if test_results.aic < best_aic:
+                                    best_aic = test_results.aic
+                                    best_order = (p_val, d_val, q_val)
+                            except Exception:
+                                pass
+                    
+                    arima_model = SARIMAX(y_train, order=best_order, enforce_stationarity=False, enforce_invertibility=False)
+                    arima_fit = arima_model.fit(disp=False, maxiter=50)
+                    forecast_res = arima_fit.forecast(steps=len(y_test))
+                    arima_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
+                    arima_r2 = max(r2_score(y_test, arima_preds), -100.0)
+                except Exception as arima_err:
+                    sys.stderr.write(f"Warning: Dynamic SARIMAX fitting failed: {str(arima_err)}\n")
+            
             # Compare models
             best_model = "Linear Regression"
             best_score = lr_r2
             best_preds = lr_preds
             best_reg = lr
             
-            # ARIMA model (D6)
-            arima_fit = None
-            arima_preds = None
-            arima_r2 = -100.0
-            try:
-                from statsmodels.tsa.arima.model import ARIMA
-                d = 0 if (adf_p is not None and adf_p < 0.05) else 1
-                arima_model = ARIMA(y_train, order=(1, d, 1))
-                arima_fit = arima_model.fit()
-                forecast_res = arima_fit.forecast(steps=len(y_test))
-                arima_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
-                arima_r2 = max(r2_score(y_test, arima_preds), -100.0)
-            except Exception as arima_err:
-                sys.stderr.write(f"Warning: ARIMA fitting failed: {str(arima_err)}\n")
-            
+            if ridge_r2 >= best_score:
+                best_model = "Ridge Regression"
+                best_score = ridge_r2
+                best_preds = ridge_preds
+                best_reg = ridge
+                
+            if lasso_r2 >= best_score:
+                best_model = "Lasso Regression"
+                best_score = lasso_r2
+                best_preds = lasso_preds
+                best_reg = lasso
+                
             if rf_r2_rf >= best_score:
                 best_model = "Random Forest Regressor"
                 best_score = rf_r2_rf
                 best_preds = rf_preds
                 best_reg = rf
+                
+            if xgb_r2_xgb >= best_score:
+                best_model = "Tuned XGBoost Regressor"
+                best_score = xgb_r2_xgb
+                best_preds = xgb_preds
+                best_reg = xgb
                 
             if es_fit is not None and es_r2 >= best_score:
                 best_model = "Holt-Winters ES"
@@ -324,7 +455,7 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 best_reg = es_fit
                 
             if arima_fit is not None and arima_r2 >= best_score:
-                best_model = "ARIMA"
+                best_model = f"ARIMA {best_order}"
                 best_score = arima_r2
                 best_preds = arima_preds
                 best_reg = arima_fit
@@ -332,12 +463,15 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             test_rmse = np.sqrt(mean_squared_error(y_test, best_preds))
             models_compared = [
                 {"name": "Linear Regression", "score": float(lr_r2), "metric": "R\u00b2 Score"},
-                {"name": "Random Forest Regressor", "score": float(rf_r2_rf), "metric": "R\u00b2 Score"}
+                {"name": "Ridge Regression", "score": float(ridge_r2), "metric": "R\u00b2 Score"},
+                {"name": "Lasso Regression", "score": float(lasso_r2), "metric": "R\u00b2 Score"},
+                {"name": f"Random Forest Regressor (n={rf_best_n}, d={rf_best_d})", "score": float(rf_r2_rf), "metric": "R\u00b2 Score"},
+                {"name": f"Tuned XGBoost Regressor (n={xgb_best_n}, d={xgb_best_d}, lr={xgb_best_lr:.4f})", "score": float(xgb_r2_xgb), "metric": "R\u00b2 Score"}
             ]
             if es_fit is not None:
                 models_compared.append({"name": "Holt-Winters ES", "score": float(es_r2), "metric": "R\u00b2 Score"})
             if arima_fit is not None:
-                models_compared.append({"name": "ARIMA", "score": float(arima_r2), "metric": "R\u00b2 Score"})
+                models_compared.append({"name": f"ARIMA {best_order}", "score": float(arima_r2), "metric": "R\u00b2 Score"})
                 
             metrics = {
                 "model": best_model,
@@ -385,13 +519,34 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             except Exception as val_err:
                 sys.stderr.write(f"Warning: Validation evaluation failed in time series: {str(val_err)}\n")
 
-        # 5. Forecast Chart (True vs Predicted over time)
-        forecast_data = []
-        # We plot the test set predictions chronologically
+        # 5. Forecast Chart (True vs Predicted over time) with Historical context
         if "__is_test" in df.columns:
             time_test = df[time_col].loc[test_mask].dt.strftime('%Y-%m-%d').tolist()
         else:
             time_test = df[time_col].iloc[split_idx:].dt.strftime('%Y-%m-%d').tolist()
+            
+        # Historical training data points for the timeline (up to 200 points)
+        historical_data = []
+        if "__is_test" in df.columns:
+            train_indices = np.where(train_mask)[0]
+            recent_train_indices = train_indices[-200:] if len(train_indices) > 200 else train_indices
+            time_train = df[time_col].iloc[recent_train_indices].dt.strftime('%Y-%m-%d').tolist()
+            y_train_plot = y[recent_train_indices]
+        else:
+            recent_train_len = min(200, split_idx)
+            time_train = df[time_col].iloc[split_idx - recent_train_len:split_idx].dt.strftime('%Y-%m-%d').tolist()
+            y_train_plot = y[split_idx - recent_train_len:split_idx]
+            
+        for i in range(len(y_train_plot)):
+            historical_data.append({
+                "x_val": str(time_train[i]),
+                "x_num": None,
+                "y": float(y_train_plot[i]),
+                "series": "Historical"
+            })
+            
+        forecast_data = []
+        forecast_data.extend(historical_data)
         
         for i in range(len(y_test)):
             time_str = str(time_test[i])
@@ -415,6 +570,74 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             "y_label": f"Target: {target_col}",
             "data": forecast_data
         })
+        
+        # Feature Importance Chart
+        if "Random Forest" in best_model or "XGBoost" in best_model:
+            try:
+                importances = []
+                if "Classifier" in best_model:
+                    importances = best_clf.feature_importances_
+                else:
+                    importances = best_reg.feature_importances_
+                
+                feat_imp = sorted(zip(X_df.columns, importances), key=lambda x: x[1], reverse=True)
+                top_feat_imp = feat_imp[:10]
+                
+                charts.append({
+                    "type": "bar",
+                    "title": "Time Series Lag Feature Importance",
+                    "x_label": "Feature",
+                    "y_label": "Importance Score",
+                    "data": [{"x_val": name, "x_num": None, "y": float(score)} for name, score in top_feat_imp]
+                })
+            except Exception as feat_err:
+                sys.stderr.write(f"Warning: Failed to compute feature importances: {str(feat_err)}\n")
+
+        # Residuals Plot (for regression)
+        if not is_classification:
+            try:
+                residuals = y_test - best_preds
+                residuals_data = []
+                for i in range(len(y_test)):
+                    residuals_data.append({
+                        "x_val": str(time_test[i]),
+                        "x_num": None,
+                        "y": float(residuals[i])
+                    })
+                charts.append({
+                    "type": "scatter",
+                    "title": "Residuals Over Time",
+                    "x_label": f"Date ({time_col})",
+                    "y_label": "Residual Error",
+                    "data": residuals_data
+                })
+            except Exception as res_err:
+                sys.stderr.write(f"Warning: Failed to generate residuals chart: {str(res_err)}\n")
+
+        # Rolling Volatility Chart (for regression)
+        if not is_classification:
+            try:
+                rolling_vol = pd.Series(y).rolling(window=7, min_periods=1).std().fillna(0).tolist()
+                vol_dates = df[time_col].dt.strftime('%Y-%m-%d').tolist()
+                vol_data = []
+                
+                # Sample down to keep it fast
+                step = max(1, len(rolling_vol) // 500)
+                for i in range(0, len(rolling_vol), step):
+                    vol_data.append({
+                        "x_val": str(vol_dates[i]),
+                        "x_num": None,
+                        "y": float(rolling_vol[i])
+                    })
+                charts.append({
+                    "type": "line",
+                    "title": "Target Variable Rolling Volatility (7-Day std dev)",
+                    "x_label": f"Date ({time_col})",
+                    "y_label": "Standard Deviation",
+                    "data": vol_data
+                })
+            except Exception as vol_err:
+                sys.stderr.write(f"Warning: Failed to compute rolling volatility: {str(vol_err)}\n")
         
         # 6. Dummy baseline comparison
         dummy_score = None

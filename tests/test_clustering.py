@@ -37,9 +37,9 @@ def test_analyze_clustering():
     )
     
     assert result["error"] is None
-    assert result["metrics"]["model"] == "K-Means + DBSCAN Clustering"
+    assert result["metrics"]["model"] == "K-Means + HDBSCAN Clustering"
     assert result["metrics"]["score_type"] == "Silhouette Score"
     assert len(result["charts"]) > 0
-    # K-Means Cluster and DBSCAN Cluster should be in columns
+    # K-Means Cluster and HDBSCAN Cluster should be in columns
     assert "K-Means Cluster" in result["columns"]
-    assert "DBSCAN Cluster" in result["columns"]
+    assert "HDBSCAN Cluster" in result["columns"]
