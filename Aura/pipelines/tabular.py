@@ -134,6 +134,24 @@ def calculate_pdp_ice(model, X, feature_name, grid_resolution=20, num_ice_sample
 def preprocess(X_train, y_train, X_test, y_test, X_val, y_val,
                categorical_cols, numeric_cols, text_cols,
                target_encode_cols, one_hot_cols, is_classification):
+    # Prevent SettingWithCopyWarning and ensure we don't modify the originals in-place
+    X_train = X_train.copy()
+    if X_test is not None:
+        X_test = X_test.copy()
+    if X_val is not None:
+        X_val = X_val.copy()
+
+    # Convert all categorical and text columns to object dtype to avoid float conversions in SimpleImputer.
+    # SimpleImputer with most_frequent/constant strategy raises ValueError on mixed-type data (e.g. str, int, bool)
+    # when dtype=None because check_array tries to convert the DataFrame to a single numeric array by default.
+    for col in categorical_cols + text_cols:
+        if col in X_train.columns:
+            X_train[col] = X_train[col].astype(object)
+        if X_test is not None and col in X_test.columns:
+            X_test[col] = X_test[col].astype(object)
+        if X_val is not None and col in X_val.columns:
+            X_val[col] = X_val[col].astype(object)
+
     # Determine target encoding target type
     if target_encode_cols:
         from sklearn.preprocessing import TargetEncoder
@@ -930,7 +948,8 @@ def analyze_tabular(df, target_col, task_type_override,
                     file_path=None, model_export_path=None, code_export_path=None,
                     smart_sample=False, cleaning_actions=None,
                     test_df=None, val_df=None, has_test_set=False, has_val_set=False,
-                    test_info=None, val_info=None, cleaner=None, feature_selection=False):
+                    test_info=None, val_info=None, cleaner=None, feature_selection=False,
+                    column_type_overrides=None):
     """
     Main entry point for the Tabular pipeline analysis. Handles preprocessing,
     modeling, metrics evaluation, charts construction, and code export.
@@ -981,18 +1000,26 @@ def analyze_tabular(df, target_col, task_type_override,
             if nunique == 0:
                 cols_to_drop.append(col)
             elif col in categorical_cols:
-                sample_series = X[col].dropna().astype(str)
-                if sample_series.empty:
+                is_manual_text = column_type_overrides and column_type_overrides.get(col) == "text"
+                is_manual_id = column_type_overrides and column_type_overrides.get(col) == "identifier"
+                
+                if is_manual_id:
                     cols_to_drop.append(col)
-                    continue
-                avg_len = sample_series.str.len().mean()
-                col_lower = col.lower()
-                is_id = any(kw in col_lower for kw in ["id", "uuid", "key", "index", "code", "url", "link"])
-                if nunique > 100:
-                    if not is_id:
-                        text_cols.append(col)
-                    else:
+                elif is_manual_text:
+                    text_cols.append(col)
+                else:
+                    sample_series = X[col].dropna().astype(str)
+                    if sample_series.empty:
                         cols_to_drop.append(col)
+                        continue
+                    avg_len = sample_series.str.len().mean()
+                    col_lower = col.lower()
+                    is_id = any(kw in col_lower for kw in ["id", "uuid", "key", "index", "code", "url", "link"])
+                    if nunique > 100:
+                        if not is_id:
+                            text_cols.append(col)
+                        else:
+                            cols_to_drop.append(col)
                         
         X = X.drop(columns=cols_to_drop)
         
@@ -1223,7 +1250,7 @@ def analyze_tabular(df, target_col, task_type_override,
         summary = "\n\n".join(summary_sections)
         
         print_progress(0.88, "Profiling columns & generating data statistics...")
-        profiling = profile_dataset(df)
+        profiling = profile_dataset(df, column_type_overrides=column_type_overrides)
         
         # Target leakage detections
         data_leakage_warnings = []

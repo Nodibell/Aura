@@ -121,12 +121,26 @@ def analyze_preview(file_path, dataset_type=None):
             else:
                 inferred = dataset_type
 
+            # Fast column type profiling for the preview screen
+            column_types = {}
+            try:
+                from utils.profiler import profile_dataset
+                df_profile = load_dataset(file_path, nrows=1000)
+                profile = profile_dataset(df_profile)
+                for col_name, col_prof in profile.get("columns", {}).items():
+                    column_types[col_name] = col_prof.get("type", "categorical")
+            except Exception:
+                # Fallback to categorical if profiling fails
+                for col_name in columns:
+                    column_types[col_name] = "categorical"
+
             res = {
                 "columns": columns,
                 "preview_rows": preview_rows,
                 "inferred_dataset_type": inferred,
                 "local_path": file_path,
-                "total_rows": total_rows
+                "total_rows": total_rows,
+                "column_types": column_types
             }
             print_progress(0.95, "Finalizing tabular preview...")
 

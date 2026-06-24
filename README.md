@@ -56,6 +56,14 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Light Theme Report PDF**: Refactored HTML/PDF compiling engines in [ReportCompiler.swift](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/Services/ReportCompiler.swift) to dynamically render contrast-optimized light mode layouts for printed PDFs and premium dark mode interfaces for HTML exports.
 * **Interactive Chart Legend Selection**: Allows toggling and filtering data series dynamically in the SwiftUI SVD projection charts in real time.
 
+### 10. Local Microservice & Preview Enhancements (New in v0.4.0)
+* **Local FastAPI Backend**: Migrated the Swift-to-Python IPC from stdout parsing to a robust local FastAPI microservice process (`server.py`) running asynchronously on localhost.
+* **Real-Time Preview Streaming**: Refactored `/preview` and the Swift client code to use Server-Sent Events (SSE), enabling live progress reporting (e.g. download percentages for large remote Kaggle/HuggingFace datasets) to prevent the UI from freezing.
+* **YOLO Dataset Preview Optimization**: Implemented random file sampling for splits exceeding 1,000 images, keeping YOLO / object detection dataset previews near-instant.
+* **Dynamic Prediction Picker Constraints**: Enforces integer-only steps/inputs on prediction panels when column profiling detects only integer values.
+* **Manual Column Type Overrides**: Added interactive dropdown menus in the preview table headers to let users verify and override system-inferred column types before training.
+* **Automated ID/Identifier Exclusions**: Automatically deselects unique identifiers/IDs from training features, with an optional toggle to re-enable them.
+
 ---
 
 ## 🏗️ Architecture

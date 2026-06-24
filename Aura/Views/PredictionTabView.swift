@@ -9,9 +9,20 @@ struct PredictionTabView: View {
     @State private var isPredicting = false
     @State private var predictionResult: PredictionResult? = nil
     @State private var errorMessage: String? = nil
+    @State private var showIdentifierColumns = false
     
     var features: [String] {
-        result.columns.filter { $0 != result.targetColumn && !config.excludedColumns.contains($0) }
+        result.columns.filter { feature in
+            feature != result.targetColumn &&
+            !config.excludedColumns.contains(feature) &&
+            (showIdentifierColumns || result.profiling?.columns[feature]?.type != "identifier")
+        }
+    }
+    
+    private var hasIdentifierColumns: Bool {
+        result.columns.contains { feature in
+            result.profiling?.columns[feature]?.type == "identifier"
+        }
     }
     
     var body: some View {
@@ -26,6 +37,13 @@ struct PredictionTabView: View {
                     Text("Modify feature values to run live inference on the best performing model (\(result.metrics.model)).")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
+                    
+                    if hasIdentifierColumns {
+                        Divider()
+                        Toggle("Show Identifier Columns", isOn: $showIdentifierColumns)
+                            .toggleStyle(.checkbox)
+                            .help("Include ID or key columns that were excluded from predictive modeling.")
+                    }
                     
                     Divider()
                     
@@ -194,8 +212,13 @@ struct PredictionTabView: View {
     
     private func isDateField(_ feature: String) -> Bool {
         let profile = result.profiling?.columns[feature]
-        if profile?.type == "datetime" {
-            return true
+        if let profile = profile {
+            if profile.type == "datetime" {
+                return true
+            }
+            if profile.type == "categorical" || profile.type == "numeric" {
+                return false
+            }
         }
         
         let lowerName = feature.lowercased()
@@ -243,7 +266,7 @@ struct PredictionTabView: View {
     @ViewBuilder
     private func featureInputView(for feature: String) -> some View {
         let profile = result.profiling?.columns[feature]
-        let isNumeric = profile?.type == "numeric"
+        let isNumeric = profile?.type == "numeric" || (profile?.type == "identifier" && profile?.stats != nil)
         
         VStack(alignment: .leading, spacing: 6) {
             HStack {
@@ -292,27 +315,37 @@ struct PredictionTabView: View {
     
     @ViewBuilder
     private func numericInputView(feature: String, stats: NumericStats) -> some View {
+        let isInteger = result.profiling?.columns[feature]?.isInteger ?? false
         let currentVal = Binding<Double>(
-            get: { (inputValues[feature] as? Double) ?? stats.p50 },
-            set: { inputValues[feature] = $0 }
+            get: { 
+                let rawVal = (inputValues[feature] as? Double) ?? stats.p50
+                return isInteger ? rawVal.rounded() : rawVal
+            },
+            set: { 
+                inputValues[feature] = isInteger ? $0.rounded() : $0
+            }
         )
         
         VStack(spacing: 6) {
             HStack {
-                Slider(value: currentVal, in: stats.min...stats.max)
+                if isInteger {
+                    Slider(value: currentVal, in: stats.min...stats.max, step: 1)
+                } else {
+                    Slider(value: currentVal, in: stats.min...stats.max)
+                }
                 
-                TextField("", value: currentVal, format: .number)
+                TextField("", value: currentVal, format: isInteger ? .number.precision(.fractionLength(0)) : .number)
                     .textFieldStyle(RoundedBorderTextFieldStyle())
                     .frame(width: 70)
                     .multilineTextAlignment(.trailing)
             }
             
             HStack {
-                Text(String(format: "Min: %.2f", stats.min))
+                Text(isInteger ? "Min: \(Int(stats.min))" : String(format: "Min: %.2f", stats.min))
                     .font(.caption2)
                     .foregroundColor(.secondary)
                 Spacer()
-                Text(String(format: "Max: %.2f", stats.max))
+                Text(isInteger ? "Max: \(Int(stats.max))" : String(format: "Max: %.2f", stats.max))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -349,7 +382,7 @@ struct PredictionTabView: View {
     
     private func initializeInputs() {
         guard inputValues.isEmpty else { return }
-        for feature in features {
+        for feature in result.columns where feature != result.targetColumn {
             let profile = result.profiling?.columns[feature]
             if isDateField(feature) {
                 if let firstCat = profile?.topCategories?.first?.value,
@@ -358,8 +391,9 @@ struct PredictionTabView: View {
                 } else {
                     inputValues[feature] = Date()
                 }
-            } else if profile?.type == "numeric", let stats = profile?.stats {
-                inputValues[feature] = stats.p50
+            } else if let stats = profile?.stats, (profile?.type == "numeric" || profile?.type == "identifier") {
+                let isInteger = profile?.isInteger ?? false
+                inputValues[feature] = isInteger ? stats.p50.rounded() : stats.p50
             } else if let categories = profile?.topCategories, !categories.isEmpty {
                 inputValues[feature] = categories.first?.value ?? ""
             } else {
@@ -390,16 +424,18 @@ struct PredictionTabView: View {
             }
         }
         
-        // Prepare inputs (convert Date to formatted string)
+        // Prepare inputs (convert Date to formatted string, ONLY for active features)
         var serializedInputs: [String: Any] = [:]
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         
-        for (key, val) in inputValues {
-            if let dateVal = val as? Date {
-                serializedInputs[key] = dateFormatter.string(from: dateVal)
-            } else {
-                serializedInputs[key] = val
+        for feature in features {
+            if let val = inputValues[feature] {
+                if let dateVal = val as? Date {
+                    serializedInputs[feature] = dateFormatter.string(from: dateVal)
+                } else {
+                    serializedInputs[feature] = val
+                }
             }
         }
         

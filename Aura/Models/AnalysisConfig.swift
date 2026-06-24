@@ -164,4 +164,6 @@ struct AnalysisConfig: Codable, Equatable {
     var cleaningActions: Set<CleaningAction> = [] // Phase 3
     var modelExportPath: String?          = nil   // Path to save best model (.joblib)
     var codeExportPath: String?           = nil   // Path to save reproduction code (.py)
+    var featureSelection: Bool            = false // Phase 8
+    var columnTypeOverrides: [String: String] = [:]
 }

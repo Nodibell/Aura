@@ -617,12 +617,26 @@ def preview_yolo(root):
         imgs = _list_images(img_dir)
         row_count += len(imgs)
         if lab_dir:
-            for p in imgs:
+            use_estimation = len(imgs) > 1000
+            sampled_imgs = imgs
+            if use_estimation:
+                import random
+                # Use a fixed seed for reproducible preview counts
+                random.seed(42)
+                sampled_imgs = random.sample(imgs, 1000)
+            
+            sampled_ann_count = 0
+            for p in sampled_imgs:
                 stem = os.path.splitext(os.path.basename(p))[0]
                 if fmt == "voc":
-                    ann_count += len(_parse_voc_label_file(os.path.join(lab_dir, stem + ".xml"), class_names))
+                    sampled_ann_count += len(_parse_voc_label_file(os.path.join(lab_dir, stem + ".xml"), class_names))
                 else:
-                    ann_count += len(_parse_label_file(os.path.join(lab_dir, stem + ".txt")))
+                    sampled_ann_count += len(_parse_label_file(os.path.join(lab_dir, stem + ".txt")))
+            
+            if use_estimation:
+                ann_count += int((sampled_ann_count / 1000.0) * len(imgs))
+            else:
+                ann_count += sampled_ann_count
 
     # Build a mini preview table: filename, split, n_boxes, classes_present
     preview_rows = []

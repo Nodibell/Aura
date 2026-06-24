@@ -223,7 +223,7 @@ def compute_mixed_correlation(df, col1, col2):
 def analyze(file_path, target_col=None, dataset_type="tabular",
             task_type_override="auto", time_col=None, exclude_cols=None, test_file_path=None, val_file_path=None,
             model_export_path=None, code_export_path=None, smart_sample=False, cleaning_actions=None,
-            feature_selection=False):
+            feature_selection=False, column_type_overrides=None):
     from utils.helpers import print_progress
     from utils.loader import download_dataset, load_dataset
     from utils.cleaning import StatefulCleaner
@@ -356,6 +356,20 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
         categorical_cols = []
         datetime_cols = []
         for col in columns:
+            if column_type_overrides and col in column_type_overrides:
+                override_type = column_type_overrides[col]
+                if override_type == "numeric":
+                    numeric_cols.append(col)
+                elif override_type == "categorical" or override_type == "text":
+                    categorical_cols.append(col)
+                elif override_type == "datetime":
+                    datetime_cols.append(col)
+                elif override_type == "identifier":
+                    exclude_cols.discard(col) # Remove from active list
+                    # Wait, excluded columns are filtered out from `columns` already, but we need to make sure it is added to exclude_cols.
+                    exclude_cols.add(col)
+                continue
+
             col_series = df[col]
             
             is_datetime = False
@@ -506,7 +520,7 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     t_correlations.sort(key=lambda x: abs(x["value"]), reverse=True)
                 
                 # Profiling
-                t_profiling = profile_dataset(test_df)
+                t_profiling = profile_dataset(test_df, column_type_overrides=column_type_overrides)
                 
                 # Full preview
                 t_preview_df = test_df.head(500).fillna("").astype(str)
@@ -551,7 +565,7 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     v_correlations.sort(key=lambda x: abs(x["value"]), reverse=True)
                 
                 # Profiling
-                v_profiling = profile_dataset(val_df)
+                v_profiling = profile_dataset(val_df, column_type_overrides=column_type_overrides)
                 
                 # Full preview
                 v_preview_df = val_df.head(500).fillna("").astype(str)
@@ -673,7 +687,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             smart_sample=smart_sample, cleaning_actions=cleaning_actions,
             test_df=test_df, val_df=val_df, has_test_set=has_test_set, has_val_set=has_val_set,
             test_info=test_info, val_info=val_info,
-            cleaner=cleaner, feature_selection=feature_selection
+            cleaner=cleaner, feature_selection=feature_selection,
+            column_type_overrides=column_type_overrides
         )
 
         
@@ -938,6 +953,7 @@ if __name__ == "__main__":
     parser.add_argument("--smart-sample", action="store_true", help="Enable smart sampling for large datasets")
     parser.add_argument("--cleaning-actions", default=None, help="JSON string of cleaning actions to apply")
     parser.add_argument("--feature-selection", action="store_true", help="Enable automatic feature selection (RFE)")
+    parser.add_argument("--column-type-overrides", default=None, help="JSON string of column type overrides")
     
     # Merge options
     parser.add_argument("--merge", action="store_true", help="Merge two files and exit")
@@ -1001,6 +1017,13 @@ if __name__ == "__main__":
         from pipelines.preview import analyze_preview
         analysis = analyze_preview(args.file, dataset_type=args.dataset_type)
     else:
+        column_type_overrides = {}
+        if args.column_type_overrides:
+            try:
+                column_type_overrides = json.loads(args.column_type_overrides)
+            except Exception:
+                pass
+
         analysis = analyze(
             args.file,
             target_col=target,
@@ -1014,7 +1037,8 @@ if __name__ == "__main__":
             code_export_path=args.code_export_path,
             smart_sample=args.smart_sample,
             cleaning_actions=args.cleaning_actions,
-            feature_selection=args.feature_selection
+            feature_selection=args.feature_selection,
+            column_type_overrides=column_type_overrides
         )
 
     from utils.helpers import clean_nan

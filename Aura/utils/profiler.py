@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-def profile_dataset(df):
+def profile_dataset(df, column_type_overrides=None):
     profiling = {
         "duplicate_rows": int(df.duplicated().sum()),
         "columns": {}
@@ -57,19 +57,6 @@ def profile_dataset(df):
                 
         is_num = is_raw_num and not is_categorical_num
         
-        # Detect if it is text/NLP column
-        is_text = False
-        if not is_num:
-            try:
-                # Calculate average string length of non-null values
-                non_null_strs = col_series.dropna().astype(str)
-                if not non_null_strs.empty:
-                    avg_len = non_null_strs.str.len().mean()
-                    if avg_len > 50:
-                        is_text = True
-            except Exception:
-                pass
-        
         # Detect if it is an identifier column
         is_identifier = False
         col_lower = col.lower()
@@ -79,12 +66,44 @@ def profile_dataset(df):
             nunique = int(col_series.nunique())
             is_unique_key = nunique == non_null_count or (nunique / non_null_count) >= 0.98
             is_id_name = col_lower in ["id", "index", "no", "number", "num", "row", "rowid"] or \
-                         col_lower.endswith("_id") or col_lower.endswith("id") or col_lower.startswith("id_")
+                         col_lower.endswith("_id") or col_lower.endswith("id") or col_lower.startswith("id_") or \
+                         col_lower.endswith("key") or col_lower.startswith("key_")
                          
-            if is_unique_key and (is_id_name or col_series.dtype == object):
-                is_identifier = True
-                
-        col_type = "identifier" if is_identifier else ("datetime" if is_datetime else ("numeric" if is_num else ("text" if is_text else "categorical")))
+            if is_unique_key:
+                if is_id_name:
+                    is_identifier = True
+                elif col_series.dtype == object or pd.api.types.is_string_dtype(col_series.dtype):
+                    try:
+                        sample_vals = col_non_null.head(100).astype(str)
+                        has_spaces = sample_vals.str.contains(r'\s').any()
+                        avg_val_len = sample_vals.str.len().mean()
+                        if not has_spaces and avg_val_len < 40 and not col_lower == "password":
+                            is_identifier = True
+                    except Exception:
+                        pass
+
+        # Detect if it is text/NLP column
+        is_text = False
+        if not is_num and not is_identifier:
+            try:
+                # Calculate average string length of non-null values
+                non_null_strs = col_series.dropna().astype(str)
+                if not non_null_strs.empty:
+                    avg_len = non_null_strs.str.len().mean()
+                    if avg_len > 50:
+                        is_text = True
+                    else:
+                        # High cardinality string columns (like names, passwords) are text/NLP, not categorical
+                        nunique = int(col_series.nunique())
+                        if nunique > 100 and (pd.api.types.is_string_dtype(col_series.dtype) or col_series.dtype == object):
+                            is_text = True
+            except Exception:
+                pass
+        
+        if column_type_overrides and col in column_type_overrides:
+            col_type = column_type_overrides[col]
+        else:
+            col_type = "identifier" if is_identifier else ("datetime" if is_datetime else ("numeric" if is_num else ("text" if is_text else "categorical")))
         
         col_profile = {
             "nunique": int(col_series.nunique()),
@@ -92,18 +111,32 @@ def profile_dataset(df):
             "type": col_type
         }
         
-        if is_num:
-            desc = col_series.describe()
-            col_profile["stats"] = {
-                "min": float(desc.get("min", 0.0)) if not np.isnan(desc.get("min", 0.0)) else 0.0,
-                "max": float(desc.get("max", 0.0)) if not np.isnan(desc.get("max", 0.0)) else 0.0,
-                "mean": float(desc.get("mean", 0.0)) if not np.isnan(desc.get("mean", 0.0)) else 0.0,
-                "std": float(desc.get("std", 0.0)) if not np.isnan(desc.get("std", 0.0)) else 0.0,
-                "p25": float(col_series.quantile(0.25)) if not np.isnan(col_series.quantile(0.25)) else 0.0,
-                "p50": float(col_series.quantile(0.50)) if not np.isnan(col_series.quantile(0.50)) else 0.0,
-                "p75": float(col_series.quantile(0.75)) if not np.isnan(col_series.quantile(0.75)) else 0.0
-            }
-        elif is_text:
+        if col_type == "numeric":
+            try:
+                num_series = pd.to_numeric(col_series, errors='coerce')
+                desc = num_series.describe()
+                col_profile["stats"] = {
+                    "min": float(desc.get("min", 0.0)) if not np.isnan(desc.get("min", 0.0)) else 0.0,
+                    "max": float(desc.get("max", 0.0)) if not np.isnan(desc.get("max", 0.0)) else 0.0,
+                    "mean": float(desc.get("mean", 0.0)) if not np.isnan(desc.get("mean", 0.0)) else 0.0,
+                    "std": float(desc.get("std", 0.0)) if not np.isnan(desc.get("std", 0.0)) else 0.0,
+                    "p25": float(num_series.quantile(0.25)) if not np.isnan(num_series.quantile(0.25)) else 0.0,
+                    "p50": float(num_series.quantile(0.50)) if not np.isnan(num_series.quantile(0.50)) else 0.0,
+                    "p75": float(num_series.quantile(0.75)) if not np.isnan(num_series.quantile(0.75)) else 0.0
+                }
+                non_nulls = num_series.dropna()
+                is_int = False
+                if pd.api.types.is_integer_dtype(num_series.dtype):
+                    is_int = True
+                elif not non_nulls.empty:
+                    try:
+                        is_int = non_nulls.apply(lambda x: float(x).is_integer()).all()
+                    except Exception:
+                        pass
+                col_profile["is_integer"] = bool(is_int)
+            except Exception:
+                pass
+        elif col_type == "text":
             # Stats for text column (character length stats)
             try:
                 lengths = col_series.dropna().astype(str).str.len()

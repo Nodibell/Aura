@@ -260,42 +260,7 @@ def analyze_nlp(df, target_col, task_type_override,
                 "data": scatter_pol_target[:1000]
             })
 
-        # 8. Most Informative Features (Model Coefficients) Diverging Bar Chart
-        if is_classification:
-            try:
-                # We extract coefficients if best_model is Logistic Regression or Linear SVC
-                if best_model in ["Logistic Regression", "Linear SVC"]:
-                    coefs = best_clf.coef_
-                    # Take first class for multiclass, or the single vector for binary
-                    if len(coefs.shape) > 1 and coefs.shape[0] > 0:
-                        flat_coefs = coefs[0]
-                    else:
-                        flat_coefs = coefs
-                    
-                    # Sort indices by absolute weight
-                    sorted_indices = np.argsort(np.abs(flat_coefs))
-                    # Take top 15 highest weight features
-                    top_indices = sorted_indices[-15:] if len(sorted_indices) >= 15 else sorted_indices
-                    
-                    coef_chart_data = []
-                    for idx in top_indices:
-                        coef_chart_data.append({
-                            "x_val": str(feature_names[idx]),
-                            "x_num": None,
-                            "y": float(flat_coefs[idx])
-                        })
-                    # Sort top indices by value so the bar chart looks clean
-                    coef_chart_data.sort(key=lambda x: x["y"])
-                    
-                    charts.append({
-                        "type": "bar",
-                        "title": "Model Coefficients: Most Informative Words",
-                        "x_label": "Word",
-                        "y_label": "Coefficient Impact",
-                        "data": coef_chart_data
-                    })
-            except Exception as coef_err:
-                sys.stderr.write(f"Warning: Failed to compile model coefficients chart: {str(coef_err)}\n")
+        # Note: Chart 8 (Model Coefficients) moved to post-training phase below
 
         # 9. Document Embedding 2D Projection using TruncatedSVD (max 1000 points)
         try:
@@ -717,6 +682,43 @@ def analyze_nlp(df, target_col, task_type_override,
             except Exception as val_err:
                 sys.stderr.write(f"Warning: Validation evaluation failed in NLP: {str(val_err)}\n")
             
+        # 8. Most Informative Features (Model Coefficients) Diverging Bar Chart (Post-Training)
+        if is_classification:
+            try:
+                # We extract coefficients if best_model is Logistic Regression or Linear SVC
+                if best_model in ["Logistic Regression", "Linear SVC"]:
+                    coefs = best_clf.coef_
+                    # Take first class for multiclass, or the single vector for binary
+                    if len(coefs.shape) > 1 and coefs.shape[0] > 0:
+                        flat_coefs = coefs[0]
+                    else:
+                        flat_coefs = coefs
+                    
+                    # Sort indices by absolute weight
+                    sorted_indices = np.argsort(np.abs(flat_coefs))
+                    # Take top 15 highest weight features
+                    top_indices = sorted_indices[-15:] if len(sorted_indices) >= 15 else sorted_indices
+                    
+                    coef_chart_data = []
+                    for idx in top_indices:
+                        coef_chart_data.append({
+                            "x_val": str(feature_names[idx]),
+                            "x_num": None,
+                            "y": float(flat_coefs[idx])
+                        })
+                    # Sort top indices by value so the bar chart looks clean
+                    coef_chart_data.sort(key=lambda x: x["y"])
+                    
+                    charts.append({
+                        "type": "bar",
+                        "title": "Model Coefficients: Most Informative Words",
+                        "x_label": "Word",
+                        "y_label": "Coefficient Impact",
+                        "data": coef_chart_data
+                    })
+            except Exception as coef_err:
+                sys.stderr.write(f"Warning: Failed to compile model coefficients chart: {str(coef_err)}\n")
+
         print_progress(0.90, "Profiling columns & generating data statistics...")
         profiling = profile_dataset(df)
             
@@ -767,13 +769,16 @@ def analyze_nlp(df, target_col, task_type_override,
                 ('tfidf', vectorizer),
                 ('clf', raw_clf)
             ])
+            export_le = None
+            if is_classification and best_model == "Tuned XGBoost Classifier":
+                export_le = le
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
                 file_path, "nlp", target_col, None,
                 "classification" if is_classification else "regression",
                 None, best_model, numeric_cols, categorical_cols,
                 [text_col] if 'text_col' in locals() else [],
-                cleaner=None, preprocessor=None, label_encoder=None
+                cleaner=None, preprocessor=None, label_encoder=export_le
             )
         
         return {

@@ -269,6 +269,19 @@ struct PreviewTableView: View {
         }
         return col.lowercased() == detectedTargetColumn.lowercased()
     }
+    
+    private func columnTypeDisplayString(for col: String) -> String {
+        let inferredType = preview.columnTypes?[col] ?? "categorical"
+        let activeType = config.columnTypeOverrides[col] ?? inferredType
+        switch activeType {
+        case "numeric": return "Numeric"
+        case "categorical": return "Categorical"
+        case "text": return "Text / NLP"
+        case "datetime": return "Datetime"
+        case "identifier": return "Identifier"
+        default: return activeType.capitalized
+        }
+    }
 
     // MARK: - Table Header Row
 
@@ -307,6 +320,29 @@ struct PreviewTableView: View {
                             .buttonStyle(.plain)
                             .help(isExcluded ? "Include column in analysis" : "Exclude column from analysis")
                         }
+                        
+                        if !isTarget && !isExcluded {
+                            Menu {
+                                Button("Numeric") { config.columnTypeOverrides[col] = "numeric" }
+                                Button("Categorical") { config.columnTypeOverrides[col] = "categorical" }
+                                Button("Text / NLP") { config.columnTypeOverrides[col] = "text" }
+                                Button("Datetime") { config.columnTypeOverrides[col] = "datetime" }
+                                Button("Identifier") { config.columnTypeOverrides[col] = "identifier" }
+                            } label: {
+                                HStack(spacing: 3) {
+                                    Text(columnTypeDisplayString(for: col))
+                                        .font(.system(size: 8, weight: .bold, design: .rounded))
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 7))
+                                }
+                                .foregroundColor(.blue.opacity(0.8))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(Color.blue.opacity(0.08))
+                                .cornerRadius(4)
+                            }
+                            .menuStyle(.borderlessButton)
+                        }
                     }
                     
                     Text(col)
@@ -315,7 +351,7 @@ struct PreviewTableView: View {
                         .lineLimit(1)
                 }
                 .padding(.horizontal, 10)
-                .frame(width: colWidth, height: 48, alignment: .leading)
+                .frame(width: colWidth, height: 56, alignment: .leading)
                 .background(isExcluded ? Color.primary.opacity(0.02) : Color.primary.opacity(0.04))
                 .border(Color.primary.opacity(0.07), width: 0.5)
             }

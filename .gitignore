@@ -47,6 +47,8 @@ scratch_build*.log
 
 # Packaged binaries
 *.dmg
+*.zip
+*.joblib
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml

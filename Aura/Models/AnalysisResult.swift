@@ -195,6 +195,7 @@ struct ColumnProfile: Codable {
     let type: String // "numeric" or "categorical"
     let stats: NumericStats?
     let topCategories: [TopCategory]?
+    let isInteger: Bool?
     
     enum CodingKeys: String, CodingKey {
         case nunique
@@ -202,6 +203,7 @@ struct ColumnProfile: Codable {
         case type
         case stats
         case topCategories = "top_categories"
+        case isInteger = "is_integer"
     }
 }
 
@@ -321,7 +323,7 @@ struct ModelComparison: Codable, Identifiable {
 }
 
 
-struct DatasetPreview: Codable {
+struct DatasetPreview: Codable, Sendable {
     let columns: [String]
     let previewRows: [[PreviewValue]]
     let localPath: String
@@ -330,6 +332,27 @@ struct DatasetPreview: Codable {
     let inferredDatasetType: String?
     let availableFiles: [String]?
     let totalRows: Int?
+    let columnTypes: [String: String]?
+
+    init(
+        columns: [String],
+        previewRows: [[PreviewValue]],
+        localPath: String,
+        error: String? = nil,
+        inferredDatasetType: String? = nil,
+        availableFiles: [String]? = nil,
+        totalRows: Int? = nil,
+        columnTypes: [String: String]? = nil
+    ) {
+        self.columns = columns
+        self.previewRows = previewRows
+        self.localPath = localPath
+        self.error = error
+        self.inferredDatasetType = inferredDatasetType
+        self.availableFiles = availableFiles
+        self.totalRows = totalRows
+        self.columnTypes = columnTypes
+    }
 
     enum CodingKeys: String, CodingKey {
         case columns
@@ -339,10 +362,11 @@ struct DatasetPreview: Codable {
         case inferredDatasetType = "inferred_dataset_type"
         case availableFiles = "available_files"
         case totalRows = "total_rows"
+        case columnTypes = "column_types"
     }
 }
 
-enum PreviewValue: Codable, Hashable, Identifiable {
+enum PreviewValue: Codable, Hashable, Identifiable, Sendable {
     var id: String {
         switch self {
         case .string(let s): return "s-\(s)-\(UUID().uuidString)"

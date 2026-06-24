@@ -1297,6 +1297,13 @@ struct ContentView: View {
                                 self.analysisConfig.datasetType = type
                             }
                             
+                            // Auto deselect id columns
+                            for (idx, col) in previewData.columns.enumerated() {
+                                if self.isLikelyIdentifierColumn(name: col, columnIndex: idx, previewRows: previewData.previewRows) {
+                                    self.analysisConfig.excludedColumns.insert(col)
+                                }
+                            }
+                            
                             // Automate test and validation pre-selection
                             if let available = previewData.availableFiles {
                                 if self.analysisConfig.testFilePath == nil {
@@ -1319,6 +1326,46 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    private func isLikelyIdentifierColumn(name: String, columnIndex: Int, previewRows: [[PreviewValue]]) -> Bool {
+        let lowerName = name.lowercased()
+        
+        let matchesIdName = lowerName == "id" || 
+                            lowerName == "index" || 
+                            lowerName == "no" || 
+                            lowerName == "number" || 
+                            lowerName == "num" || 
+                            lowerName == "row" || 
+                            lowerName == "rowid" || 
+                            lowerName == "row_id" || 
+                            lowerName.hasSuffix("_id") || 
+                            lowerName.hasSuffix("id") || 
+                            lowerName.hasPrefix("id_")
+        
+        guard matchesIdName else { return false }
+        
+        var nonNullValues: [String] = []
+        for row in previewRows {
+            if columnIndex < row.count {
+                let val = row[columnIndex]
+                switch val {
+                case .string(let s):
+                    if !s.isEmpty { nonNullValues.append(s) }
+                case .number(let n):
+                    nonNullValues.append("\(n)")
+                case .boolean(let b):
+                    nonNullValues.append("\(b)")
+                case .null:
+                    break
+                }
+            }
+        }
+        
+        if nonNullValues.isEmpty { return false }
+        let uniqueCount = Set(nonNullValues).count
+        let ratio = Double(uniqueCount) / Double(nonNullValues.count)
+        return ratio >= 0.95
     }
 
     private func runEDA() {

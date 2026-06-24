@@ -1,30 +1,29 @@
 import Foundation
-
-// A thread-safe class for accumulating Data from FileHandles concurrently.
-final class ProtectedData: @unchecked Sendable {
-    private var data = Data()
-    private let lock = NSLock()
-    
-    func append(_ newData: Data) {
-        lock.lock()
-        defer { lock.unlock() }
-        data.append(newData)
-    }
-    
-    func get() -> Data {
-        lock.lock()
-        defer { lock.unlock() }
-        return data
-    }
-}
+import AppKit
 
 actor PythonRunner {
     static let shared = PythonRunner()
     
     private let defaultPythonPathKey = "Aura_PythonPath"
+    private let serverPort = 11435
     
-    private var activeProcess: Process?
+    private var serverProcess: Process?
+    private var isServerStarting = false
     private var isCancelled = false
+    private var activeTask: Task<Void, Never>?
+    
+    private init() {
+        // Stop the server when the application terminates
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: nil
+        ) { _ in
+            Task {
+                await PythonRunner.shared.stopServer()
+            }
+        }
+    }
     
     // MARK: - Logging Helpers (Safely bounces to MainActor)
     private nonisolated func logInfo(_ message: String, category: String = "PythonRunner") {
@@ -48,12 +47,22 @@ actor PythonRunner {
     // MARK: - Python Path Resolution (Non-isolated to be synchronously callable)
     nonisolated func resolvePythonPath() -> String {
         if let savedPath = UserDefaults.standard.string(forKey: defaultPythonPathKey),
-           FileManager.default.fileExists(atPath: savedPath) {
+           FileManager.default.fileExists(atPath: savedPath),
+           verifyPythonEnvironment(at: savedPath) {
             return savedPath
         }
         
         let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
         var candidates: [String] = []
+        
+        let currentDir = FileManager.default.currentDirectoryPath
+        candidates.append((currentDir as NSString).appendingPathComponent(".venv/bin/python3"))
+        candidates.append((currentDir as NSString).appendingPathComponent(".venv/bin/python"))
+        
+        let devWorkspaceVenv3 = (homeDir as NSString).appendingPathComponent("Developer/Xcode.projects/Aura/.venv/bin/python3")
+        let devWorkspaceVenv = (homeDir as NSString).appendingPathComponent("Developer/Xcode.projects/Aura/.venv/bin/python")
+        candidates.append(devWorkspaceVenv3)
+        candidates.append(devWorkspaceVenv)
         
         candidates.append("\(homeDir)/.pyenv/shims/python3")
         
@@ -132,7 +141,7 @@ actor PythonRunner {
     nonisolated func verifyPythonEnvironment(at pythonPath: String) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: pythonPath)
-        process.arguments = ["-c", "import pandas, sklearn, numpy, torch; import sys; sys.exit(0 if torch.backends.mps.is_available() else 1)"]
+        process.arguments = ["-c", "import pandas, sklearn, numpy, torch, fastapi, uvicorn; import sys; sys.exit(0)"]
         
         do {
             try process.run()
@@ -143,32 +152,113 @@ actor PythonRunner {
         }
     }
     
-    // MARK: - Process Execution (Non-blocking async runner)
-    private func runProcessAsync(_ process: Process) async throws -> Int32 {
-        try await withCheckedThrowingContinuation { continuation in
-            process.terminationHandler = { proc in
-                continuation.resume(returning: proc.terminationStatus)
+    // MARK: - Server management
+    private func checkServerHealth(url: String) async -> Bool {
+        guard let healthURL = URL(string: "\(url)/health") else { return false }
+        var request = URLRequest(url: healthURL)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 0.5
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            return (response as? HTTPURLResponse)?.statusCode == 200
+        } catch {
+            return false
+        }
+    }
+    
+    private func ensureServerRunning() async throws -> String {
+        let baseURL = "http://127.0.0.1:\(serverPort)"
+        
+        if await checkServerHealth(url: baseURL) {
+            return baseURL
+        }
+        
+        if isServerStarting {
+            for _ in 0..<25 {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if await checkServerHealth(url: baseURL) {
+                    return baseURL
+                }
             }
-            do {
-                try process.run()
-            } catch {
-                continuation.resume(throwing: error)
+            throw NSError(domain: "PythonRunner", code: 503, userInfo: [NSLocalizedDescriptionKey: "Server is starting up but took too long."])
+        }
+        
+        isServerStarting = true
+        defer { isServerStarting = false }
+        
+        logInfo("Aura Local API Server is not running. Launching...")
+        let pythonExecutable = self.resolvePythonPath()
+        
+        let serverScriptPath: String
+        if let scriptURL = Bundle.main.url(forResource: "server", withExtension: "py") {
+            serverScriptPath = scriptURL.path
+        } else {
+            let currentDir = FileManager.default.currentDirectoryPath
+            let possibleWorkspacePath = (currentDir as NSString).appendingPathComponent("Aura/server.py")
+            let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+            let possibleHomeWorkspacePath = (homeDir as NSString).appendingPathComponent("Developer/Xcode.projects/Aura/Aura/server.py")
+            
+            if FileManager.default.fileExists(atPath: possibleWorkspacePath) {
+                serverScriptPath = possibleWorkspacePath
+            } else {
+                serverScriptPath = possibleHomeWorkspacePath
             }
+        }
+        
+        guard FileManager.default.fileExists(atPath: serverScriptPath) else {
+            let errMsg = "server.py script not found."
+            logError(errMsg)
+            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])
+        }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: pythonExecutable)
+        process.arguments = [serverScriptPath, "--port", "\(serverPort)"]
+        
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+        
+        do {
+            try process.run()
+            self.serverProcess = process
+            
+            for _ in 0..<25 {
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                if await checkServerHealth(url: baseURL) {
+                    logInfo("Aura Local API Server successfully started on port \(serverPort).")
+                    return baseURL
+                }
+            }
+            
+            process.terminate()
+            self.serverProcess = nil
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Local API server failed to respond in time."])
+        } catch {
+            self.serverProcess = nil
+            logError("Failed to launch local API server process: \(error.localizedDescription)")
+            throw error
+        }
+    }
+    
+    func stopServer() {
+        if let process = self.serverProcess {
+            logInfo("Terminating Aura Local API Server process...")
+            process.terminate()
+            self.serverProcess = nil
         }
     }
     
     func cancelActiveAnalysis() {
         logInfo("Request to cancel active analysis received.")
         self.isCancelled = true
-        if let process = self.activeProcess {
-            logInfo("Terminating active process...")
-            process.terminate()
-        } else {
-            logInfo("No active process to terminate.")
+        if let task = self.activeTask {
+            logInfo("Cancelling active Swift network task...")
+            task.cancel()
+            self.activeTask = nil
         }
     }
     
-    // MARK: - Core Execution
+    // MARK: - Core Execution Methods
     func runAnalysis(
         csvPath: String,
         targetColumn: String?,
@@ -176,250 +266,157 @@ actor PythonRunner {
         progress: @escaping @Sendable (Double, String) -> Void,
         completion: @escaping @Sendable (Result<AnalysisResult, Error>) -> Void
     ) {
-        logInfo("Starting runAnalysis for path/URL: \(csvPath). Target: \(targetColumn ?? "Auto-detect"). Type: \(config.datasetType.rawValue)")
+        logInfo("Starting runAnalysis via FastAPI. Path/URL: \(csvPath). Target: \(targetColumn ?? "Auto-detect").")
         
         self.isCancelled = false
-        let pythonExecutable = self.resolvePythonPath()
         
-        let scriptPath: String
-        if let scriptURL = Bundle.main.url(forResource: "analyze", withExtension: "py") {
-            scriptPath = scriptURL.path
-        } else {
-            scriptPath = "/Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/analyze.py"
-        }
-        
-        guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let errMsg = "analyze.py script not found."
-            self.logError(errMsg)
-            completion(.failure(NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])))
-            return
+        var modelExportPath = config.modelExportPath
+        if (modelExportPath == nil || modelExportPath!.isEmpty) {
+            let csvURL = URL(fileURLWithPath: csvPath)
+            let folder = csvURL.deletingLastPathComponent()
+            let baseName = csvURL.deletingPathExtension().lastPathComponent
+            modelExportPath = folder.appendingPathComponent("\(baseName)_model.joblib").path
         }
         
-        Task {
-            await self.executePythonScript(
-                pythonPath: pythonExecutable,
-                scriptPath: scriptPath,
-                csvPath: csvPath,
-                targetColumn: targetColumn,
-                config: config,
-                progress: progress,
-                completion: completion
-            )
+        var bodyDict: [String: Any] = [
+            "file_path": csvPath,
+            "dataset_type": config.datasetType.rawValue,
+            "task_type_override": config.taskTypeOverride.rawValue,
+            "smart_sample": config.smartSample,
+            "feature_selection": config.featureSelection
+        ]
+        if let target = targetColumn {
+            bodyDict["target_col"] = target
         }
-    }
-    
-    nonisolated func buildArguments(
-        scriptPath: String,
-        csvPath: String,
-        targetColumn: String?,
-        config: AnalysisConfig
-    ) -> [String] {
-        var arguments = [scriptPath, csvPath]
-        if let target = targetColumn, !target.isEmpty {
-            arguments += ["--target", target]
-        }
-        arguments += ["--dataset-type", config.datasetType.rawValue]
-        if config.taskTypeOverride != .auto {
-            arguments += ["--task-type", config.taskTypeOverride.rawValue]
-        }
-        if let timeCol = config.timeColumn, !timeCol.isEmpty {
-            arguments += ["--time-col", timeCol]
+                if let timeCol = config.timeColumn, !timeCol.isEmpty {
+            bodyDict["time_col"] = timeCol
         }
         if !config.excludedColumns.isEmpty {
-            let cols = config.excludedColumns.sorted().joined(separator: ",")
-            arguments += ["--exclude-cols", cols]
+            bodyDict["exclude_cols"] = config.excludedColumns.joined(separator: ",")
         }
         if let testPath = config.testFilePath, !testPath.isEmpty {
-            arguments += ["--test-file", testPath]
+            bodyDict["test_file_path"] = testPath
         }
         if let valPath = config.validationFilePath, !valPath.isEmpty {
-            arguments += ["--val-file", valPath]
+            bodyDict["val_file_path"] = valPath
         }
-        if config.smartSample {
-            arguments += ["--smart-sample"]
-        }
-        if !config.cleaningActions.isEmpty {
-            let encoder = JSONEncoder()
-            if let data = try? encoder.encode(config.cleaningActions),
-               let jsonStr = String(data: data, encoding: .utf8) {
-                arguments += ["--cleaning-actions", jsonStr]
-            }
-        }
-        var modelPath = config.modelExportPath
-        if modelPath == nil || modelPath!.isEmpty {
-            let csvURL = URL(fileURLWithPath: csvPath)
-            if csvPath.starts(with: "http://") || csvPath.starts(with: "https://") {
-                let tempDir = FileManager.default.temporaryDirectory
-                let baseName = csvURL.deletingPathExtension().lastPathComponent
-                modelPath = tempDir.appendingPathComponent("\(baseName)_model.joblib").path
-            } else {
-                let folder = csvURL.deletingLastPathComponent()
-                let baseName = csvURL.deletingPathExtension().lastPathComponent
-                modelPath = folder.appendingPathComponent("\(baseName)_model.joblib").path
-            }
-        }
-        if let modelPath = modelPath, !modelPath.isEmpty {
-            arguments += ["--model-export-path", modelPath]
+        if let modelPath = modelExportPath, !modelPath.isEmpty {
+            bodyDict["model_export_path"] = modelPath
         }
         if let codePath = config.codeExportPath, !codePath.isEmpty {
-            arguments += ["--code-export-path", codePath]
+            bodyDict["code_export_path"] = codePath
         }
-        return arguments
-    }
-    
-    private func executePythonScript(
-        pythonPath: String,
-        scriptPath: String,
-        csvPath: String,
-        targetColumn: String?,
-        config: AnalysisConfig,
-        progress: @escaping @Sendable (Double, String) -> Void,
-        completion: @escaping @Sendable (Result<AnalysisResult, Error>) -> Void
-    ) async {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonPath)
-        
-        let arguments = buildArguments(scriptPath: scriptPath, csvPath: csvPath, targetColumn: targetColumn, config: config)
-        process.arguments = arguments
-        
-        logInfo("Launching Python subprocess with arguments: \(arguments)")
-        
-        var env = ProcessInfo.processInfo.environment
-        let pathLower = csvPath.lowercased()
-        let isKaggle = pathLower.contains("kaggle.com")
-        let isHF = pathLower.contains("huggingface.co")
-        
-        if isKaggle {
-            if let kaggleUser = KeychainService.shared.getSecureString(forKey: "Aura_KaggleUsername"), !kaggleUser.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["KAGGLE_USERNAME"] = kaggleUser.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            if let kaggleKey = KeychainService.shared.getSecureString(forKey: "Aura_KaggleKey"), !kaggleKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["KAGGLE_KEY"] = kaggleKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !config.cleaningActions.isEmpty {
+            let actionsArray = Array(config.cleaningActions)
+            if let encodedData = try? JSONEncoder().encode(actionsArray),
+               let jsonString = String(data: encodedData, encoding: .utf8) {
+                bodyDict["cleaning_actions"] = jsonString
             }
         }
-        
-        if isHF {
-            if let hfToken = KeychainService.shared.getSecureString(forKey: "Aura_HFToken"), !hfToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["HF_TOKEN"] = hfToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !config.columnTypeOverrides.isEmpty {
+            if let encodedData = try? JSONEncoder().encode(config.columnTypeOverrides),
+               let jsonString = String(data: encodedData, encoding: .utf8) {
+                bodyDict["column_type_overrides"] = jsonString
             }
-        }
-        process.environment = env
-        
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        
-        let accumulatedOutData = ProtectedData()
-        let accumulatedErrData = ProtectedData()
-        
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedOutData.append(data)
         }
         
         let progressHandler = progress
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedErrData.append(data)
-            
-            if let text = String(data: data, encoding: .utf8) {
-                let lines = text.components(separatedBy: .newlines)
-                for line in lines {
-                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { continue }
+        let completionHandler = completion
+        
+        self.activeTask = Task {
+            do {
+                let baseURL = try await self.ensureServerRunning()
+                
+                guard let url = URL(string: "\(baseURL)/analyze") else {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])))
+                    return
+                }
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+                request.timeoutInterval = 600
+                
+                let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                    let (data, _) = try await URLSession.shared.data(for: request)
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(responseString)"])))
+                    return
+                }
+                
+                var finalResultData: Data? = nil
+                var serverError: String? = nil
+                
+                for try await line in bytes.lines {
+                    if Task.isCancelled {
+                        completionHandler(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Analysis was cancelled by user."])))
+                        return
+                    }
                     
-                    if trimmed.hasPrefix("PROGRESS: ") {
-                        let parts = trimmed.dropFirst("PROGRESS: ".count).split(separator: ":", maxSplits: 1)
-                        if parts.count == 2,
-                           let frac = Double(parts[0].trimmingCharacters(in: .whitespaces)) {
-                            let msg = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                            
-                            Task { @MainActor in
-                                progressHandler(frac, msg)
-                            }
+                    if line.hasPrefix("data: ") {
+                        let dataStr = line.dropFirst("data: ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                        self.logInfo("SSE line received. Length: \(dataStr.count)")
+                        
+                        guard let eventData = dataStr.data(using: .utf8) else {
+                            self.logError("Failed to convert SSE line to UTF-8 data.")
+                            continue
                         }
+                        
+                        do {
+                            if let eventJson = try JSONSerialization.jsonObject(with: eventData) as? [String: Any],
+                               let type = eventJson["type"] as? String {
+                                
+                                if type == "progress" {
+                                    if let frac = eventJson["progress"] as? Double,
+                                       let msg = eventJson["message"] as? String {
+                                        progressHandler(frac, msg)
+                                    }
+                                } else if type == "result" {
+                                    if let resultDict = eventJson["data"] as? [String: Any],
+                                       let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
+                                        finalResultData = serializedData
+                                        self.logInfo("Successfully parsed final result data from SSE event.")
+                                    } else {
+                                        self.logError("SSE result event did not contain a valid 'data' dictionary.")
+                                    }
+                                } else if type == "error" {
+                                    serverError = eventJson["error"] as? String
+                                    self.logError("Received SSE error event: \(serverError ?? "nil")")
+                                }
+                            } else {
+                                self.logError("SSE event JSON was parsed but type or structure was missing.")
+                            }
+                        } catch {
+                            self.logError("Failed to parse SSE event JSON: \(error.localizedDescription)")
+                        }
+                    } else if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        self.logInfo("Non-data SSE line received: \(line.prefix(100))...")
                     }
                 }
-            }
-        }
-        
-        if self.isCancelled {
-            completion(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Analysis was cancelled by user."])))
-            return
-        }
-        
-        self.activeProcess = process
-        
-        do {
-            let status = try await runProcessAsync(process)
-            
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            
-            let leftoverOut = outPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverOut.isEmpty {
-                accumulatedOutData.append(leftoverOut)
-            }
-            let leftoverErr = errPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverErr.isEmpty {
-                accumulatedErrData.append(leftoverErr)
-            }
-            
-            self.activeProcess = nil
-            
-            if self.isCancelled {
-                logInfo("Analysis subprocess was terminated due to cancellation.")
-                completion(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Analysis was cancelled by user."])))
-                return
-            }
-            
-            let outData = accumulatedOutData.get()
-            let errData = accumulatedErrData.get()
-            
-            logInfo("Python subprocess finished with termination status: \(status)")
-            
-            if status != 0 {
-                let errString = String(data: errData, encoding: .utf8) ?? "Unknown Python execution error"
-                logError("Subprocess execution failed: \(errString)")
-                completion(.failure(NSError(domain: "PythonRunner", code: Int(status), userInfo: [NSLocalizedDescriptionKey: errString])))
-                return
-            }
-            
-            if let errorDict = try? JSONSerialization.jsonObject(with: outData) as? [String: Any],
-               let errorMsg = errorDict["error"] as? String, !errorMsg.isEmpty {
-                logError("Subprocess returned logic error: \(errorMsg)")
-                completion(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
-                return
-            }
-            
-            do {
-                let decoder = JSONDecoder()
-                let result = try decoder.decode(AnalysisResult.self, from: outData)
-                if let errorMsg = result.error {
-                    logError("Decoded AnalysisResult indicates error: \(errorMsg)")
-                    completion(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
+                
+                if let serverError = serverError {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: serverError])))
+                } else if let resultData = finalResultData {
+                    do {
+                        let decoder = JSONDecoder()
+                        let result = try decoder.decode(AnalysisResult.self, from: resultData)
+                        completionHandler(.success(result))
+                    } catch {
+                        completionHandler(.failure(error))
+                    }
                 } else {
-                    logInfo("Successfully completed analysis of \(result.rowCount) rows, \(result.colCount) columns.")
-                    completion(.success(result))
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "No result received from server."])))
                 }
             } catch {
-                let rawOutput = String(data: outData, encoding: .utf8) ?? "Unreadable output"
-                let errString = String(data: errData, encoding: .utf8) ?? ""
-                let detail = "JSON Decoding Failed: \(error.localizedDescription)\n\nPython Output:\n\(rawOutput)\n\nErrors:\n\(errString)"
-                logError(detail)
-                completion(.failure(NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: detail])))
+                if Task.isCancelled {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Analysis was cancelled by user."])))
+                } else {
+                    completionHandler(.failure(error))
+                }
             }
-            
-        } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            self.activeProcess = nil
-            logError("Failed to run subprocess: \(error.localizedDescription)")
-            completion(.failure(error))
         }
     }
     
@@ -428,180 +425,109 @@ actor PythonRunner {
         progress: @escaping @Sendable (Double, String) -> Void,
         completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
     ) {
-        logInfo("Starting runPreview for path/URL: \(csvPathOrURL)")
+        logInfo("Starting runPreview via FastAPI. Path/URL: \(csvPathOrURL)")
         
         self.isCancelled = false
-        let pythonExecutable = self.resolvePythonPath()
         
-        let scriptPath: String
-        if let scriptURL = Bundle.main.url(forResource: "analyze", withExtension: "py") {
-            scriptPath = scriptURL.path
-        } else {
-            scriptPath = "/Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/analyze.py"
-        }
-        
-        guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let errMsg = "analyze.py script not found."
-            self.logError(errMsg)
-            completion(.failure(NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])))
-            return
-        }
-        
-        Task {
-            await self.executePythonPreview(
-                pythonPath: pythonExecutable,
-                scriptPath: scriptPath,
-                csvPath: csvPathOrURL,
-                progress: progress,
-                completion: completion
-            )
-        }
-    }
-    
-    private func executePythonPreview(
-        pythonPath: String,
-        scriptPath: String,
-        csvPath: String,
-        progress: @escaping @Sendable (Double, String) -> Void,
-        completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
-    ) async {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonPath)
-        process.arguments = [scriptPath, csvPath, "--preview"]
-        
-        logInfo("Launching Python preview subprocess with arguments: \(process.arguments ?? [])")
-        
-        var env = ProcessInfo.processInfo.environment
-        let pathLower = csvPath.lowercased()
-        let isKaggle = pathLower.contains("kaggle.com")
-        let isHF = pathLower.contains("huggingface.co")
-        
-        if isKaggle {
-            if let kaggleUser = KeychainService.shared.getSecureString(forKey: "Aura_KaggleUsername"), !kaggleUser.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["KAGGLE_USERNAME"] = kaggleUser.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-            if let kaggleKey = KeychainService.shared.getSecureString(forKey: "Aura_KaggleKey"), !kaggleKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["KAGGLE_KEY"] = kaggleKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        
-        if isHF {
-            if let hfToken = KeychainService.shared.getSecureString(forKey: "Aura_HFToken"), !hfToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                env["HF_TOKEN"] = hfToken.trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-        }
-        process.environment = env
-        
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-        
-        let accumulatedOutData = ProtectedData()
-        let accumulatedErrData = ProtectedData()
-        
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedOutData.append(data)
-        }
+        let bodyDict: [String: Any] = [
+            "file_path": csvPathOrURL
+        ]
         
         let progressHandler = progress
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedErrData.append(data)
-            
-            if let text = String(data: data, encoding: .utf8) {
-                let lines = text.components(separatedBy: .newlines)
-                for line in lines {
-                    let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { continue }
+        let completionHandler = completion
+        
+        self.activeTask = Task {
+            do {
+                let baseURL = try await self.ensureServerRunning()
+                
+                guard let url = URL(string: "\(baseURL)/preview") else {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])))
+                    return
+                }
+                
+                var request = URLRequest(url: url)
+                request.httpMethod = "POST"
+                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+                request.timeoutInterval = 600
+                
+                let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                    let (data, _) = try await URLSession.shared.data(for: request)
+                    let responseString = String(data: data, encoding: .utf8) ?? "Unknown server error"
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(responseString)"])))
+                    return
+                }
+                
+                var finalResultData: Data? = nil
+                var serverError: String? = nil
+                
+                for try await line in bytes.lines {
+                    if Task.isCancelled {
+                        completionHandler(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Preview was cancelled by user."])))
+                        return
+                    }
                     
-                    if trimmed.hasPrefix("PROGRESS: ") {
-                        let parts = trimmed.dropFirst("PROGRESS: ".count).split(separator: ":", maxSplits: 1)
-                        if parts.count == 2,
-                           let frac = Double(parts[0].trimmingCharacters(in: .whitespaces)) {
-                            let msg = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                            
-                            Task { @MainActor in
-                                progressHandler(frac, msg)
+                    if line.hasPrefix("data: ") {
+                        let dataStr = line.dropFirst("data: ".count).trimmingCharacters(in: .whitespacesAndNewlines)
+                        self.logInfo("SSE line received. Length: \(dataStr.count)")
+                        
+                        guard let eventData = dataStr.data(using: .utf8) else {
+                            self.logError("Failed to convert SSE line to UTF-8 data.")
+                            continue
+                        }
+                        
+                        do {
+                            if let eventJson = try JSONSerialization.jsonObject(with: eventData) as? [String: Any],
+                               let type = eventJson["type"] as? String {
+                                
+                                if type == "progress" {
+                                    if let frac = eventJson["progress"] as? Double,
+                                       let msg = eventJson["message"] as? String {
+                                        progressHandler(frac, msg)
+                                    }
+                                } else if type == "result" {
+                                    if let resultDict = eventJson["data"] as? [String: Any],
+                                       let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
+                                        finalResultData = serializedData
+                                        self.logInfo("Successfully parsed final preview result from SSE event.")
+                                    } else {
+                                        self.logError("SSE result event did not contain a valid 'data' dictionary.")
+                                    }
+                                } else if type == "error" {
+                                    serverError = eventJson["error"] as? String
+                                    self.logError("Received SSE error event: \(serverError ?? "nil")")
+                                }
+                            } else {
+                                self.logError("SSE event JSON was parsed but type or structure was missing.")
                             }
+                        } catch {
+                            self.logError("Failed to parse SSE event JSON: \(error.localizedDescription)")
                         }
                     }
                 }
-            }
-        }
-        
-        if self.isCancelled {
-            completion(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Preview was cancelled by user."])))
-            return
-        }
-        
-        self.activeProcess = process
-        
-        do {
-            let status = try await runProcessAsync(process)
-            
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            
-            let leftoverOut = outPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverOut.isEmpty {
-                accumulatedOutData.append(leftoverOut)
-            }
-            let leftoverErr = errPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverErr.isEmpty {
-                accumulatedErrData.append(leftoverErr)
-            }
-            
-            self.activeProcess = nil
-            
-            if self.isCancelled {
-                logInfo("Preview subprocess was terminated due to cancellation.")
-                completion(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Preview was cancelled by user."])))
-                return
-            }
-            
-            let outData = accumulatedOutData.get()
-            let errData = accumulatedErrData.get()
-            
-            logInfo("Python preview subprocess finished with termination status: \(status)")
-            
-            if status != 0 {
-                let errString = String(data: errData, encoding: .utf8) ?? "Preview execution failed."
-                completion(.failure(NSError(domain: "PythonRunner", code: Int(status), userInfo: [NSLocalizedDescriptionKey: errString])))
-                return
-            }
-            
-            if let errorDict = try? JSONSerialization.jsonObject(with: outData) as? [String: Any],
-               let errorMsg = errorDict["error"] as? String, !errorMsg.isEmpty {
-                completion(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
-                return
-            }
-            
-            do {
-                let decoder = JSONDecoder()
-                let result = try decoder.decode(DatasetPreview.self, from: outData)
-                if let errorMsg = result.error {
-                    completion(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])))
+                
+                if let serverError = serverError {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: serverError])))
+                } else if let resultData = finalResultData {
+                    do {
+                        let decoder = JSONDecoder()
+                        let result = try decoder.decode(DatasetPreview.self, from: resultData)
+                        completionHandler(.success(result))
+                    } catch {
+                        completionHandler(.failure(error))
+                    }
                 } else {
-                    logInfo("Successfully completed preview of \(result.columns.count) columns.")
-                    completion(.success(result))
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "No result received from server."])))
                 }
             } catch {
-                let rawOutput = String(data: outData, encoding: .utf8) ?? "Unreadable output"
-                let errString = String(data: errData, encoding: .utf8) ?? ""
-                let detail = "JSON Decoding Failed (Preview): \(error.localizedDescription)\n\nPython Output:\n\(rawOutput)\n\nErrors:\n\(errString)"
-                completion(.failure(NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: detail])))
+                if Task.isCancelled {
+                    completionHandler(.failure(NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Preview was cancelled by user."])))
+                } else {
+                    completionHandler(.failure(error))
+                }
             }
-        } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            self.activeProcess = nil
-            logError("Failed to run preview subprocess: \(error.localizedDescription)")
-            completion(.failure(error))
         }
     }
     
@@ -611,114 +537,48 @@ actor PythonRunner {
         connParams: [String: String],
         outputCSVPath: String
     ) async throws -> (rowCount: Int, columns: [String]) {
-        logInfo("Starting runDatabaseQuery. Type: \(dbType), Output: \(outputCSVPath)")
+        logInfo("Starting runDatabaseQuery via FastAPI. Type: \(dbType), Output: \(outputCSVPath)")
         
         self.isCancelled = false
-        let pythonExecutable = self.resolvePythonPath()
         
-        let scriptPath: String
-        if let scriptURL = Bundle.main.url(forResource: "query_db", withExtension: "py") {
-            scriptPath = scriptURL.path
-        } else {
-            scriptPath = "/Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/query_db.py"
-        }
-        
-        guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let errMsg = "query_db.py script not found."
-            self.logError(errMsg)
-            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])
-        }
-        
-        guard let connParamsData = try? JSONSerialization.data(withJSONObject: connParams),
-              let connParamsJSON = String(data: connParamsData, encoding: .utf8) else {
-            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid connection parameters."])
-        }
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonExecutable)
-        process.arguments = [
-            scriptPath,
-            "--db-type", dbType,
-            "--query", query,
-            "--conn-params", connParamsJSON,
-            "--output-csv", outputCSVPath
+        let bodyDict: [String: Any] = [
+            "db_type": dbType,
+            "query": query,
+            "conn_params": connParams,
+            "output_csv": outputCSVPath
         ]
         
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
+        let baseURL = try await self.ensureServerRunning()
         
-        let accumulatedOutData = ProtectedData()
-        let accumulatedErrData = ProtectedData()
-        
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedOutData.append(data)
+        guard let url = URL(string: "\(baseURL)/query_db") else {
+            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])
         }
         
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedErrData.append(data)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+        request.timeoutInterval = 300
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
         }
         
-        if self.isCancelled {
-            throw NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Database query was cancelled."])
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = json["success"] as? Bool else {
+            throw NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: "Failed to parse database query result JSON."])
         }
         
-        self.activeProcess = process
-        
-        do {
-            let status = try await runProcessAsync(process)
-            
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            
-            let leftoverOut = outPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverOut.isEmpty {
-                accumulatedOutData.append(leftoverOut)
-            }
-            let leftoverErr = errPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverErr.isEmpty {
-                accumulatedErrData.append(leftoverErr)
-            }
-            
-            self.activeProcess = nil
-            
-            if self.isCancelled {
-                throw NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Database query was cancelled."])
-            }
-            
-            let outData = accumulatedOutData.get()
-            let errData = accumulatedErrData.get()
-            
-            if status != 0 {
-                let errString = String(data: errData, encoding: .utf8) ?? "Database execution failed."
-                throw NSError(domain: "PythonRunner", code: Int(status), userInfo: [NSLocalizedDescriptionKey: errString])
-            }
-            
-            guard let json = try? JSONSerialization.jsonObject(with: outData) as? [String: Any] else {
-                let rawOutput = String(data: outData, encoding: .utf8) ?? "Unreadable output"
-                let errString = String(data: errData, encoding: .utf8) ?? ""
-                throw NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: "Failed to parse database runner output: \(rawOutput)\nErrors: \(errString)"])
-            }
-            
-            if let success = json["success"] as? Bool, success {
-                let rowCount = json["row_count"] as? Int ?? 0
-                let columns = json["columns"] as? [String] ?? []
-                return (rowCount, columns)
-            } else {
-                let errorMsg = json["error"] as? String ?? "Unknown database logic error."
-                throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-            }
-            
-        } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            self.activeProcess = nil
-            throw error
+        if success {
+            let rowCount = json["row_count"] as? Int ?? 0
+            let columns = json["columns"] as? [String] ?? []
+            return (rowCount, columns)
+        } else {
+            let errorMsg = json["error"] as? String ?? "Unknown database logic error."
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
     }
     
@@ -730,253 +590,84 @@ actor PythonRunner {
         joinType: String,
         outputMergePath: String
     ) async throws -> (rowCount: Int, columns: [String]) {
-        logInfo("Starting runMerge. File1: \(file1), File2: \(file2), Output: \(outputMergePath)")
+        logInfo("Starting runMerge via FastAPI. File1: \(file1), File2: \(file2)")
         
         self.isCancelled = false
-        let pythonExecutable = self.resolvePythonPath()
         
-        let scriptPath: String
-        if let scriptURL = Bundle.main.url(forResource: "analyze", withExtension: "py") {
-            scriptPath = scriptURL.path
-        } else {
-            scriptPath = "/Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/analyze.py"
-        }
-        
-        guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let errMsg = "analyze.py script not found."
-            self.logError(errMsg)
-            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])
-        }
-        
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonExecutable)
-        process.arguments = [
-            scriptPath,
-            file1,
-            "--merge",
-            "--file2", file2,
-            "--key1", key1,
-            "--key2", key2,
-            "--join-type", joinType,
-            "--output-merge-path", outputMergePath
+        let bodyDict: [String: Any] = [
+            "file1": file1,
+            "file2": file2,
+            "key1": key1,
+            "key2": key2,
+            "join_type": joinType,
+            "output_merge_path": outputMergePath
         ]
         
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
+        let baseURL = try await self.ensureServerRunning()
         
-        let accumulatedOutData = ProtectedData()
-        let accumulatedErrData = ProtectedData()
-        
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedOutData.append(data)
+        guard let url = URL(string: "\(baseURL)/merge") else {
+            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])
         }
         
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedErrData.append(data)
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+        request.timeoutInterval = 120
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
         }
         
-        if self.isCancelled {
-            throw NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Merge was cancelled."])
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let success = json["success"] as? Bool else {
+            throw NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: "Failed to parse merge result JSON."])
         }
         
-        self.activeProcess = process
-        
-        do {
-            let status = try await runProcessAsync(process)
-            
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            
-            let leftoverOut = outPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverOut.isEmpty {
-                accumulatedOutData.append(leftoverOut)
-            }
-            let leftoverErr = errPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverErr.isEmpty {
-                accumulatedErrData.append(leftoverErr)
-            }
-            
-            self.activeProcess = nil
-            
-            if self.isCancelled {
-                throw NSError(domain: "PythonRunner", code: -999, userInfo: [NSLocalizedDescriptionKey: "Merge was cancelled."])
-            }
-            
-            let outData = accumulatedOutData.get()
-            let errData = accumulatedErrData.get()
-            
-            if status != 0 {
-                let errString = String(data: errData, encoding: .utf8) ?? "Merge execution failed."
-                throw NSError(domain: "PythonRunner", code: Int(status), userInfo: [NSLocalizedDescriptionKey: errString])
-            }
-            
-            guard let json = try? JSONSerialization.jsonObject(with: outData) as? [String: Any] else {
-                let rawOutput = String(data: outData, encoding: .utf8) ?? "Unreadable output"
-                let errString = String(data: errData, encoding: .utf8) ?? ""
-                throw NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: "Failed to parse merge runner output: \(rawOutput)\nErrors: \(errString)"])
-            }
-            
-            if let success = json["success"] as? Bool, success {
-                let rowCount = json["row_count"] as? Int ?? 0
-                let columns = json["columns"] as? [String] ?? []
-                return (rowCount, columns)
-            } else {
-                let errorMsg = json["error"] as? String ?? "Unknown merge logic error."
-                throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-            }
-            
-        } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            self.activeProcess = nil
-            throw error
+        if success {
+            let rowCount = json["row_count"] as? Int ?? 0
+            let columns = json["columns"] as? [String] ?? []
+            return (rowCount, columns)
+        } else {
+            let errorMsg = json["error"] as? String ?? "Unknown merge logic error."
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
         }
     }
     
     func runInference(modelPath: String, inputData: [String: Any]) async throws -> PredictionResult {
-        logInfo("Starting runInference for model: \(modelPath)")
-        logInfo("[Predict] Input features (\(inputData.count)): \(inputData.keys.sorted().joined(separator: ", "))")
-
-        // --- Model file check ---
-        let modelExists = FileManager.default.fileExists(atPath: modelPath)
-        logInfo("[Predict] Model file exists at path: \(modelExists)")
-        if !modelExists {
-            let errMsg = "[Predict] Model file not found: \(modelPath)"
-            logError(errMsg)
-            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])
-        }
-
-        let pythonExecutable = self.resolvePythonPath()
-        logInfo("[Predict] Python executable: \(pythonExecutable)")
-
-        let scriptPath: String
-        if let scriptURL = Bundle.main.url(forResource: "analyze", withExtension: "py") {
-            scriptPath = scriptURL.path
-        } else {
-            scriptPath = "/Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/analyze.py"
-        }
-        logInfo("[Predict] Script path: \(scriptPath)")
-
-        guard FileManager.default.fileExists(atPath: scriptPath) else {
-            let errMsg = "analyze.py script not found at: \(scriptPath)"
-            self.logError(errMsg)
-            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: errMsg])
-        }
-
-        // --- Serialize input data ---
-        guard let inputDataJSONData = try? JSONSerialization.data(withJSONObject: inputData, options: .sortedKeys),
-              let inputDataJSON = String(data: inputDataJSONData, encoding: .utf8) else {
-            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid input data format."])
-        }
-        logInfo("[Predict] Input JSON: \(inputDataJSON.prefix(300))")
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: pythonExecutable)
-        process.arguments = [
-            scriptPath,
-            "--predict",
-            "--model-path", modelPath,
-            "--input-data", inputDataJSON
+        logInfo("Starting runInference via FastAPI. Model: \(modelPath)")
+        
+        self.isCancelled = false
+        
+        let bodyDict: [String: Any] = [
+            "model_path": modelPath,
+            "input_data": inputData
         ]
-        logInfo("[Predict] Launching subprocess with args: --predict --model-path <path> --input-data <json>")
-
-        let outPipe = Pipe()
-        let errPipe = Pipe()
-        process.standardOutput = outPipe
-        process.standardError = errPipe
-
-        let accumulatedOutData = ProtectedData()
-        let accumulatedErrData = ProtectedData()
-
-        outPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedOutData.append(data)
+        
+        let baseURL = try await self.ensureServerRunning()
+        
+        guard let url = URL(string: "\(baseURL)/predict") else {
+            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])
         }
-
-        errPipe.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            guard !data.isEmpty else { return }
-            accumulatedErrData.append(data)
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+        request.timeoutInterval = 60
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
         }
-
-        do {
-            let status = try await runProcessAsync(process)
-
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-
-            let leftoverOut = outPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverOut.isEmpty {
-                accumulatedOutData.append(leftoverOut)
-            }
-            let leftoverErr = errPipe.fileHandleForReading.readDataToEndOfFile()
-            if !leftoverErr.isEmpty {
-                accumulatedErrData.append(leftoverErr)
-            }
-
-            let outData = accumulatedOutData.get()
-            let errData = accumulatedErrData.get()
-
-            // Always log stderr (Python warnings, tracebacks, debug prints)
-            if !errData.isEmpty, let errString = String(data: errData, encoding: .utf8) {
-                let trimmed = errString.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty {
-                    for line in trimmed.components(separatedBy: "\n") {
-                        if line.lowercased().contains("error") || line.lowercased().contains("traceback") || line.lowercased().contains("exception") {
-                            logError("[Predict stderr] \(line)")
-                        } else {
-                            logInfo("[Predict stderr] \(line)")
-                        }
-                    }
-                }
-            }
-
-            logInfo("[Predict] Subprocess exited with status: \(status)")
-            logInfo("[Predict] stdout size: \(outData.count) bytes")
-
-            if status != 0 {
-                let errString = String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Prediction execution failed (exit \(status))."
-                let msg = errString.isEmpty ? "Python subprocess exited with code \(status)." : errString
-                logError("[Predict] Non-zero exit: \(msg)")
-                throw NSError(domain: "PythonRunner", code: Int(status), userInfo: [NSLocalizedDescriptionKey: msg])
-            }
-
-            // Log raw stdout for debugging
-            if let rawOut = String(data: outData, encoding: .utf8) {
-                logInfo("[Predict] Raw stdout: \(rawOut.prefix(500))")
-            }
-
-            guard let json = try? JSONSerialization.jsonObject(with: outData) as? [String: Any] else {
-                let rawOut = String(data: outData, encoding: .utf8) ?? "<unreadable>"
-                let msg = "Failed to parse prediction JSON. Raw output: \(rawOut.prefix(300))"
-                logError("[Predict] \(msg)")
-                throw NSError(domain: "PythonRunner", code: 499, userInfo: [NSLocalizedDescriptionKey: msg])
-            }
-
-            if let errorMsg = json["error"] as? String, !errorMsg.isEmpty {
-                logError("[Predict] Python returned error field: \(errorMsg)")
-                throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: errorMsg])
-            }
-
-            logInfo("[Predict] JSON keys in response: \(json.keys.sorted().joined(separator: ", "))")
-
-            let decoder = JSONDecoder()
-            let result = try decoder.decode(PredictionResult.self, from: outData)
-            logInfo("[Predict] Prediction decoded successfully: \(result.prediction)")
-            return result
-
-        } catch {
-            outPipe.fileHandleForReading.readabilityHandler = nil
-            errPipe.fileHandleForReading.readabilityHandler = nil
-            logError("[Predict] runInference failed: \(error.localizedDescription)")
-            throw error
-        }
+        
+        let decoder = JSONDecoder()
+        let result = try decoder.decode(PredictionResult.self, from: data)
+        return result
     }
 }
