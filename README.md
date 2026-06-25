@@ -64,14 +64,19 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Manual Column Type Overrides**: Added interactive dropdown menus in the preview table headers to let users verify and override system-inferred column types before training.
 * **Automated ID/Identifier Exclusions**: Automatically deselects unique identifiers/IDs from training features, with an optional toggle to re-enable them.
 
+### 11. Local Server Control & Clean Termination (New in v0.4.1)
+* **Local Server Control Panel**: Added a dedicated **Local Server** settings tab to monitor status (Running/Stopped/Starting/Stopping), address, port, and process ID (PID) of the backend.
+* **Manual Lifecycle Controls**: Users can now manually **Start**, **Stop**, and **Restart** the API server directly from the settings panel.
+* **Synchronous Process Termination**: Integrates a thread-safe process manager connected synchronously to application exit. Quitting the application immediately and cleanly terminates all background Python server and child processes.
+
 ---
 
 ## 🏗️ Architecture
 
 Aura is built on a clean macOS-first architecture:
 * **Frontend**: Native **SwiftUI 6.0 (Swift 6)**, utilizing native `NavigationSplitView`, async-await tasks, Keychain services, and Swift Charts.
-* **Backend**: **Python 3.10+** script (`Aura/analyze.py`) run as a sandboxed subprocess.
-* **Communication**: Structs are serialized and communicated between Swift and Python using a structured JSON protocol over stdout/stderr. Progress bars and log status are streamed in real time.
+* **Backend**: **Python 3.10+** script (`Aura/analyze.py`) and FastAPI microservice server (`Aura/server.py`) run as a background service.
+* **Communication**: SwiftUI communicates with the FastAPI service using asynchronous HTTP requests. Training and dataset profiling progress are streamed in real time using Server-Sent Events (SSE).
 
 ---
 
