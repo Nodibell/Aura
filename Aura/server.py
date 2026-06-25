@@ -56,7 +56,7 @@ class QueryDbRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.3.1"}
+    return {"status": "ok", "version": "0.4.0"}
 
 async def run_subprocess_stream(args):
     """

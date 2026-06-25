@@ -1,6 +1,38 @@
 import Foundation
 import AppKit
 
+/// Thread-safe manager to track the active server process and allow synchronous termination.
+final class ServerProcessManager {
+    static let shared = ServerProcessManager()
+    private let lock = NSLock()
+    private var activeProcess: Process?
+    
+    private init() {}
+    
+    func setProcess(_ process: Process?) {
+        lock.lock()
+        defer { lock.unlock() }
+        self.activeProcess = process
+    }
+    
+    func getProcess() -> Process? {
+        lock.lock()
+        defer { lock.unlock() }
+        return activeProcess
+    }
+    
+    func terminateProcess() {
+        lock.lock()
+        defer { lock.unlock() }
+        if let process = activeProcess {
+            if process.isRunning {
+                process.terminate()
+            }
+            activeProcess = nil
+        }
+    }
+}
+
 actor PythonRunner {
     static let shared = PythonRunner()
     
@@ -13,15 +45,13 @@ actor PythonRunner {
     private var activeTask: Task<Void, Never>?
     
     private init() {
-        // Stop the server when the application terminates
+        // Stop the server when the application terminates (synchronously!)
         NotificationCenter.default.addObserver(
             forName: NSApplication.willTerminateNotification,
             object: nil,
             queue: nil
         ) { _ in
-            Task {
-                await PythonRunner.shared.stopServer()
-            }
+            ServerProcessManager.shared.terminateProcess()
         }
     }
     
@@ -221,6 +251,7 @@ actor PythonRunner {
         do {
             try process.run()
             self.serverProcess = process
+            ServerProcessManager.shared.setProcess(process)
             
             for _ in 0..<25 {
                 try? await Task.sleep(nanoseconds: 200_000_000)
@@ -232,20 +263,46 @@ actor PythonRunner {
             
             process.terminate()
             self.serverProcess = nil
+            ServerProcessManager.shared.setProcess(nil)
             throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Local API server failed to respond in time."])
         } catch {
             self.serverProcess = nil
+            ServerProcessManager.shared.setProcess(nil)
             logError("Failed to launch local API server process: \(error.localizedDescription)")
             throw error
         }
     }
     
     func stopServer() {
-        if let process = self.serverProcess {
-            logInfo("Terminating Aura Local API Server process...")
-            process.terminate()
-            self.serverProcess = nil
+        logInfo("Terminating Aura Local API Server process...")
+        ServerProcessManager.shared.terminateProcess()
+        self.serverProcess = nil
+    }
+    
+    func isServerRunning() async -> Bool {
+        let baseURL = "http://127.0.0.1:\(serverPort)"
+        return await checkServerHealth(url: baseURL)
+    }
+    
+    nonisolated func getServerPID() -> Int32? {
+        if let process = ServerProcessManager.shared.getProcess(), process.isRunning {
+            return process.processIdentifier
         }
+        return nil
+    }
+    
+    func startServerManual() async throws {
+        _ = try await ensureServerRunning()
+    }
+    
+    func stopServerManual() async {
+        stopServer()
+    }
+    
+    func restartServerManual() async throws {
+        stopServer()
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        _ = try await ensureServerRunning()
     }
     
     func cancelActiveAnalysis() {

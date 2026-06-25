@@ -31,6 +31,7 @@
 		49724A22ABE69218A52C185A /* HTMLToPDFConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036BB7B2813DA346B8701843 /* HTMLToPDFConverter.swift */; };
 		4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */; };
 		4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F04E707B7135771590F783F /* AppLogger.swift */; };
+		4C361D442FEC9A9000E5E0C3 /* server.py in Resources */ = {isa = PBXBuildFile; fileRef = 4C361D432FEC9A9000E5E0C3 /* server.py */; };
 		5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */; };
 		5733E0A22FE6B3003D17C175 /* PythonRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */; };
 		57973B52D55F9C0741D0C930 /* EnterpriseDatabaseSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA714F3756E141456F804D26 /* EnterpriseDatabaseSchedulerTests.swift */; };
@@ -38,6 +39,7 @@
 		603FDF4097568FD43E23F486 /* AnalysisSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C691FBB60044F82129817B23 /* AnalysisSchedulerSheet.swift */; };
 		630516F1E04DA43A53C63602 /* object_detection.py in Resources */ = {isa = PBXBuildFile; fileRef = 925E18925B25757AC8523B80 /* object_detection.py */; };
 		677FE39A7C5C40F1BB87180B /* AIChatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */; };
+		677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF490890 /* NativeProgressView.swift */; };
 		6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */ = {isa = PBXBuildFile; fileRef = 801D45C07D300201200808EB /* helpers.py */; };
 		6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */; };
 		6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */; };
@@ -52,7 +54,6 @@
 		954B4108D0D5DCB423F88591 /* AnalysisScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666FED69100D6A979729EF3E /* AnalysisScheduler.swift */; };
 		9A6F073BB849AE6DCE038137 /* image.py in Resources */ = {isa = PBXBuildFile; fileRef = D1EAB7206F26FEE6CA526B55 /* image.py */; };
 		9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */; };
-		677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF490890 /* NativeProgressView.swift */; };
 		9C799893B31E1D3DBA950DAD /* profiler.py in Resources */ = {isa = PBXBuildFile; fileRef = BFE0A9FA6A6821EF8D5A1728 /* profiler.py */; };
 		9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E79BF77BFF47CAD77B65137 /* ContentView.swift */; };
 		A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */; };
@@ -100,22 +101,23 @@
 		0748F80EDE9BE8E1331656E0 /* DragDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropView.swift; sourceTree = "<group>"; };
 		16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaSetupView.swift; sourceTree = "<group>"; };
 		181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetTypeTests.swift; sourceTree = "<group>"; };
-		1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */ = {isa = PBXFileReference; path = "object_detection.cpython-311.pyc"; sourceTree = "<group>"; };
+		1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "object_detection.cpython-311.pyc"; sourceTree = "<group>"; };
 		2196F0B1AA7CC67450A82F6B /* DatabaseConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseConnectionSheet.swift; sourceTree = "<group>"; };
 		22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunnerTests.swift; sourceTree = "<group>"; };
-		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
+		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
 		26B8DF684009A48B39E26C67 /* OllamaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaService.swift; sourceTree = "<group>"; };
 		401068CD37570487457B1D3C /* ExportReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportReportSheet.swift; sourceTree = "<group>"; };
-		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
+		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
 		4718EA673E457067CA6C94BA /* HistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItem.swift; sourceTree = "<group>"; };
 		4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationMatrixView.swift; sourceTree = "<group>"; };
 		4964E50D792A7A2C0DAF554D /* PythonRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunner.swift; sourceTree = "<group>"; };
 		4A9E59AC258B2C2BA91E5EF7 /* Aura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aura.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4C361D432FEC9A9000E5E0C3 /* server.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = server.py; sourceTree = "<group>"; };
 		4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatPanel.swift; sourceTree = "<group>"; };
-		4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */ = {isa = PBXFileReference; path = "tabular.cpython-311.pyc"; sourceTree = "<group>"; };
-		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
+		4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "tabular.cpython-311.pyc"; sourceTree = "<group>"; };
+		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
 		5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTableView.swift; sourceTree = "<group>"; };
-		5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */ = {isa = PBXFileReference; path = "cleaning.cpython-311.pyc"; sourceTree = "<group>"; };
+		5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "cleaning.cpython-311.pyc"; sourceTree = "<group>"; };
 		5CD552B5F09360B5BCABC896 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5FDEED3F35FC53B5A9CC28E4 /* clustering.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = clustering.py; sourceTree = "<group>"; };
 		61100B2C70DCAB2960A65C01 /* timeseries.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = timeseries.py; sourceTree = "<group>"; };
@@ -128,7 +130,7 @@
 		7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartPromptTests.swift; sourceTree = "<group>"; };
 		7FEE37BF68704248704A691D /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
 		801D45C07D300201200808EB /* helpers.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = helpers.py; sourceTree = "<group>"; };
-		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
+		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
 		874A91E91B9041211A336B9F /* loader.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = loader.py; sourceTree = "<group>"; };
 		8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsListView.swift; sourceTree = "<group>"; };
 		8E79BF77BFF47CAD77B65137 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -140,35 +142,35 @@
 		938EA13730D79840F2FCBBA5 /* Aura.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aura.entitlements; sourceTree = "<group>"; };
 		9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCleaningView.swift; sourceTree = "<group>"; };
 		9ED2F02669746860CF49087F /* charts.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = charts.py; sourceTree = "<group>"; };
+		9ED2F02669746860CF490890 /* NativeProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProgressView.swift; sourceTree = "<group>"; };
 		A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryService.swift; sourceTree = "<group>"; };
-		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
-		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
+		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
+		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
 		AA714F3756E141456F804D26 /* EnterpriseDatabaseSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseDatabaseSchedulerTests.swift; sourceTree = "<group>"; };
 		B775FC772BBB757874196464 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		BE34872FABAC277BE37FA4F5 /* deep_learning.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = deep_learning.py; sourceTree = "<group>"; };
 		BE97000C618B91DB55AF3E72 /* ReportCompiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportCompiler.swift; sourceTree = "<group>"; };
 		BFE0A9FA6A6821EF8D5A1728 /* profiler.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = profiler.py; sourceTree = "<group>"; };
 		C691FBB60044F82129817B23 /* AnalysisSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSchedulerSheet.swift; sourceTree = "<group>"; };
-		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
+		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
 		CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoMLCleaningTests.swift; sourceTree = "<group>"; };
 		D1EAB7206F26FEE6CA526B55 /* image.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = image.py; sourceTree = "<group>"; };
 		D21ABEC5EF698C64577CDF3E /* AuraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraApp.swift; sourceTree = "<group>"; };
-		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
+		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
 		D7928B28A4483B5F3E002C18 /* PredictionTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionTabView.swift; sourceTree = "<group>"; };
 		D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D94A9C43791F93BBFF10727E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */ = {isa = PBXFileReference; path = "deep_learning.cpython-311.pyc"; sourceTree = "<group>"; };
-		9ED2F02669746860CF490890 /* NativeProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProgressView.swift; sourceTree = "<group>"; };
+		DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "deep_learning.cpython-311.pyc"; sourceTree = "<group>"; };
 		E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelExportSheet.swift; sourceTree = "<group>"; };
 		E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullTableView.swift; sourceTree = "<group>"; };
 		E3FBB74FD6B5716449BF2ABB /* nlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = nlp.py; sourceTree = "<group>"; };
 		E410A6F2A214865D1593E321 /* AnalysisConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisConfig.swift; sourceTree = "<group>"; };
-		E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */ = {isa = PBXFileReference; path = "clustering.cpython-311.pyc"; sourceTree = "<group>"; };
+		E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "clustering.cpython-311.pyc"; sourceTree = "<group>"; };
 		EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaStatusChecker.swift; sourceTree = "<group>"; };
 		F783D2E01729F7CAFCD8C743 /* cleaning.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cleaning.py; sourceTree = "<group>"; };
 		FD250D9E27667F0684F9B96A /* query_db.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = query_db.py; sourceTree = "<group>"; };
 		FD99CF1C61CC0C98DC66240B /* tabular.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = tabular.py; sourceTree = "<group>"; };
-		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
+		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -294,6 +296,7 @@
 				5CD552B5F09360B5BCABC896 /* Assets.xcassets */,
 				938EA13730D79840F2FCBBA5 /* Aura.entitlements */,
 				D21ABEC5EF698C64577CDF3E /* AuraApp.swift */,
+				4C361D432FEC9A9000E5E0C3 /* server.py */,
 				FD250D9E27667F0684F9B96A /* query_db.py */,
 				392542F8312EE21DD7354B2F /* __pycache__ */,
 				CF8B789E1A9FBACB723B0A09 /* Models */,
@@ -389,8 +392,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 5BE1483D97C2A0314A01DE80 /* Build configuration list for PBXProject "Aura" */;
 			developmentRegion = en;
@@ -437,6 +438,7 @@
 				73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */,
 				E66D5B62FF637E7829C89DBD /* nlp.py in Resources */,
 				440BD1B765F92FABAD10EA06 /* object_detection.cpython-311.pyc in Resources */,
+				4C361D442FEC9A9000E5E0C3 /* server.py in Resources */,
 				630516F1E04DA43A53C63602 /* object_detection.py in Resources */,
 				DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */,
 				A3449C7392EA98857DB2606C /* preview.py in Resources */,

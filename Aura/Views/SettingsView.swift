@@ -12,6 +12,21 @@ struct SettingsView: View {
     @State private var isValid = false
     @State private var isChecking = false
 
+    // Local API Server State
+    @State private var serverStatus: ServerStatus = .stopped
+    @State private var serverPID: Int32? = nil
+    @State private var serverErrorMsg: String? = nil
+    @State private var isPerformingServerAction = false
+    
+    private let statusTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    
+    enum ServerStatus {
+        case stopped
+        case running
+        case starting
+        case stopping
+    }
+
     // API Credentials State
     @State private var kaggleUsername = ""
     @State private var kaggleKey = ""
@@ -141,7 +156,14 @@ struct SettingsView: View {
             }
             .tag(0)
             
-            // TAB 2: API Credentials
+            // TAB 2: Local Server Control Panel
+            localServerTab
+                .tabItem {
+                    Label("Local Server", systemImage: "network")
+                }
+                .tag(1)
+            
+            // TAB 3: API Credentials
             VStack(alignment: .leading, spacing: 20) {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
@@ -216,23 +238,23 @@ struct SettingsView: View {
             .tabItem {
                 Label("API Credentials", systemImage: "key.fill")
             }
-            .tag(1)
+            .tag(2)
 
-            // TAB 3: AI / Local LLM
+            // TAB 4: AI / Local LLM
             aiTab
                 .tabItem {
                     Label("AI / LLM", systemImage: "sparkles")
                 }
-                .tag(2)
+                .tag(3)
 
-            // TAB 4: System Logs
+            // TAB 5: System Logs
             logsTab
                 .tabItem {
                     Label("System Logs", systemImage: "doc.text.magnifyingglass")
                 }
-                .tag(3)
+                .tag(4)
             
-            // TAB 5: Appearance
+            // TAB 6: Appearance
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Appearance Settings")
@@ -264,12 +286,13 @@ struct SettingsView: View {
             .tabItem {
                 Label("Appearance", systemImage: "paintpalette")
             }
-            .tag(4)
+            .tag(5)
         }
         .frame(width: 600, height: 520)
         .onAppear {
             pythonPath = PythonRunner.shared.resolvePythonPath()
             verifyPath()
+            updateServerStatus()
             kaggleUsername = KeychainService.shared.getSecureString(forKey: "Aura_KaggleUsername") ?? ""
             kaggleKey = KeychainService.shared.getSecureString(forKey: "Aura_KaggleKey") ?? ""
             hfToken = KeychainService.shared.getSecureString(forKey: "Aura_HFToken") ?? ""
@@ -314,6 +337,9 @@ struct SettingsView: View {
         }
         .onChange(of: claudeModel) { _, newValue in
             UserDefaults.standard.set(newValue, forKey: "Aura_ClaudeModel")
+        }
+        .onReceive(statusTimer) { _ in
+            updateServerStatus()
         }
     }
     
@@ -675,6 +701,248 @@ struct SettingsView: View {
             return .orange
         case .error:
             return Color(red: 1.0, green: 0.38, blue: 0.38)    // bright red
+        }
+    }
+
+    // MARK: - Local Server Helpers & Views
+
+    private var statusTitle: String {
+        switch serverStatus {
+        case .stopped: return "Stopped"
+        case .running: return "Running"
+        case .starting: return "Starting..."
+        case .stopping: return "Stopping..."
+        }
+    }
+    
+    private var statusIndicatorBadge: some View {
+        let color: Color
+        switch serverStatus {
+        case .stopped: color = .red
+        case .running: color = .green
+        case .starting, .stopping: color = .orange
+        }
+        
+        return Circle()
+            .fill(color)
+            .frame(width: 14, height: 14)
+            .shadow(color: color.opacity(0.4), radius: 3)
+    }
+
+    private var localServerTab: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Local API Server")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Manage the background microservice for ML operations")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
+            
+            // Server Status Box
+            VStack(spacing: 0) {
+                HStack(spacing: 16) {
+                    // Status Badge Indicator
+                    statusIndicatorBadge
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(statusTitle)
+                            .fontWeight(.semibold)
+                            .font(.headline)
+                        
+                        Text("Address: http://127.0.0.1:11435")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    if let pid = serverPID {
+                        Text("PID: \(pid)")
+                            .font(.system(.caption, design: .monospaced))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.secondary.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+                .padding(16)
+                
+                Divider()
+                
+                // Details row
+                HStack {
+                    Text("Python Path:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Text(pythonPath.isEmpty ? "Not configured" : pythonPath)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.secondary.opacity(0.03))
+            }
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.15), lineWidth: 1)
+            )
+            
+            // Error Message (if any)
+            if let errorMsg = serverErrorMsg {
+                HStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.octagon.fill")
+                        .foregroundColor(.red)
+                        .font(.title3)
+                    
+                    Text(errorMsg)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.red.opacity(0.05))
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(Color.red.opacity(0.2), lineWidth: 1)
+                )
+            }
+            
+            // Action Buttons Card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Lifecycle Operations")
+                    .font(.headline)
+                
+                HStack(spacing: 12) {
+                    // Start Button
+                    Button(action: startLocalServer) {
+                        Label("Start", systemImage: "play.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.green)
+                    .disabled(serverStatus == .running || serverStatus == .starting || serverStatus == .stopping || isPerformingServerAction)
+                    
+                    // Stop Button
+                    Button(action: stopLocalServer) {
+                        Label("Stop", systemImage: "stop.fill")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.red)
+                    .disabled(serverStatus == .stopped || serverStatus == .starting || serverStatus == .stopping || isPerformingServerAction)
+                    
+                    // Restart Button
+                    Button(action: restartLocalServer) {
+                        Label("Restart", systemImage: "arrow.clockwise")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(serverStatus == .starting || serverStatus == .stopping || isPerformingServerAction)
+                }
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
+            )
+            
+            Spacer()
+            
+            // Info Note
+            Text("The local API server handles dataset previewing, profiling, DB queries, data cleaning, and model training asynchronously. If it stops, Aura will attempt to restart it automatically on the next ML request.")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(24)
+    }
+
+    private func updateServerStatus() {
+        Task {
+            let running = await PythonRunner.shared.isServerRunning()
+            let pid = PythonRunner.shared.getServerPID()
+            await MainActor.run {
+                if !isPerformingServerAction {
+                    self.serverStatus = running ? .running : .stopped
+                    self.serverPID = pid
+                }
+            }
+        }
+    }
+
+    private func startLocalServer() {
+        isPerformingServerAction = true
+        serverStatus = .starting
+        serverErrorMsg = nil
+        Task {
+            do {
+                try await PythonRunner.shared.startServerManual()
+                let pid = PythonRunner.shared.getServerPID()
+                await MainActor.run {
+                    self.serverStatus = .running
+                    self.serverPID = pid
+                    self.isPerformingServerAction = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.serverStatus = .stopped
+                    self.serverPID = nil
+                    self.serverErrorMsg = error.localizedDescription
+                    self.isPerformingServerAction = false
+                }
+            }
+        }
+    }
+    
+    private func stopLocalServer() {
+        isPerformingServerAction = true
+        serverStatus = .stopping
+        serverErrorMsg = nil
+        Task {
+            await PythonRunner.shared.stopServerManual()
+            try? await Task.sleep(nanoseconds: 300_000_000)
+            await MainActor.run {
+                self.serverStatus = .stopped
+                self.serverPID = nil
+                self.isPerformingServerAction = false
+            }
+        }
+    }
+    
+    private func restartLocalServer() {
+        isPerformingServerAction = true
+        serverStatus = .stopping
+        serverErrorMsg = nil
+        Task {
+            do {
+                try await PythonRunner.shared.restartServerManual()
+                let pid = PythonRunner.shared.getServerPID()
+                await MainActor.run {
+                    self.serverStatus = .running
+                    self.serverPID = pid
+                    self.isPerformingServerAction = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.serverStatus = .stopped
+                    self.serverPID = nil
+                    self.serverErrorMsg = error.localizedDescription
+                    self.isPerformingServerAction = false
+                }
+            }
         }
     }
 }
