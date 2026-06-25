@@ -432,16 +432,24 @@ actor PythonRunner {
                                         progressHandler(frac, msg)
                                     }
                                 } else if type == "result" {
-                                    if let resultDict = eventJson["data"] as? [String: Any],
-                                       let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
-                                        finalResultData = serializedData
-                                        self.logInfo("Successfully parsed final result data from SSE event.")
+                                    if let resultDict = eventJson["data"] as? [String: Any] {
+                                        if let errStr = resultDict["error"] as? String, !errStr.isEmpty {
+                                            serverError = errStr
+                                            self.logError("Result payload contained an error: \(errStr)")
+                                        } else if let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
+                                            finalResultData = serializedData
+                                            self.logInfo("Successfully parsed final result data from SSE event.")
+                                        }
                                     } else {
                                         self.logError("SSE result event did not contain a valid 'data' dictionary.")
                                     }
                                 } else if type == "error" {
                                     serverError = eventJson["error"] as? String
                                     self.logError("Received SSE error event: \(serverError ?? "nil")")
+                                } else if type == "log" {
+                                    if let msg = eventJson["message"] as? String {
+                                        self.logInfo("[Subprocess Log] \(msg)")
+                                    }
                                 }
                             } else {
                                 self.logError("SSE event JSON was parsed but type or structure was missing.")
@@ -545,16 +553,24 @@ actor PythonRunner {
                                         progressHandler(frac, msg)
                                     }
                                 } else if type == "result" {
-                                    if let resultDict = eventJson["data"] as? [String: Any],
-                                       let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
-                                        finalResultData = serializedData
-                                        self.logInfo("Successfully parsed final preview result from SSE event.")
+                                    if let resultDict = eventJson["data"] as? [String: Any] {
+                                        if let errStr = resultDict["error"] as? String, !errStr.isEmpty {
+                                            serverError = errStr
+                                            self.logError("Result payload contained a preview error: \(errStr)")
+                                        } else if let serializedData = try? JSONSerialization.data(withJSONObject: resultDict) {
+                                            finalResultData = serializedData
+                                            self.logInfo("Successfully parsed final preview result from SSE event.")
+                                        }
                                     } else {
                                         self.logError("SSE result event did not contain a valid 'data' dictionary.")
                                     }
                                 } else if type == "error" {
                                     serverError = eventJson["error"] as? String
                                     self.logError("Received SSE error event: \(serverError ?? "nil")")
+                                } else if type == "log" {
+                                    if let msg = eventJson["message"] as? String {
+                                        self.logInfo("[Subprocess Log] \(msg)")
+                                    }
                                 }
                             } else {
                                 self.logError("SSE event JSON was parsed but type or structure was missing.")

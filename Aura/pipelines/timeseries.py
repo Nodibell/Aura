@@ -336,87 +336,22 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             xgb_preds = xgb.predict(X_test)
             xgb_r2_xgb = r2_score(y_test, xgb_preds)
             
-            # Holt-Winters Exponential Smoothing
-            es_fit = None
-            es_preds = None
-            es_r2 = -100.0
-            try:
-                from statsmodels.tsa.api import ExponentialSmoothing
-                periods = 7 if len(y_train) > 14 else 2
-                es = ExponentialSmoothing(y_train, seasonal_periods=periods, trend='add', seasonal='add', initialization_method="estimated")
-                es_fit = es.fit()
-                forecast_res = es_fit.forecast(len(y_test))
-                es_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
-                es_r2 = max(r2_score(y_test, es_preds), -100.0)
-            except Exception as es_err:
-                sys.stderr.write(f"Warning: Holt-Winters ES failed: {str(es_err)}. Trying simpler ES...\n")
-                try:
-                    es = ExponentialSmoothing(y_train, trend='add', seasonal=None)
-                    es_fit = es.fit()
-                    forecast_res = es_fit.forecast(len(y_test))
-                    es_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
-                    es_r2 = max(r2_score(y_test, es_preds), -100.0)
-                except Exception:
-                    es_fit = None
+            # Holt-Winters Exponential Smoothing Strategy
+            from pipelines.model_engine import HoltWintersForecasting, ArimaForecasting
             
-            # Dynamic SARIMAX (ARIMA) search
-            arima_fit = None
-            arima_preds = None
-            arima_r2 = -100.0
-            best_order = (1, 1, 1)
-            try:
-                import pmdarima as pm
-                sys.stderr.write("Running pmdarima auto_arima to select p, d, q dynamically...\n")
-                
-                # Run auto_arima to select best p, d, q parameters dynamically
-                stepwise_fit = pm.auto_arima(
-                    y_train,
-                    start_p=0, start_q=0,
-                    max_p=3, max_q=3,
-                    seasonal=False,
-                    trace=False,
-                    error_action='ignore',
-                    suppress_warnings=True,
-                    stepwise=True
-                )
-                
-                best_order = stepwise_fit.order
-                # We serialize the statsmodels ResultsWrapper arima_res_ so that the prediction routing
-                # in analyze.py remains fully compatible and does not require pmdarima at predict time.
-                arima_fit = stepwise_fit.arima_res_
-                forecast_res = arima_fit.forecast(steps=len(y_test))
-                arima_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
-                arima_r2 = max(r2_score(y_test, arima_preds), -100.0)
-                sys.stderr.write(f"pmdarima auto_arima selected order: {best_order} with R²: {arima_r2:.4f}\n")
-                
-            except Exception as pm_err:
-                sys.stderr.write(f"Warning: pmdarima auto_arima search failed: {str(pm_err)}. Falling back to statsmodels grid search...\n")
-                try:
-                    from statsmodels.tsa.statespace.sarimax import SARIMAX
-                    best_aic = float("inf")
-                    d_val = 0 if (adf_p is not None and adf_p < 0.05) else 1
-                    
-                    # Fast grid search for p, q to minimize AIC
-                    for p_val in [0, 1, 2]:
-                        for q_val in [0, 1, 2]:
-                            if p_val == 0 and q_val == 0:
-                                continue
-                            try:
-                                test_model = SARIMAX(y_train, order=(p_val, d_val, q_val), enforce_stationarity=False, enforce_invertibility=False)
-                                test_results = test_model.fit(disp=False, maxiter=50)
-                                if test_results.aic < best_aic:
-                                    best_aic = test_results.aic
-                                    best_order = (p_val, d_val, q_val)
-                            except Exception:
-                                pass
-                    
-                    arima_model = SARIMAX(y_train, order=best_order, enforce_stationarity=False, enforce_invertibility=False)
-                    arima_fit = arima_model.fit(disp=False, maxiter=50)
-                    forecast_res = arima_fit.forecast(steps=len(y_test))
-                    arima_preds = forecast_res.to_numpy() if hasattr(forecast_res, "to_numpy") else np.asarray(forecast_res)
-                    arima_r2 = max(r2_score(y_test, arima_preds), -100.0)
-                except Exception as arima_err:
-                    sys.stderr.write(f"Warning: Dynamic SARIMAX fitting failed: {str(arima_err)}\n")
+            hw_strategy = HoltWintersForecasting()
+            hw_strategy.fit(y_train)
+            es_preds = hw_strategy.predict_or_forecast(len(y_test))
+            es_fit = hw_strategy.model
+            es_r2 = max(r2_score(y_test, es_preds), -100.0) if es_fit is not None else -100.0
+            
+            # ARIMA Strategy
+            arima_strategy = ArimaForecasting(adf_p=adf_p)
+            arima_strategy.fit(y_train)
+            arima_preds = arima_strategy.predict_or_forecast(len(y_test), X_test)
+            arima_fit = arima_strategy.model
+            best_order = arima_strategy.best_order
+            arima_r2 = max(r2_score(y_test, arima_preds), -100.0) if arima_fit is not None else -100.0
             
             # Compare models
             best_model = "Linear Regression"

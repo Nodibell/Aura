@@ -740,7 +740,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 n_features = X_flat.shape[1]
                 if n_features > 100:
                     from sklearn.pipeline import Pipeline
-                    from sklearn.decomposition import PCA
+                    from pipelines.cv_nlp_engine import PCA
                     n_comps = min(100, N, n_features)
                     model = Pipeline([
                         ('pca', PCA(n_components=n_comps, random_state=42)),
@@ -781,7 +781,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 n_features = X_flat.shape[1]
                 if n_features > 100:
                     from sklearn.pipeline import Pipeline
-                    from sklearn.decomposition import PCA
+                    from pipelines.cv_nlp_engine import PCA
                     n_comps = min(100, N, n_features)
                     model = Pipeline([
                         ('pca', PCA(n_components=n_comps, random_state=42)),

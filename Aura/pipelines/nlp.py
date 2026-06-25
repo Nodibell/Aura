@@ -70,11 +70,8 @@ def analyze_nlp(df, target_col, task_type_override,
             y = y_raw.interpolate(method='linear').ffill().bfill().to_numpy()
             
         print_progress(0.45, "Running TF-IDF vectorization (max_features=200)...")
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        vectorizer = TfidfVectorizer(max_features=200, stop_words='english')
-        X_processed = vectorizer.fit_transform(text_series).toarray()
-        feature_names = vectorizer.get_feature_names_out()
-        vocab_size = len(vectorizer.vocabulary_)
+        from pipelines.cv_nlp_engine import extract_text_features, calculate_lexicon_sentiment_and_diversity
+        X_processed, feature_names, vocab_size, vectorizer = extract_text_features(text_series, max_features=200)
         
         print_progress(0.52, "Calculating word importances...")
         tfidf_sums = X_processed.sum(axis=0)
@@ -85,44 +82,8 @@ def analyze_nlp(df, target_col, task_type_override,
         top_words = word_importance[:20]
         
         # 2. Advanced NLP Analysis: N-grams, Sentiment, and Lexical Diversity
-        # Simple sentiment analysis using lexicons
-        positive_lex = {
-            "love", "loved", "loving", "likes", "like", "liked", "awesome", "amazing", "great", "excellent", "good",
-            "wonderful", "fantastic", "beautiful", "perfect", "enjoy", "enjoyed", "happy", "pleasant", "glad",
-            "satisfactory", "satisfied", "recommend", "best", "superb", "masterpiece", "outstanding", "brilliant",
-            "witty", "smart", "touching", "heartwarming", "delight", "delightful", "incredible", "feast"
-        }
-        negative_lex = {
-            "hate", "hated", "hating", "dislike", "disliked", "bad", "terrible", "awful", "horrible", "worst",
-            "poor", "boring", "bored", "disappoint", "disappointed", "disappointing", "waste", "wasteful",
-            "annoy", "annoyed", "annoying", "painful", "lifeless", "useless", "broken", "fail", "failed", "disaster",
-            "embarrassment", "flat", "stupid", "mess", "shame", "mediocre"
-        }
+        polarities, lexical_diversities, avg_word_lengths = calculate_lexicon_sentiment_and_diversity(text_series)
         
-        polarities = []
-        lexical_diversities = []
-        avg_word_lengths = []
-        
-        for doc in text_series:
-            words = [w.lower().strip(".,!?\"'()[]{}") for w in doc.split() if w]
-            if not words:
-                polarities.append(0.0)
-                lexical_diversities.append(0.0)
-                avg_word_lengths.append(0.0)
-                continue
-            
-            # Polarity
-            pos = sum(1 for w in words if w in positive_lex)
-            neg = sum(1 for w in words if w in negative_lex)
-            pol = (pos - neg) / (pos + neg) if (pos + neg) > 0 else 0.0
-            polarities.append(pol)
-            
-            # Lexical diversity (unique words / total words)
-            lexical_diversities.append(len(set(words)) / len(words))
-            
-            # Average word length
-            avg_word_lengths.append(float(np.mean([len(w) for w in words])))
-            
         mean_polarity = float(np.mean(polarities)) if polarities else 0.0
         mean_lex_div = float(np.mean(lexical_diversities)) if lexical_diversities else 0.0
         mean_word_len = float(np.mean(avg_word_lengths)) if avg_word_lengths else 0.0

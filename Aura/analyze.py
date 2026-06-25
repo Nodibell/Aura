@@ -20,12 +20,22 @@ if not os.path.isdir(os.path.join(script_dir, "utils")) and os.path.exists(os.pa
     utils_mod.__path__ = []
     sys.modules["utils"] = utils_mod
     
-    # 2. Load and register helpers first (since loader, profiler, charts depend on it)
+    # 2. Load and register helpers and event_bus first (since others depend on them)
     import helpers
     sys.modules["utils.helpers"] = helpers
     utils_mod.helpers = helpers
+
+    if os.path.exists(os.path.join(script_dir, "event_bus.py")):
+        import event_bus
+        sys.modules["utils.event_bus"] = event_bus
+        utils_mod.event_bus = event_bus
     
     # 3. Load others sequentially
+    if os.path.exists(os.path.join(script_dir, "cleaning.py")):
+        import cleaning
+        sys.modules["utils.cleaning"] = cleaning
+        utils_mod.cleaning = cleaning
+
     import loader
     sys.modules["utils.loader"] = loader
     utils_mod.loader = loader
@@ -37,11 +47,16 @@ if not os.path.isdir(os.path.join(script_dir, "utils")) and os.path.exists(os.pa
     import charts
     sys.modules["utils.charts"] = charts
     utils_mod.charts = charts
-    
-    if os.path.exists(os.path.join(script_dir, "cleaning.py")):
-        import cleaning
-        sys.modules["utils.cleaning"] = cleaning
-        utils_mod.cleaning = cleaning
+
+    if os.path.exists(os.path.join(script_dir, "data_engine.py")):
+        import data_engine
+        sys.modules["utils.data_engine"] = data_engine
+        utils_mod.data_engine = data_engine
+
+    if os.path.exists(os.path.join(script_dir, "ai_analyst.py")):
+        import ai_analyst
+        sys.modules["utils.ai_analyst"] = ai_analyst
+        utils_mod.ai_analyst = ai_analyst
 
 if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(os.path.join(script_dir, "timeseries.py")):
     import types
@@ -50,7 +65,23 @@ if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(o
     pipelines_mod.__path__ = []
     sys.modules["pipelines"] = pipelines_mod
     
-    # 2. Load and register pipelines sequentially
+    # 2. Load deep_learning, model_engine, and cv_nlp_engine first (since other pipelines import from them)
+    if os.path.exists(os.path.join(script_dir, "deep_learning.py")):
+        import deep_learning
+        sys.modules["pipelines.deep_learning"] = deep_learning
+        pipelines_mod.deep_learning = deep_learning
+
+    if os.path.exists(os.path.join(script_dir, "model_engine.py")):
+        import model_engine
+        sys.modules["pipelines.model_engine"] = model_engine
+        pipelines_mod.model_engine = model_engine
+
+    if os.path.exists(os.path.join(script_dir, "cv_nlp_engine.py")):
+        import cv_nlp_engine
+        sys.modules["pipelines.cv_nlp_engine"] = cv_nlp_engine
+        pipelines_mod.cv_nlp_engine = cv_nlp_engine
+
+    # 3. Load other pipelines sequentially
     import timeseries
     sys.modules["pipelines.timeseries"] = timeseries
     pipelines_mod.timeseries = timeseries
@@ -71,11 +102,6 @@ if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(o
     sys.modules["pipelines.preview"] = preview
     pipelines_mod.preview = preview
     
-    if os.path.exists(os.path.join(script_dir, "deep_learning.py")):
-        import deep_learning
-        sys.modules["pipelines.deep_learning"] = deep_learning
-        pipelines_mod.deep_learning = deep_learning
-
     if os.path.exists(os.path.join(script_dir, "tabular.py")):
         import tabular
         sys.modules["pipelines.tabular"] = tabular
@@ -965,6 +991,9 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    from utils.event_bus import ProgressSubject, StderrProgressObserver
+    ProgressSubject.get_instance().attach(StderrProgressObserver())
+
     if args.predict:
         if not args.model_path or not args.input_data:
             print(json.dumps({"error": "Prediction requires --model-path and --input-data."}))
@@ -988,16 +1017,10 @@ if __name__ == "__main__":
 
     if args.merge:
         try:
-            from utils.loader import load_dataset
-            df1 = load_dataset(args.file)
-            df2 = load_dataset(args.file2)
-            
-            df1.columns = df1.columns.str.strip()
-            df2.columns = df2.columns.str.strip()
-            
-            merged = pd.merge(df1, df2, left_on=args.key1, right_on=args.key2, how=args.join_type)
-            merged.to_csv(args.output_merge_path, index=False)
-            
+            from utils.data_engine import DataEngine
+            merged = DataEngine.merge_datasets(
+                args.file, args.file2, args.key1, args.key2, args.join_type, args.output_merge_path
+            )
             result = {
                 "success": True,
                 "row_count": len(merged),

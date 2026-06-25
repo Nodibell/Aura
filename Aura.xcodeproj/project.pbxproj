@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AAAB11112222333344440001 /* event_bus.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440001 /* event_bus.py */; };
+		AAAB11112222333344440002 /* data_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440002 /* data_engine.py */; };
+		AAAB11112222333344440003 /* ai_analyst.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440003 /* ai_analyst.py */; };
+		AAAB11112222333344440004 /* model_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440004 /* model_engine.py */; };
+		AAAB11112222333344440005 /* cv_nlp_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440005 /* cv_nlp_engine.py */; };
 		0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */; };
 		051B5E75B48F8348B8D736F5 /* deep_learning.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */; };
 		085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8DF684009A48B39E26C67 /* OllamaService.swift */; };
@@ -94,6 +99,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AAAF11112222333344440001 /* event_bus.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = event_bus.py; sourceTree = "<group>"; };
+		AAAF11112222333344440002 /* data_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = data_engine.py; sourceTree = "<group>"; };
+		AAAF11112222333344440003 /* ai_analyst.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ai_analyst.py; sourceTree = "<group>"; };
+		AAAF11112222333344440004 /* model_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = model_engine.py; sourceTree = "<group>"; };
+		AAAF11112222333344440005 /* cv_nlp_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cv_nlp_engine.py; sourceTree = "<group>"; };
 		01C2636FCB70D8699271BDF3 /* FileMergeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMergeSheet.swift; sourceTree = "<group>"; };
 		0296AD82546F1F9C92E1473F /* AnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisResult.swift; sourceTree = "<group>"; };
 		036BB7B2813DA346B8701843 /* HTMLToPDFConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToPDFConverter.swift; sourceTree = "<group>"; };
@@ -201,6 +211,9 @@
 		36471513ADADC97BC10280B7 /* utils */ = {
 			isa = PBXGroup;
 			children = (
+				AAAF11112222333344440001 /* event_bus.py */,
+				AAAF11112222333344440002 /* data_engine.py */,
+				AAAF11112222333344440003 /* ai_analyst.py */,
 				9ED2F02669746860CF49087F /* charts.py */,
 				F783D2E01729F7CAFCD8C743 /* cleaning.py */,
 				801D45C07D300201200808EB /* helpers.py */,
@@ -311,6 +324,8 @@
 		B8FC08986204B9FC25427146 /* pipelines */ = {
 			isa = PBXGroup;
 			children = (
+				AAAF11112222333344440004 /* model_engine.py */,
+				AAAF11112222333344440005 /* cv_nlp_engine.py */,
 				5FDEED3F35FC53B5A9CC28E4 /* clustering.py */,
 				BE34872FABAC277BE37FA4F5 /* deep_learning.py */,
 				D1EAB7206F26FEE6CA526B55 /* image.py */,
@@ -418,6 +433,11 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AAAB11112222333344440001 /* event_bus.py in Resources */,
+				AAAB11112222333344440002 /* data_engine.py in Resources */,
+				AAAB11112222333344440003 /* ai_analyst.py in Resources */,
+				AAAB11112222333344440004 /* model_engine.py in Resources */,
+				AAAB11112222333344440005 /* cv_nlp_engine.py in Resources */,
 				09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */,
 				217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */,
 				DAB7A5BFCC509E72B7C92EE1 /* analyze.py in Resources */,
@@ -537,7 +557,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -558,7 +578,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.3.1;
+				MARKETING_VERSION = 0.4.2;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
