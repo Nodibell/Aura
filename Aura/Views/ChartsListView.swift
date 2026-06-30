@@ -513,9 +513,9 @@ struct ChartCard: View {
                 BarChartView(config: config, onTapPoint: onTapPoint)
             }
         } else if config.type == "line" {
-            LineChartView(config: config)
+            LineChartView(config: config, onTapPoint: onTapPoint)
         } else if config.type == "scatter" {
-            ScatterChartView(config: config)
+            ScatterChartView(config: config, onTapPoint: onTapPoint)
         } else if config.type == "shap_beeswarm" {
             ShapBeeswarmView(config: config)
         } else if config.type == "pdp_ice" {
@@ -544,6 +544,20 @@ struct BarChartView: View {
     @State private var selectedXVal: String? = nil
     @State private var selectedXNum: Double? = nil
 
+    private var selectedPoint: ChartPoint? {
+        if let selectedXVal = selectedXVal {
+            return config.data.first { $0.xVal == selectedXVal }
+        }
+        if let selectedXNum = selectedXNum {
+            return config.data.min {
+                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                return diff1 < diff2
+            }
+        }
+        return nil
+    }
+
     var body: some View {
         let hasMultipleSeries = config.data.contains(where: { $0.series != nil })
         let isCategorical = config.data.first?.xVal != nil
@@ -551,80 +565,95 @@ struct BarChartView: View {
         let visibleCount = hasMultipleSeries ? 6 : 12
         let needsScrolling = config.data.count > visibleCount
 
-        if isCategorical {
-            Chart {
-                ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
-                    if let xVal = point.xVal {
-                        if hasMultipleSeries, let series = point.series {
-                            BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                                .foregroundStyle(by: .value("Series", series))
-                                .cornerRadius(4)
-                                .accessibilityLabel("Category: \(xVal), Series: \(series)")
-                                .accessibilityValue("Value: \(formatValue(point.y))")
-                        } else {
-                            BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                                .foregroundStyle(barGradient(index: index, total: config.data.count))
-                                .cornerRadius(4)
-                                .accessibilityLabel("Category: \(xVal)")
-                                .accessibilityValue("Value: \(formatValue(point.y))")
+        VStack(spacing: 8) {
+            if isCategorical {
+                Chart {
+                    ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
+                        if let xVal = point.xVal {
+                            if hasMultipleSeries, let series = point.series {
+                                BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                                    .foregroundStyle(by: .value("Series", series))
+                                    .cornerRadius(4)
+                                    .accessibilityLabel("Category: \(xVal), Series: \(series)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                            } else {
+                                BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                                    .foregroundStyle(barGradient(index: index, total: config.data.count))
+                                    .cornerRadius(4)
+                                    .accessibilityLabel("Category: \(xVal)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                            }
                         }
                     }
+                    
+                    if let selectedXVal = selectedXVal {
+                        RuleMark(x: .value("Selected", selectedXVal))
+                            .foregroundStyle(Color.purple.opacity(0.4))
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                tooltipView(for: selectedXVal)
+                            }
+                    }
                 }
+                .chartXSelection(value: $selectedXVal)
+                .chartXAxis { AxisMarks() }
+                .chartYAxis { AxisMarks(position: .leading) }
+                .chartLegend(hasMultipleSeries ? .visible : .hidden)
+                .chartXScale(domain: .automatic(includesZero: false))
+                .chartScrollableAxes(needsScrolling ? .horizontal : [])
+                .chartXVisibleDomain(length: needsScrolling ? visibleCount : config.data.count)
+                .padding(.all, 8)
                 
-                if let selectedXVal = selectedXVal {
-                    RuleMark(x: .value("Selected", selectedXVal))
-                        .foregroundStyle(Color.purple.opacity(0.4))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                            tooltipView(for: selectedXVal)
+            } else {
+                Chart {
+                    ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
+                        if let xNum = point.xNum {
+                            if hasMultipleSeries, let series = point.series {
+                                BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                                    .foregroundStyle(by: .value("Series", series))
+                                    .cornerRadius(4)
+                                    .accessibilityLabel("Value: \(xNum), Series: \(series)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                            } else {
+                                BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                                    .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .bottom, endPoint: .top))
+                                    .cornerRadius(4)
+                                    .accessibilityLabel("Value: \(xNum)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                            }
                         }
+                    }
+                    
+                    if let selectedXNum = selectedXNum {
+                        RuleMark(x: .value("Selected", selectedXNum))
+                            .foregroundStyle(Color.purple.opacity(0.4))
+                            .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                            .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                tooltipView(for: selectedXNum)
+                            }
+                    }
                 }
+                .chartXSelection(value: $selectedXNum)
+                .chartXAxis { AxisMarks() }
+                .chartYAxis { AxisMarks(position: .leading) }
+                .chartLegend(hasMultipleSeries ? .visible : .hidden)
+                .chartXScale(domain: .automatic(includesZero: false))
+                .padding(.all, 8)
             }
-            .chartXSelection(value: $selectedXVal)
-            .chartXAxis { AxisMarks() }
-            .chartYAxis { AxisMarks(position: .leading) }
-            .chartLegend(hasMultipleSeries ? .visible : .hidden)
-            .chartXScale(domain: .automatic(includesZero: false))
-            .chartScrollableAxes(needsScrolling ? .horizontal : [])
-            .chartXVisibleDomain(length: needsScrolling ? visibleCount : config.data.count)
-            .padding(.all, 8)
             
-        } else {
-            Chart {
-                ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
-                    if let xNum = point.xNum {
-                        if hasMultipleSeries, let series = point.series {
-                            BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                                .foregroundStyle(by: .value("Series", series))
-                                .cornerRadius(4)
-                                .accessibilityLabel("Value: \(xNum), Series: \(series)")
-                                .accessibilityValue("Value: \(formatValue(point.y))")
-                        } else {
-                            BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                                .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .bottom, endPoint: .top))
-                                .cornerRadius(4)
-                                .accessibilityLabel("Value: \(xNum)")
-                                .accessibilityValue("Value: \(formatValue(point.y))")
-                        }
-                    }
+            // Drill down button
+            if let selectedPoint = selectedPoint, onTapPoint != nil {
+                Button {
+                    onTapPoint?(selectedPoint)
+                } label: {
+                    let desc = selectedPoint.xVal ?? (selectedPoint.xNum != nil ? String(format: "%.2f", selectedPoint.xNum!) : "")
+                    Label("Drill Down Details: \(desc)", systemImage: "arrow.down.magnifyingglass")
+                        .font(.system(size: 11, weight: .bold))
                 }
-                
-                if let selectedXNum = selectedXNum {
-                    RuleMark(x: .value("Selected", selectedXNum))
-                        .foregroundStyle(Color.purple.opacity(0.4))
-                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
-                            tooltipView(for: selectedXNum)
-                        }
-                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .padding(.bottom, 4)
             }
-            .chartXSelection(value: $selectedXNum)
-            .chartXAxis { AxisMarks() }
-            .chartYAxis { AxisMarks(position: .leading) }
-            .chartLegend(hasMultipleSeries ? .visible : .hidden)
-            .chartXScale(domain: .automatic(includesZero: false))
-            // ВИДАЛЕНО chartScrollableAxes та chartXVisibleDomain для числових даних!
-            .padding(.all, 8)
         }
     }
 
@@ -751,6 +780,7 @@ struct BarChartView: View {
 
 struct LineChartView: View {
     let config: ChartConfig
+    var onTapPoint: ((ChartPoint) -> Void)? = nil
     
     private static let formatters: [DateFormatter] = {
         let formats = [
@@ -779,6 +809,45 @@ struct LineChartView: View {
     @State private var selectedDate: Date? = nil
     @State private var selectedXVal: String? = nil
     @State private var selectedXNum: Double? = nil
+
+    private var selectedPoint: ChartPoint? {
+        if let selectedDate = selectedDate {
+            let processed = getProcessedPoints()
+            guard let closest = processed.min(by: {
+                let diff1 = abs(($0.xDate?.timeIntervalSince1970 ?? 0.0) - selectedDate.timeIntervalSince1970)
+                let diff2 = abs(($1.xDate?.timeIntervalSince1970 ?? 0.0) - selectedDate.timeIntervalSince1970)
+                return diff1 < diff2
+            }) else { return nil }
+            return config.data.first { $0.xVal == closest.xVal }
+        }
+        if let selectedXVal = selectedXVal {
+            return config.data.first { $0.xVal == selectedXVal }
+        }
+        if let selectedXNum = selectedXNum {
+            return config.data.min {
+                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                return diff1 < diff2
+            }
+        }
+        return nil
+    }
+
+    private var selectedPointDescription: String {
+        if let selectedDate = selectedDate {
+            let df = DateFormatter()
+            df.dateStyle = .medium
+            df.timeStyle = .none
+            return df.string(from: selectedDate)
+        }
+        if let selectedXVal = selectedXVal {
+            return selectedXVal
+        }
+        if let selectedXNum = selectedXNum {
+            return String(format: "%.2f", selectedXNum)
+        }
+        return ""
+    }
     
     enum ViewMode: String, CaseIterable, Identifiable {
         case raw = "All Data"
@@ -1169,6 +1238,19 @@ struct LineChartView: View {
                     }
                 }
             }
+            
+            // Drill down button for LineChartView
+            if let selectedPoint = selectedPoint, onTapPoint != nil {
+                Button {
+                    onTapPoint?(selectedPoint)
+                } label: {
+                    Label("Drill Down Details: \(selectedPointDescription)", systemImage: "arrow.down.magnifyingglass")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .padding(.bottom, 8)
+            }
         }
     }
 
@@ -1300,10 +1382,35 @@ struct LineChartView: View {
 
 struct ScatterChartView: View {
     let config: ChartConfig
+    var onTapPoint: ((ChartPoint) -> Void)? = nil
     @State private var visibleSeries: Set<String> = []
     
     @State private var selectedXVal: String? = nil
     @State private var selectedXNum: Double? = nil
+
+    private func getSelectedPoint(filteredData: [ChartPoint]) -> ChartPoint? {
+        if let selectedXVal = selectedXVal {
+            return filteredData.first { $0.xVal == selectedXVal }
+        }
+        if let selectedXNum = selectedXNum {
+            return filteredData.min {
+                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                return diff1 < diff2
+            }
+        }
+        return nil
+    }
+
+    private func getSelectedPointDescription(point: ChartPoint) -> String {
+        if let xVal = point.xVal {
+            return xVal
+        }
+        if let xNum = point.xNum {
+            return String(format: "%.2f", xNum)
+        }
+        return ""
+    }
 
     private func resetVisibleSeries() {
         let unique = Set(config.data.compactMap { $0.series })
@@ -1465,6 +1572,20 @@ struct ScatterChartView: View {
                 baseChart
                     .chartXScale(domain: (minX - xPad)...(maxX + xPad))
                     .chartYScale(domain: (minY - yPad)...(maxY + yPad))
+            }
+            
+            // Drill down button for ScatterChartView
+            if let selectedPoint = getSelectedPoint(filteredData: filteredData), onTapPoint != nil {
+                Button {
+                    onTapPoint?(selectedPoint)
+                } label: {
+                    Label("Drill Down Details: \(getSelectedPointDescription(point: selectedPoint))", systemImage: "arrow.down.magnifyingglass")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.purple)
+                .padding(.top, 4)
+                .frame(maxWidth: .infinity, alignment: .center)
             }
         }
         .onAppear {

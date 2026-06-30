@@ -208,12 +208,21 @@ def analyze_nlp(df, target_col, task_type_override,
         if is_classification:
             avg_pol_by_class = {}
             avg_wc_by_class = {}
-            for cls in np.unique(y):
-                mask = (y == cls)
-                cls_pols = [polarities[i] for i, m in enumerate(mask) if m]
-                cls_wcs = [word_counts.iloc[i] for i, m in enumerate(mask) if m]
-                avg_pol_by_class[cls] = float(np.mean(cls_pols)) if cls_pols else 0.0
-                avg_wc_by_class[cls] = float(np.mean(cls_wcs)) if cls_wcs else 0.0
+            if is_multi_label and mlb is not None:
+                for c_idx, cls_name in enumerate(mlb.classes_):
+                    # y has shape (n_samples, n_classes)
+                    mask = (y[:, c_idx] == 1)
+                    cls_pols = [polarities[i] for i, m in enumerate(mask) if m]
+                    cls_wcs = [word_counts.iloc[i] for i, m in enumerate(mask) if m]
+                    avg_pol_by_class[cls_name] = float(np.mean(cls_pols)) if cls_pols else 0.0
+                    avg_wc_by_class[cls_name] = float(np.mean(cls_wcs)) if cls_wcs else 0.0
+            else:
+                for cls in np.unique(y):
+                    mask = (y == cls)
+                    cls_pols = [polarities[i] for i, m in enumerate(mask) if m]
+                    cls_wcs = [word_counts.iloc[i] for i, m in enumerate(mask) if m]
+                    avg_pol_by_class[cls] = float(np.mean(cls_pols)) if cls_pols else 0.0
+                    avg_wc_by_class[cls] = float(np.mean(cls_wcs)) if cls_wcs else 0.0
                 
             charts.append({
                 "type": "bar",
@@ -265,7 +274,14 @@ def analyze_nlp(df, target_col, task_type_override,
             for idx in sample_indices:
                 x_val = float(X_svd[idx, 0])
                 y_val = float(X_svd[idx, 1])
-                class_label = str(y[idx]) if is_classification else "Document"
+                if is_classification:
+                    if is_multi_label and mlb is not None:
+                        active_labels = [mlb.classes_[c] for c in range(len(mlb.classes_)) if y[idx, c] == 1]
+                        class_label = ", ".join(active_labels) if active_labels else "None"
+                    else:
+                        class_label = str(y[idx])
+                else:
+                    class_label = "Document"
                 projection_data.append({
                     "x_val": None,
                     "x_num": x_val,

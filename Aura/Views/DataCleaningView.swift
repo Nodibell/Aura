@@ -38,146 +38,158 @@ struct DataCleaningView: View {
                         let colProfile = result.profiling?.columns[col]
                         let colType = colProfile?.type.lowercased() ?? "numeric"
                         let missingCount = colProfile?.missing ?? 0
+                        let isExcluded = config.excludedColumns.contains(col)
                         
-                        HStack(alignment: .top, spacing: 16) {
-                            // Column Metadata
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack(spacing: 6) {
-                                    Image(systemName: iconForType(colType))
-                                        .foregroundColor(isTarget ? .purple : .secondary)
-                                        .font(.caption)
-                                    Text(col)
-                                        .font(.subheadline)
-                                        .fontWeight(.bold)
-                                        .foregroundColor(isTarget ? .purple : .primary)
-                                        .lineLimit(1)
-                                }
-                                
-                                HStack(spacing: 8) {
-                                    Text(colType.capitalized)
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(.secondary)
-                                    if missingCount > 0 {
-                                        Text("\(missingCount) missing")
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(.orange)
-                                    } else {
-                                        Text("Clean")
-                                            .font(.system(size: 10))
-                                            .foregroundColor(.secondary.opacity(0.8))
-                                    }
-                                }
-                                
-                                if !isTarget {
-                                    TextField("Rename column...", text: Binding(
-                                        get: { getRename(for: col) },
-                                        set: { setRename($0, for: col) }
-                                    ))
-                                    .textFieldStyle(.plain)
-                                    .font(.system(size: 10))
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 3)
-                                    .background(Color.primary.opacity(0.04))
-                                    .cornerRadius(4)
-                                    .frame(maxWidth: 160)
-                                }
-                            }
-                            .frame(width: 180, alignment: .leading)
-                            
-                            Spacer()
-                            
-                            // Cleaning Actions Controls
+                        HStack(alignment: .top, spacing: 12) {
+                            // Checkbox to exclude/include columns
                             if isTarget {
-                                Text("Target Column (Exempt)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .italic()
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                    .padding(.vertical, 8)
+                                Image(systemName: "checkmark.square.fill")
+                                    .foregroundColor(.purple)
+                                    .font(.system(size: 14))
+                                    .padding(.top, 2)
                             } else {
-                                HStack(spacing: 12) {
-                                    // 1. Imputation Picker
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Imputation")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.secondary)
-                                        
-                                        let availableImputes = imputationOptions(for: colType)
-                                        Menu {
-                                            ForEach(availableImputes) { opt in
-                                                Button {
-                                                    setImputation(opt, for: col)
-                                                } label: {
-                                                    HStack {
-                                                        Text(opt.label)
-                                                        if getImputation(for: col) == opt {
-                                                            Image(systemName: "checkmark")
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        } label: {
-                                            let current = getImputation(for: col)
-                                            Text(current.label)
-                                                .font(.caption)
-                                                .fontWeight(current != .none ? .bold : .regular)
-                                                .foregroundColor(current != .none ? .purple : .primary)
+                                Button {
+                                    withAnimation {
+                                        if isExcluded {
+                                            config.excludedColumns.remove(col)
+                                        } else {
+                                            config.excludedColumns.insert(col)
                                         }
-                                        .menuStyle(.borderlessButton)
-                                        .frame(width: 130, alignment: .leading)
+                                    }
+                                } label: {
+                                    Image(systemName: isExcluded ? "square" : "checkmark.square.fill")
+                                        .foregroundColor(isExcluded ? .secondary.opacity(0.8) : .blue)
+                                        .font(.system(size: 14))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.top, 2)
+                            }
+                            
+                            HStack(alignment: .top, spacing: 16) {
+                                // Column Metadata
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: iconForType(colType))
+                                            .foregroundColor(isTarget ? .purple : (isExcluded ? .secondary : .secondary))
+                                            .font(.caption)
+                                        Text(col)
+                                            .font(.subheadline)
+                                            .fontWeight(.bold)
+                                            .foregroundColor(isTarget ? .purple : (isExcluded ? .secondary : .primary))
+                                            .lineLimit(1)
                                     }
                                     
-                                    // 2. Outlier Picker (Numeric only)
-                                    if colType == "numeric" {
+                                    HStack(spacing: 8) {
+                                        Text(colType.capitalized)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundColor(.secondary)
+                                        if missingCount > 0 {
+                                            Text("\(missingCount) missing")
+                                                .font(.system(size: 10, weight: .bold))
+                                                .foregroundColor(isExcluded ? .orange.opacity(0.5) : .orange)
+                                        } else {
+                                            Text("Clean")
+                                                .font(.system(size: 10))
+                                                .foregroundColor(.secondary.opacity(0.8))
+                                        }
+                                    }
+                                    
+                                    if !isTarget {
+                                        TextField("Rename column...", text: Binding(
+                                            get: { getRename(for: col) },
+                                            set: { setRename($0, for: col) }
+                                        ))
+                                        .textFieldStyle(.plain)
+                                        .font(.system(size: 10))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.primary.opacity(0.04))
+                                        .cornerRadius(4)
+                                        .frame(maxWidth: 160)
+                                        .disabled(isExcluded)
+                                    }
+                                }
+                                .frame(width: 180, alignment: .leading)
+                                .opacity(isExcluded ? 0.6 : 1.0)
+                                
+                                Spacer()
+                                
+                                // Cleaning Actions Controls
+                                if isTarget {
+                                    Text("Target Column (Exempt)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .italic()
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                        .padding(.vertical, 8)
+                                } else {
+                                    HStack(spacing: 12) {
+                                        // 1. Imputation Picker
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text("Outlier Treatment")
+                                            Text("Imputation")
                                                 .font(.system(size: 9, weight: .bold))
                                                 .foregroundColor(.secondary)
                                             
+                                            let availableImputes = imputationOptions(for: colType)
                                             Menu {
-                                                ForEach(OutlierOption.allCases) { opt in
+                                                ForEach(availableImputes) { opt in
                                                     Button {
-                                                        setOutlier(opt, for: col)
+                                                        setImputation(opt, for: col)
                                                     } label: {
-                                                        HStack {
-                                                            Text(opt.label)
-                                                            if getOutlier(for: col) == opt {
-                                                                Image(systemName: "checkmark")
-                                                            }
-                                                        }
+                                                        Text(opt.label)
                                                     }
                                                 }
                                             } label: {
-                                                let current = getOutlier(for: col)
+                                                let current = getImputation(for: col)
                                                 Text(current.label)
                                                     .font(.caption)
                                                     .fontWeight(current != .none ? .bold : .regular)
-                                                    .foregroundColor(current != .none ? .purple : .primary)
+                                                    .foregroundColor(current != .none ? .blue : .primary)
                                             }
                                             .menuStyle(.borderlessButton)
-                                            .frame(width: 130, alignment: .leading)
+                                            .frame(width: 120, alignment: .leading)
                                         }
-                                    }
-                                    
-                                    // 3. Encoding Picker (Categorical only)
-                                    if colType == "categorical" {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("Encoding")
-                                                .font(.system(size: 9, weight: .bold))
-                                                .foregroundColor(.secondary)
-                                            
-                                            HStack(spacing: 4) {
+                                        
+                                        // 2. Outlier Treatment Picker
+                                        if colType == "numeric" {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Outlier Treatment")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundColor(.secondary)
+                                                
+                                                Menu {
+                                                    ForEach(OutlierOption.allCases) { opt in
+                                                        Button {
+                                                            setOutlier(opt, for: col)
+                                                        } label: {
+                                                            Text(opt.label)
+                                                        }
+                                                    }
+                                                } label: {
+                                                    let current = getOutlier(for: col)
+                                                    Text(current.label)
+                                                        .font(.caption)
+                                                        .fontWeight(current != .none ? .bold : .regular)
+                                                        .foregroundColor(current != .none ? .orange : .primary)
+                                                }
+                                                .menuStyle(.borderlessButton)
+                                                .frame(width: 130, alignment: .leading)
+                                            }
+                                        }
+                                        
+                                        // 3. Encoding Picker (Categorical only)
+                                        if colType == "categorical" {
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("Encoding")
+                                                    .font(.system(size: 9, weight: .bold))
+                                                    .foregroundColor(.secondary)
+                                                
                                                 Menu {
                                                     ForEach(EncodingOption.allCases) { opt in
                                                         Button {
                                                             setEncoding(opt, for: col)
                                                         } label: {
-                                                            HStack {
-                                                                Text(opt.label)
-                                                                if getEncoding(for: col) == opt {
-                                                                    Image(systemName: "checkmark")
-                                                                }
-                                                            }
+                                                            Text(opt.label)
                                                         }
                                                     }
                                                 } label: {
@@ -185,76 +197,75 @@ struct DataCleaningView: View {
                                                     Text(current.label)
                                                         .font(.caption)
                                                         .fontWeight(current != .none ? .bold : .regular)
-                                                        .foregroundColor(current != .none ? .purple : .primary)
+                                                        .foregroundColor(current != .none ? .green : .primary)
                                                 }
                                                 .menuStyle(.borderlessButton)
-                                                .frame(width: 130, alignment: .leading)
-                                                
-                                                if getEncoding(for: col) == .target {
-                                                    Image(systemName: "exclamationmark.triangle.fill")
-                                                        .foregroundColor(.orange)
-                                                        .font(.caption2)
-                                                        .help("Warning: Target encoding has a high risk of target leakage/overfitting if validation splits are not managed carefully.")
-                                                }
+                                                .frame(width: 120, alignment: .leading)
                                             }
                                         }
-                                    }
-                                    
-                                    // 4. Feature Engineering Picker
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text("Feature Engineering")
-                                            .font(.system(size: 9, weight: .bold))
-                                            .foregroundColor(.secondary)
                                         
-                                        Menu {
-                                            Button("None") {
-                                                clearFeatureEngineering(for: col)
-                                            }
+                                        // 4. Feature Engineering Picker
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Feature Engineering")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundColor(.secondary)
                                             
-                                            if colType == "numeric" {
-                                                Button("Log Transform (log1p)") {
-                                                    setFeatureEngineering("transform_log", for: col)
-                                                }
-                                                Button("Power Transform (Square)") {
-                                                    setFeatureEngineering("transform_power", for: col)
+                                            Menu {
+                                                Button("None") {
+                                                    clearFeatureEngineering(for: col)
                                                 }
                                                 
-                                                Menu("Interaction with...") {
-                                                    let otherNumericCols = result.columns.filter { $0 != col && $0 != result.targetColumn && (result.profiling?.columns[$0]?.type.lowercased() == "numeric" || $0 != result.targetColumn) }
-                                                    ForEach(otherNumericCols, id: \.self) { otherCol in
-                                                        Button(otherCol) {
-                                                            setFeatureEngineering("transform_interaction:\(otherCol)", for: col)
+                                                if colType == "numeric" {
+                                                    Button("Log Transform (log1p)") {
+                                                        setFeatureEngineering("transform_log", for: col)
+                                                    }
+                                                    Button("Power Transform (Square)") {
+                                                        setFeatureEngineering("transform_power", for: col)
+                                                    }
+                                                    
+                                                    Menu("Interaction with...") {
+                                                        let otherNumericCols = result.columns.filter { $0 != col && $0 != result.targetColumn && (result.profiling?.columns[$0]?.type.lowercased() == "numeric" || $0 != result.targetColumn) }
+                                                        ForEach(otherNumericCols, id: \.self) { otherCol in
+                                                            Button(otherCol) {
+                                                                setFeatureEngineering("transform_interaction:\(otherCol)", for: col)
+                                                            }
                                                         }
                                                     }
+                                                } else {
+                                                    Button("Extract Date Parts") {
+                                                        setFeatureEngineering("transform_date", for: col)
+                                                    }
                                                 }
-                                            } else {
-                                                Button("Extract Date Parts") {
-                                                    setFeatureEngineering("transform_date", for: col)
-                                                }
+                                            } label: {
+                                                let current = getFeatureEngineeringLabel(for: col)
+                                                Text(current)
+                                                    .font(.caption)
+                                                    .fontWeight(current != "None" ? .bold : .regular)
+                                                    .foregroundColor(current != "None" ? .purple : .primary)
                                             }
-                                        } label: {
-                                            let current = getFeatureEngineeringLabel(for: col)
-                                            Text(current)
-                                                .font(.caption)
-                                                .fontWeight(current != "None" ? .bold : .regular)
-                                                .foregroundColor(current != "None" ? .purple : .primary)
+                                            .menuStyle(.borderlessButton)
+                                            .frame(width: 145, alignment: .leading)
                                         }
-                                        .menuStyle(.borderlessButton)
-                                        .frame(width: 145, alignment: .leading)
                                     }
+                                    .opacity(isExcluded ? 0.25 : 1.0)
+                                    .disabled(isExcluded)
                                 }
                             }
                         }
                         .padding(12)
-                        .background(Color.primary.opacity(hoverColumn == col ? 0.04 : 0.01))
+                        .background(Color.primary.opacity(isExcluded ? 0.005 : (hoverColumn == col ? 0.04 : 0.01)))
                         .cornerRadius(8)
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.primary.opacity(hoverColumn == col ? 0.08 : 0.03), lineWidth: 1)
+                                .stroke(Color.primary.opacity(isExcluded ? 0.02 : (hoverColumn == col ? 0.08 : 0.03)), lineWidth: 1)
                         )
                         .onHover { isHover in
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                hoverColumn = isHover ? col : nil
+                            if !isExcluded {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    hoverColumn = isHover ? col : nil
+                                }
+                            } else {
+                                hoverColumn = nil
                             }
                         }
                     }
