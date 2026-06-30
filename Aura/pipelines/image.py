@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 from sklearn.dummy import DummyClassifier
 from utils.helpers import print_progress, _export_model_and_code
 from utils.loader import load_dataset
@@ -771,7 +771,9 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                     y_pred = model.predict(X_test)
                 
                 overall_accuracy = float(accuracy_score(y_test, y_pred))
-                overall_f1 = float(f1_score(y_test, y_pred, average='weighted'))
+                overall_f1 = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
+                overall_precision = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
+                overall_recall = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
                 
                 raw_cm = confusion_matrix(y_test, y_pred)
                 cm_data = {
@@ -796,12 +798,16 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                     y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
                     y_pred = model.predict(X_test_flat)
                     overall_accuracy = float(accuracy_score(y_test, y_pred))
-                    overall_f1 = float(f1_score(y_test, y_pred, average='weighted'))
+                    overall_f1 = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
+                    overall_precision = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
+                    overall_recall = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
                     raw_cm = confusion_matrix(y_test, y_pred)
                 else:
                     y_pred = model.predict(X_flat)
                     overall_accuracy = float(accuracy_score(y_encoded, y_pred))
-                    overall_f1 = float(f1_score(y_encoded, y_pred, average='weighted'))
+                    overall_f1 = float(f1_score(y_encoded, y_pred, average='weighted', zero_division=0))
+                    overall_precision = float(precision_score(y_encoded, y_pred, average='weighted', zero_division=0))
+                    overall_recall = float(recall_score(y_encoded, y_pred, average='weighted', zero_division=0))
                     raw_cm = confusion_matrix(y_encoded, y_pred)
                 
                 dummy_score = 1.0 / num_classes
@@ -813,9 +819,42 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                     "labels": [str(c) for c in unique_classes],
                     "values": [[int(val) for val in row] for row in raw_cm]
                 }
+            
+            # Compute actual dummy baseline metrics
+            from sklearn.dummy import DummyClassifier
+            dummy = DummyClassifier(strategy="most_frequent")
+            if cv_is_possible and X_test_images is None:
+                # train/test split was used
+                dummy.fit(X_train, y_train)
+                dummy_preds = dummy.predict(X_test)
+                dummy_acc = float(accuracy_score(y_test, dummy_preds))
+                dummy_f1 = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_prec = float(precision_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_rec = float(recall_score(y_test, dummy_preds, average='weighted', zero_division=0))
+            elif X_test_images is not None:
+                dummy.fit(X_flat, y_encoded)
+                dummy_preds = dummy.predict(X_test_flat)
+                dummy_acc = float(accuracy_score(y_test, dummy_preds))
+                dummy_f1 = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_prec = float(precision_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_rec = float(recall_score(y_test, dummy_preds, average='weighted', zero_division=0))
+            else:
+                dummy.fit(X_flat, y_encoded)
+                dummy_preds = dummy.predict(X_flat)
+                dummy_acc = float(accuracy_score(y_encoded, dummy_preds))
+                dummy_f1 = float(f1_score(y_encoded, dummy_preds, average='weighted', zero_division=0))
+                dummy_prec = float(precision_score(y_encoded, dummy_preds, average='weighted', zero_division=0))
+                dummy_rec = float(recall_score(y_encoded, dummy_preds, average='weighted', zero_division=0))
+            dummy_score = dummy_acc
         else:
             overall_accuracy = 1.0
             overall_f1 = 1.0
+            overall_precision = 1.0
+            overall_recall = 1.0
+            dummy_acc = 1.0
+            dummy_f1 = 1.0
+            dummy_prec = 1.0
+            dummy_rec = 1.0
             dummy_score = 1.0
             cv_scores_list = [1.0]
             cv_mean = 1.0
@@ -870,8 +909,8 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             }
         
         models_compared = [
-            {"name": "Dummy Baseline", "score": float(dummy_score), "metric": "Accuracy"},
-            {"name": "Logistic Regression", "score": float(overall_accuracy), "metric": "Accuracy"}
+            {"name": "Dummy Baseline", "score": float(dummy_acc), "metric": "Accuracy", "f1": float(dummy_f1), "precision": float(dummy_prec), "recall": float(dummy_rec)},
+            {"name": "Logistic Regression", "score": float(overall_accuracy), "metric": "Accuracy", "f1": float(overall_f1), "precision": float(overall_precision), "recall": float(overall_recall)}
         ]
         
         # Phase 1: Model & Code Export

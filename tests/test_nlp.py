@@ -59,7 +59,7 @@ def test_nlp_pipeline():
     # Check output
     assert result is not None
     assert result["error"] is None
-    assert result["metrics"]["score_type"] == "Weighted F1"
+    assert result["metrics"]["score_type"] == "Accuracy"
     assert len(result["charts"]) > 0
     
     # Let's inspect some of the specific charts that were added in Phase 10

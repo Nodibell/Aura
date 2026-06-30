@@ -544,14 +544,17 @@ struct BarChartView: View {
     @State private var selectedXVal: String? = nil
     @State private var selectedXNum: Double? = nil
 
+    @State private var persistentSelectedXVal: String? = nil
+    @State private var persistentSelectedXNum: Double? = nil
+
     private var selectedPoint: ChartPoint? {
-        if let selectedXVal = selectedXVal {
-            return config.data.first { $0.xVal == selectedXVal }
+        if let xVal = persistentSelectedXVal {
+            return config.data.first { $0.xVal == xVal }
         }
-        if let selectedXNum = selectedXNum {
+        if let xNum = persistentSelectedXNum {
             return config.data.min {
-                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
-                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                let diff1 = abs(($0.xNum ?? 0.0) - xNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - xNum)
                 return diff1 < diff2
             }
         }
@@ -653,6 +656,18 @@ struct BarChartView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(.purple)
                 .padding(.bottom, 4)
+            }
+        }
+        .onChange(of: selectedXVal) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXVal = val
+                persistentSelectedXNum = nil
+            }
+        }
+        .onChange(of: selectedXNum) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXNum = val
+                persistentSelectedXVal = nil
             }
         }
     }
@@ -778,25 +793,30 @@ struct LineChartView: View {
 
     @State private var selectedDate: Date? = nil
     @State private var selectedXVal: String? = nil
+    @State private var State_selectedXNum: Double? = nil // Avoid conflicts
     @State private var selectedXNum: Double? = nil
 
+    @State private var persistentSelectedDate: Date? = nil
+    @State private var persistentSelectedXVal: String? = nil
+    @State private var persistentSelectedXNum: Double? = nil
+
     private var selectedPoint: ChartPoint? {
-        if let selectedDate = selectedDate {
+        if let selDate = persistentSelectedDate {
             let processed = getProcessedPoints()
             guard let closest = processed.min(by: {
-                let diff1 = abs(($0.xDate?.timeIntervalSince1970 ?? 0.0) - selectedDate.timeIntervalSince1970)
-                let diff2 = abs(($1.xDate?.timeIntervalSince1970 ?? 0.0) - selectedDate.timeIntervalSince1970)
+                let diff1 = abs(($0.xDate?.timeIntervalSince1970 ?? 0.0) - selDate.timeIntervalSince1970)
+                let diff2 = abs(($1.xDate?.timeIntervalSince1970 ?? 0.0) - selDate.timeIntervalSince1970)
                 return diff1 < diff2
             }) else { return nil }
             return config.data.first { $0.xVal == closest.xVal }
         }
-        if let selectedXVal = selectedXVal {
-            return config.data.first { $0.xVal == selectedXVal }
+        if let xVal = persistentSelectedXVal {
+            return config.data.first { $0.xVal == xVal }
         }
-        if let selectedXNum = selectedXNum {
+        if let xNum = persistentSelectedXNum {
             return config.data.min {
-                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
-                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                let diff1 = abs(($0.xNum ?? 0.0) - xNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - xNum)
                 return diff1 < diff2
             }
         }
@@ -804,17 +824,17 @@ struct LineChartView: View {
     }
 
     private var selectedPointDescription: String {
-        if let selectedDate = selectedDate {
+        if let selDate = persistentSelectedDate {
             let df = DateFormatter()
             df.dateStyle = .medium
             df.timeStyle = .none
-            return df.string(from: selectedDate)
+            return df.string(from: selDate)
         }
-        if let selectedXVal = selectedXVal {
-            return selectedXVal
+        if let xVal = persistentSelectedXVal {
+            return xVal
         }
-        if let selectedXNum = selectedXNum {
-            return String(format: "%.2f", selectedXNum)
+        if let xNum = persistentSelectedXNum {
+            return String(format: "%.2f", xNum)
         }
         return ""
     }
@@ -1222,6 +1242,27 @@ struct LineChartView: View {
                 .padding(.bottom, 8)
             }
         }
+        .onChange(of: selectedDate) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedDate = val
+                persistentSelectedXVal = nil
+                persistentSelectedXNum = nil
+            }
+        }
+        .onChange(of: selectedXVal) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXVal = val
+                persistentSelectedDate = nil
+                persistentSelectedXNum = nil
+            }
+        }
+        .onChange(of: selectedXNum) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXNum = val
+                persistentSelectedDate = nil
+                persistentSelectedXVal = nil
+            }
+        }
     }
 
     @ViewBuilder
@@ -1358,14 +1399,17 @@ struct ScatterChartView: View {
     @State private var selectedXVal: String? = nil
     @State private var selectedXNum: Double? = nil
 
+    @State private var persistentSelectedXVal: String? = nil
+    @State private var persistentSelectedXNum: Double? = nil
+
     private func getSelectedPoint(filteredData: [ChartPoint]) -> ChartPoint? {
-        if let selectedXVal = selectedXVal {
-            return filteredData.first { $0.xVal == selectedXVal }
+        if let xVal = persistentSelectedXVal {
+            return filteredData.first { $0.xVal == xVal }
         }
-        if let selectedXNum = selectedXNum {
+        if let xNum = persistentSelectedXNum {
             return filteredData.min {
-                let diff1 = abs(($0.xNum ?? 0.0) - selectedXNum)
-                let diff2 = abs(($1.xNum ?? 0.0) - selectedXNum)
+                let diff1 = abs(($0.xNum ?? 0.0) - xNum)
+                let diff2 = abs(($1.xNum ?? 0.0) - xNum)
                 return diff1 < diff2
             }
         }
@@ -1563,6 +1607,18 @@ struct ScatterChartView: View {
         }
         .onChange(of: config.id, initial: false) {
             resetVisibleSeries()
+        }
+        .onChange(of: selectedXVal) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXVal = val
+                persistentSelectedXNum = nil
+            }
+        }
+        .onChange(of: selectedXNum) { oldValue, newValue in
+            if let val = newValue {
+                persistentSelectedXNum = val
+                persistentSelectedXVal = nil
+            }
         }
     }
     

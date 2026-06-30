@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, confusion_matrix
+from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, confusion_matrix, precision_score, recall_score
 from sklearn.dummy import DummyClassifier, DummyRegressor
 from utils.helpers import print_progress, _export_model_and_code
 from utils.profiler import profile_dataset
@@ -436,7 +436,7 @@ def analyze_nlp(df, target_col, task_type_override,
             from sklearn.naive_bayes import MultinomialNB, ComplementNB
             from sklearn.linear_model import LogisticRegression, SGDClassifier
             from sklearn.svm import LinearSVC
-            from sklearn.metrics import accuracy_score, f1_score
+            from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
             from sklearn.multiclass import OneVsRestClassifier
             import optuna
             from xgboost import XGBClassifier
@@ -448,34 +448,51 @@ def analyze_nlp(df, target_col, task_type_override,
                 nb = OneVsRestClassifier(MultinomialNB())
                 nb.fit(X_train, y_train)
                 nb_preds = nb.predict(X_test)
-                nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
+                nb_acc = float(accuracy_score(y_test, nb_preds))
+                nb_f1 = float(f1_score(y_test, nb_preds, average='weighted', zero_division=0))
+                nb_prec = float(precision_score(y_test, nb_preds, average='weighted', zero_division=0))
+                nb_rec = float(recall_score(y_test, nb_preds, average='weighted', zero_division=0))
                 
                 cnb = OneVsRestClassifier(ComplementNB())
                 cnb.fit(X_train, y_train)
                 cnb_preds = cnb.predict(X_test)
-                cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
+                cnb_acc = float(accuracy_score(y_test, cnb_preds))
+                cnb_f1 = float(f1_score(y_test, cnb_preds, average='weighted', zero_division=0))
+                cnb_prec = float(precision_score(y_test, cnb_preds, average='weighted', zero_division=0))
+                cnb_rec = float(recall_score(y_test, cnb_preds, average='weighted', zero_division=0))
                 
                 lr = OneVsRestClassifier(LogisticRegression(max_iter=1000, random_state=42))
                 lr.fit(X_train, y_train)
                 lr_preds = lr.predict(X_test)
-                lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
+                lr_acc = float(accuracy_score(y_test, lr_preds))
+                lr_f1 = float(f1_score(y_test, lr_preds, average='weighted', zero_division=0))
+                lr_prec = float(precision_score(y_test, lr_preds, average='weighted', zero_division=0))
+                lr_rec = float(recall_score(y_test, lr_preds, average='weighted', zero_division=0))
                 
                 svc = OneVsRestClassifier(LinearSVC(random_state=42, max_iter=2000))
                 svc.fit(X_train, y_train)
                 svc_preds = svc.predict(X_test)
-                svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
+                svc_acc = float(accuracy_score(y_test, svc_preds))
+                svc_f1 = float(f1_score(y_test, svc_preds, average='weighted', zero_division=0))
+                svc_prec = float(precision_score(y_test, svc_preds, average='weighted', zero_division=0))
+                svc_rec = float(recall_score(y_test, svc_preds, average='weighted', zero_division=0))
                 
                 sgd = OneVsRestClassifier(SGDClassifier(random_state=42, max_iter=2000))
                 sgd.fit(X_train, y_train)
                 sgd_preds = sgd.predict(X_test)
-                sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
+                sgd_acc = float(accuracy_score(y_test, sgd_preds))
+                sgd_f1 = float(f1_score(y_test, sgd_preds, average='weighted', zero_division=0))
+                sgd_prec = float(precision_score(y_test, sgd_preds, average='weighted', zero_division=0))
+                sgd_rec = float(recall_score(y_test, sgd_preds, average='weighted', zero_division=0))
                 
-                # Tuned XGBoost in multi-label: wrap XGBClassifier in OneVsRestClassifier
                 xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
                 xgb = OneVsRestClassifier(XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss"))
                 xgb.fit(X_train, y_train)
                 xgb_preds = xgb.predict(X_test)
-                xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+                xgb_acc = float(accuracy_score(y_test, xgb_preds))
+                xgb_f1 = float(f1_score(y_test, xgb_preds, average='weighted', zero_division=0))
+                xgb_prec = float(precision_score(y_test, xgb_preds, average='weighted', zero_division=0))
+                xgb_rec = float(recall_score(y_test, xgb_preds, average='weighted', zero_division=0))
             else:
                 from sklearn.preprocessing import LabelEncoder
                 le = LabelEncoder()
@@ -485,27 +502,42 @@ def analyze_nlp(df, target_col, task_type_override,
                 nb = MultinomialNB()
                 nb.fit(X_train, y_train)
                 nb_preds = nb.predict(X_test)
-                nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
+                nb_acc = float(accuracy_score(y_test, nb_preds))
+                nb_f1 = float(f1_score(y_test, nb_preds, average='weighted', zero_division=0))
+                nb_prec = float(precision_score(y_test, nb_preds, average='weighted', zero_division=0))
+                nb_rec = float(recall_score(y_test, nb_preds, average='weighted', zero_division=0))
                 
                 cnb = ComplementNB()
                 cnb.fit(X_train, y_train)
                 cnb_preds = cnb.predict(X_test)
-                cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
+                cnb_acc = float(accuracy_score(y_test, cnb_preds))
+                cnb_f1 = float(f1_score(y_test, cnb_preds, average='weighted', zero_division=0))
+                cnb_prec = float(precision_score(y_test, cnb_preds, average='weighted', zero_division=0))
+                cnb_rec = float(recall_score(y_test, cnb_preds, average='weighted', zero_division=0))
                 
                 lr = LogisticRegression(max_iter=1000, random_state=42)
                 lr.fit(X_train, y_train)
                 lr_preds = lr.predict(X_test)
-                lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
+                lr_acc = float(accuracy_score(y_test, lr_preds))
+                lr_f1 = float(f1_score(y_test, lr_preds, average='weighted', zero_division=0))
+                lr_prec = float(precision_score(y_test, lr_preds, average='weighted', zero_division=0))
+                lr_rec = float(recall_score(y_test, lr_preds, average='weighted', zero_division=0))
                 
                 svc = LinearSVC(random_state=42, max_iter=2000)
                 svc.fit(X_train, y_train)
                 svc_preds = svc.predict(X_test)
-                svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
+                svc_acc = float(accuracy_score(y_test, svc_preds))
+                svc_f1 = float(f1_score(y_test, svc_preds, average='weighted', zero_division=0))
+                svc_prec = float(precision_score(y_test, svc_preds, average='weighted', zero_division=0))
+                svc_rec = float(recall_score(y_test, svc_preds, average='weighted', zero_division=0))
                 
                 sgd = SGDClassifier(random_state=42, max_iter=2000)
                 sgd.fit(X_train, y_train)
                 sgd_preds = sgd.predict(X_test)
-                sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
+                sgd_acc = float(accuracy_score(y_test, sgd_preds))
+                sgd_f1 = float(f1_score(y_test, sgd_preds, average='weighted', zero_division=0))
+                sgd_prec = float(precision_score(y_test, sgd_preds, average='weighted', zero_division=0))
+                sgd_rec = float(recall_score(y_test, sgd_preds, average='weighted', zero_division=0))
                 
                 print_progress(0.66, "Tuning XGBoost Text Classifier with Optuna...")
                 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -537,7 +569,10 @@ def analyze_nlp(df, target_col, task_type_override,
                 xgb.fit(X_train, y_train_encoded)
                 xgb_preds_encoded = xgb.predict(X_test)
                 xgb_preds = le.inverse_transform(xgb_preds_encoded)
-                xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+                xgb_acc = float(accuracy_score(y_test, xgb_preds))
+                xgb_f1 = float(f1_score(y_test, xgb_preds, average='weighted', zero_division=0))
+                xgb_prec = float(precision_score(y_test, xgb_preds, average='weighted', zero_division=0))
+                xgb_rec = float(recall_score(y_test, xgb_preds, average='weighted', zero_division=0))
             
             best_model = "Logistic Regression"
             best_score = lr_f1
@@ -607,6 +642,10 @@ def analyze_nlp(df, target_col, task_type_override,
                     "values": [[0, 0], [0, 0]]
                 }
                 dummy_score = 0.0
+                dummy_acc = 0.0
+                dummy_prec = 0.0
+                dummy_rec = 0.0
+                dummy_f1 = 0.0
             else:
                 from sklearn.metrics import confusion_matrix as sklearn_cm
                 unique_labels = sorted(list(np.unique(y)))
@@ -621,21 +660,28 @@ def analyze_nlp(df, target_col, task_type_override,
                 dummy.fit(X_train, y_train)
                 dummy_preds = dummy.predict(X_test)
                 dummy_score = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_acc = float(accuracy_score(y_test, dummy_preds))
+                dummy_f1 = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_prec = float(precision_score(y_test, dummy_preds, average='weighted', zero_division=0))
+                dummy_rec = float(recall_score(y_test, dummy_preds, average='weighted', zero_division=0))
             
             models_compared = [
-                {"name": "Multinomial Naive Bayes", "score": float(nb_f1), "metric": "Weighted F1"},
-                {"name": "Complement Naive Bayes", "score": float(cnb_f1), "metric": "Weighted F1"},
-                {"name": "Logistic Regression", "score": float(lr_f1), "metric": "Weighted F1"},
-                {"name": "Linear SVC", "score": float(svc_f1), "metric": "Weighted F1"},
-                {"name": "SGD Classifier", "score": float(sgd_f1), "metric": "Weighted F1"},
-                {"name": f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})", "score": float(xgb_f1), "metric": "Weighted F1"}
+                {"name": "Dummy Baseline", "score": float(dummy_acc), "metric": "Accuracy", "f1": float(dummy_f1), "precision": float(dummy_prec), "recall": float(dummy_rec)},
+                {"name": "Multinomial Naive Bayes", "score": float(nb_acc), "metric": "Accuracy", "f1": float(nb_f1), "precision": float(nb_prec), "recall": float(nb_rec)},
+                {"name": "Complement Naive Bayes", "score": float(cnb_acc), "metric": "Accuracy", "f1": float(cnb_f1), "precision": float(cnb_prec), "recall": float(cnb_rec)},
+                {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy", "f1": float(lr_f1), "precision": float(lr_prec), "recall": float(lr_rec)},
+                {"name": "Linear SVC", "score": float(svc_acc), "metric": "Accuracy", "f1": float(svc_f1), "precision": float(svc_prec), "recall": float(svc_rec)},
+                {"name": "SGD Classifier", "score": float(sgd_acc), "metric": "Accuracy", "f1": float(sgd_f1), "precision": float(sgd_prec), "recall": float(sgd_rec)},
+                {"name": f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})", "score": float(xgb_acc), "metric": "Accuracy", "f1": float(xgb_f1), "precision": float(xgb_prec), "recall": float(xgb_rec)}
             ]
             metrics = {
                 "model": best_model,
-                "score_type": "Weighted F1",
-                "score": float(best_score),
+                "score_type": "Accuracy",
+                "score": float(accuracy_score(y_test, best_preds)),
                 "additional_metrics": {
-                    "Accuracy": float(accuracy_score(y_test, best_preds))
+                    "F1 Score": float(f1_score(y_test, best_preds, average='weighted', zero_division=0)),
+                    "Precision": float(precision_score(y_test, best_preds, average='weighted', zero_division=0)),
+                    "Recall": float(recall_score(y_test, best_preds, average='weighted', zero_division=0))
                 }
             }
         else:
