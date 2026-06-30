@@ -679,21 +679,6 @@ struct BarChartView: View {
                             .foregroundColor(.purple)
                     }
                 }
-                if let first = matchedPoints.first, onTapPoint != nil {
-                    Text("Click to Drill Down")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
-                        .background(Color.purple)
-                        .cornerRadius(4)
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(TapGesture().onEnded {
-                            onTapPoint?(first)
-                        })
-                        .padding(.top, 2)
-                }
-
             }
             .padding(8)
             .background(.ultraThinMaterial)
@@ -725,21 +710,6 @@ struct BarChartView: View {
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundColor(.purple)
                     }
-                }
-                if let first = matchedPoints.first, onTapPoint != nil {
-                    Button(action: {
-                        onTapPoint?(first)
-                    }) {
-                        Text("Click to Drill Down")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Color.purple)
-                            .cornerRadius(4)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(.top, 2)
                 }
             }
             .padding(8)
