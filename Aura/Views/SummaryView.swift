@@ -518,11 +518,13 @@ struct SummaryView: View {
                                 .frame(width: max(4, 100 * pct), height: 6)
                         }
 
-                        Text(String(format: "%.4f", displayInfo.value))
+                        Text(formatMetricValue(displayInfo.value))
                             .font(.system(.body, design: .monospaced))
                             .fontWeight(isWinner ? .bold : .regular)
                             .foregroundColor(scoreColor)
-                            .frame(width: 64, alignment: .trailing)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                            .frame(width: 90, alignment: .trailing)
                     }
                     .padding(12)
                     .background(bgColor)
@@ -552,13 +554,17 @@ struct SummaryView: View {
                                 .font(.system(size: 10))
                                 .foregroundColor(.secondary)
                             HStack(alignment: .lastTextBaseline, spacing: 4) {
-                                Text(String(format: "%.4f", cvMean))
+                                Text(formatMetricValue(cvMean))
                                     .font(.system(size: 16, weight: .bold, design: .rounded))
                                     .foregroundColor(.green)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
                                 if let cvStd = result.cvStd {
                                     Text(String(format: "(±%.4f)", cvStd))
                                         .font(.system(size: 10))
                                         .foregroundColor(.secondary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                 }
                             }
                         }
@@ -575,15 +581,18 @@ struct SummaryView: View {
                                     .font(.system(size: 10))
                                     .foregroundColor(.secondary)
                                 HStack(alignment: .lastTextBaseline, spacing: 4) {
-                                    Text(String(format: "%.4f", dummy))
+                                    Text(formatMetricValue(dummy))
                                         .font(.system(size: 16, weight: .bold, design: .rounded))
                                         .foregroundColor(.orange)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
                                     
                                     let diff = result.metrics.score - dummy
                                     let diffPct = dummy > 0 ? (diff / dummy) * 100 : 0
                                     Text(String(format: "(+%0.1f%%)", diffPct))
                                         .font(.system(size: 10, weight: .bold))
                                         .foregroundColor(.green)
+                                        .lineLimit(1)
                                 }
                             }
                             .padding(10)
@@ -660,6 +669,19 @@ struct SummaryView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+    
+    private func formatMetricValue(_ value: Double) -> String {
+        let absVal = abs(value)
+        if absVal == 0 {
+            return "0.0000"
+        } else if absVal >= 1_000_000 {
+            return String(format: "%.4e", value)
+        } else if absVal >= 100 {
+            return String(format: "%.2f", value)
+        } else {
+            return String(format: "%.4f", value)
+        }
     }
     
     private func sortedModels(_ models: [ModelComparison], isRegression: Bool) -> [ModelComparison] {
