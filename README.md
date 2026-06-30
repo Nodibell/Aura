@@ -69,6 +69,15 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Manual Lifecycle Controls**: Users can now manually **Start**, **Stop**, and **Restart** the API server directly from the settings panel.
 * **Synchronous Process Termination**: Integrates a thread-safe process manager connected synchronously to application exit. Quitting the application immediately and cleanly terminates all background Python server and child processes.
 
+### 12. Advanced Models, Data Prep & Fixes (New in v0.4.3)
+* **LightGBM & CatBoost Integration**: Automatically imports and trains LightGBM and CatBoost classifiers/regressors in AutoML, exporting the winning model cleanly.
+* **Multi-Metric Leaderboard Sorting**: Users can select custom sorting metrics (Weighted F1, Accuracy, Precision, Recall, MSE, RMSE, MAE) with smart-scaled charts.
+* **Column Renaming in Data Cleaning**: Added live variable renaming inside the interactive Data Cleaning metadata panel.
+* **Time Series Date Range Picker**: Integrated start/end date range controls for filtering datasets dynamically prior to ARIMA / ML model runs.
+* **Multi-Label NLP Classification**: Inferred multi-label string formats (comma-separated tags) auto-binarize using `MultiLabelBinarizer` and train via `OneVsRestClassifier` pipelines.
+* **Offline PDF Chart Polish**: Bundled local `echarts.min.js` and `marked.min.js` assets in-app to enable high-quality PDF exports without external CDN requirements. Solved chart overlaps via stacked printing grids.
+* **Model Saver Memory Polish**: Solved `SIGKILL` (-9) OOM crashes during model export by adding zlib `compress=3` to `joblib.dump()`.
+
 ---
 
 ## 🏗️ Architecture
