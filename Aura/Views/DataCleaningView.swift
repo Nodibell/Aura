@@ -67,6 +67,20 @@ struct DataCleaningView: View {
                                             .foregroundColor(.secondary.opacity(0.8))
                                     }
                                 }
+                                
+                                if !isTarget {
+                                    TextField("Rename column...", text: Binding(
+                                        get: { getRename(for: col) },
+                                        set: { setRename($0, for: col) }
+                                    ))
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 10))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.primary.opacity(0.04))
+                                    .cornerRadius(4)
+                                    .frame(maxWidth: 160)
+                                }
                             }
                             .frame(width: 180, alignment: .leading)
                             
@@ -370,5 +384,20 @@ struct DataCleaningView: View {
     
     private func clearFeatureEngineering(for col: String) {
         config.cleaningActions = config.cleaningActions.filter { !($0.column == col && $0.actionType.hasPrefix("transform_")) }
+    }
+    
+    private func getRename(for col: String) -> String {
+        if let renameAct = config.cleaningActions.first(where: { $0.column == col && $0.actionType.hasPrefix("rename:") }) {
+            return String(renameAct.actionType.dropFirst("rename:".count))
+        }
+        return ""
+    }
+    
+    private func setRename(_ newName: String, for col: String) {
+        config.cleaningActions = config.cleaningActions.filter { !($0.column == col && $0.actionType.hasPrefix("rename:")) }
+        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            config.cleaningActions.insert(CleaningAction(column: col, actionType: "rename:\(trimmed)"))
+        }
     }
 }

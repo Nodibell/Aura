@@ -89,12 +89,17 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
     charts = []
     models_compared = []
     
+    from sklearn.metrics import mean_squared_error, mean_absolute_error, precision_score, recall_score, f1_score
+    
     if is_classification:
         publish_progress(0.62, "Training Logistic Regression baseline...")
         lr = LogisticRegression(max_iter=1000, random_state=42)
         lr.fit(X_train, y_train)
         lr_preds = lr.predict(X_test)
         lr_acc = accuracy_score(y_test, lr_preds)
+        lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
+        lr_prec = precision_score(y_test, lr_preds, average='weighted', zero_division=0)
+        lr_rec = recall_score(y_test, lr_preds, average='weighted', zero_division=0)
         
         from sklearn.preprocessing import LabelEncoder
         le = LabelEncoder()
@@ -140,6 +145,9 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         rf.fit(X_train, y_train)
         rf_preds = rf.predict(X_test)
         rf_acc_rf = accuracy_score(y_test, rf_preds)
+        rf_f1 = f1_score(y_test, rf_preds, average='weighted', zero_division=0)
+        rf_prec = precision_score(y_test, rf_preds, average='weighted', zero_division=0)
+        rf_rec = recall_score(y_test, rf_preds, average='weighted', zero_division=0)
         
         xgb_best_n = best_params.get("xgb_n_estimators", 100)
         xgb_best_d = best_params.get("xgb_max_depth", 5)
@@ -150,7 +158,52 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         xgb_preds_encoded = xgb.predict(X_test)
         xgb_preds = le.inverse_transform(xgb_preds_encoded)
         xgb_acc = accuracy_score(y_test, xgb_preds)
+        xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+        xgb_prec = precision_score(y_test, xgb_preds, average='weighted', zero_division=0)
+        xgb_rec = recall_score(y_test, xgb_preds, average='weighted', zero_division=0)
         
+        # LightGBM integration
+        lgb_clf = None
+        lgb_acc = -1.0
+        lgb_f1, lgb_prec, lgb_rec = -1.0, -1.0, -1.0
+        lgb_preds = None
+        try:
+            from lightgbm import LGBMClassifier
+            publish_progress(0.78, "Training LightGBM Classifier...")
+            lgb = LGBMClassifier(random_state=42, n_jobs=-1, verbose=-1)
+            lgb.fit(X_train, y_train_encoded)
+            lgb_preds_encoded = lgb.predict(X_test)
+            lgb_preds = le.inverse_transform(lgb_preds_encoded)
+            lgb_acc = accuracy_score(y_test, lgb_preds)
+            lgb_f1 = f1_score(y_test, lgb_preds, average='weighted', zero_division=0)
+            lgb_prec = precision_score(y_test, lgb_preds, average='weighted', zero_division=0)
+            lgb_rec = recall_score(y_test, lgb_preds, average='weighted', zero_division=0)
+            lgb_clf = lgb
+        except Exception as lgb_err:
+            sys.stderr.write(f"Warning: LightGBM training failed: {str(lgb_err)}\n")
+            
+        # CatBoost integration
+        cat_clf = None
+        cat_acc = -1.0
+        cat_f1, cat_prec, cat_rec = -1.0, -1.0, -1.0
+        cat_preds = None
+        try:
+            from catboost import CatBoostClassifier
+            publish_progress(0.80, "Training CatBoost Classifier...")
+            cat = CatBoostClassifier(random_state=42, thread_count=1, verbose=0)
+            cat.fit(X_train, y_train_encoded)
+            cat_preds_encoded = cat.predict(X_test)
+            if len(cat_preds_encoded.shape) > 1 and cat_preds_encoded.shape[1] == 1:
+                cat_preds_encoded = cat_preds_encoded.ravel()
+            cat_preds = le.inverse_transform(cat_preds_encoded)
+            cat_acc = accuracy_score(y_test, cat_preds)
+            cat_f1 = f1_score(y_test, cat_preds, average='weighted', zero_division=0)
+            cat_prec = precision_score(y_test, cat_preds, average='weighted', zero_division=0)
+            cat_rec = recall_score(y_test, cat_preds, average='weighted', zero_division=0)
+            cat_clf = cat
+        except Exception as cat_err:
+            sys.stderr.write(f"Warning: CatBoost training failed: {str(cat_err)}\n")
+            
         best_model = "Logistic Regression"
         best_score = lr_acc
         best_preds = lr_preds
@@ -168,11 +221,27 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             best_preds = xgb_preds
             best_clf = xgb
             
+        if lgb_clf is not None and lgb_acc >= best_score:
+            best_model = "LightGBM"
+            best_score = lgb_acc
+            best_preds = lgb_preds
+            best_clf = lgb_clf
+            
+        if cat_clf is not None and cat_acc >= best_score:
+            best_model = "CatBoost"
+            best_score = cat_acc
+            best_preds = cat_preds
+            best_clf = cat_clf
+            
         models_compared = [
-            {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy"},
-            {"name": "Tuned Random Forest", "score": float(rf_acc_rf), "metric": "Accuracy"},
-            {"name": "Tuned XGBoost", "score": float(xgb_acc), "metric": "Accuracy"}
+            {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy", "f1": float(lr_f1), "precision": float(lr_prec), "recall": float(lr_rec)},
+            {"name": "Tuned Random Forest", "score": float(rf_acc_rf), "metric": "Accuracy", "f1": float(rf_f1), "precision": float(rf_prec), "recall": float(rf_rec)},
+            {"name": "Tuned XGBoost", "score": float(xgb_acc), "metric": "Accuracy", "f1": float(xgb_f1), "precision": float(xgb_prec), "recall": float(xgb_rec)}
         ]
+        if lgb_clf is not None:
+            models_compared.append({"name": "LightGBM", "score": float(lgb_acc), "metric": "Accuracy", "f1": float(lgb_f1), "precision": float(lgb_prec), "recall": float(lgb_rec)})
+        if cat_clf is not None:
+            models_compared.append({"name": "CatBoost", "score": float(cat_acc), "metric": "Accuracy", "f1": float(cat_f1), "precision": float(cat_prec), "recall": float(cat_rec)})
         
         try:
             publish_progress(0.82, "Training Tabular Deep Learning (CPU)...")
@@ -180,7 +249,10 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
                 X_train.to_numpy(), y_train, X_test.to_numpy(), y_test,
                 is_classification=True, epochs=15, batch_size=128
             )
-            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "Accuracy"})
+            dl_f1 = f1_score(y_test, dl_preds, average='weighted', zero_division=0)
+            dl_prec = precision_score(y_test, dl_preds, average='weighted', zero_division=0)
+            dl_rec = recall_score(y_test, dl_preds, average='weighted', zero_division=0)
+            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "Accuracy", "f1": float(dl_f1), "precision": float(dl_prec), "recall": float(dl_rec)})
             if dl_score >= best_score:
                 best_model = "Tabular Deep Learning"
                 best_score = dl_score
@@ -197,6 +269,9 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         lr.fit(X_train, y_train)
         lr_preds = lr.predict(X_test)
         lr_r2 = r2_score(y_test, lr_preds)
+        lr_mse = mean_squared_error(y_test, lr_preds)
+        lr_rmse = np.sqrt(lr_mse)
+        lr_mae = mean_absolute_error(y_test, lr_preds)
         
         tuning_X_tr, tuning_X_val, tuning_y_tr, tuning_y_val = train_test_split(
             X_train, y_train, test_size=0.2, random_state=42
@@ -233,6 +308,9 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         rf.fit(X_train, y_train)
         rf_preds = rf.predict(X_test)
         rf_r2_rf = r2_score(y_test, rf_preds)
+        rf_mse = mean_squared_error(y_test, rf_preds)
+        rf_rmse = np.sqrt(rf_mse)
+        rf_mae = mean_absolute_error(y_test, rf_preds)
         
         xgb_best_n = best_params.get("xgb_n_estimators", 100)
         xgb_best_d = best_params.get("xgb_max_depth", 5)
@@ -242,7 +320,48 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         xgb.fit(X_train, y_train)
         xgb_preds = xgb.predict(X_test)
         xgb_r2 = r2_score(y_test, xgb_preds)
+        xgb_mse = mean_squared_error(y_test, xgb_preds)
+        xgb_rmse = np.sqrt(xgb_mse)
+        xgb_mae = mean_absolute_error(y_test, xgb_preds)
         
+        # LightGBM Regressor
+        lgb_reg = None
+        lgb_r2 = -999.0
+        lgb_mse, lgb_rmse, lgb_mae = 0.0, 0.0, 0.0
+        lgb_preds = None
+        try:
+            from lightgbm import LGBMRegressor
+            publish_progress(0.78, "Training LightGBM Regressor...")
+            lgb = LGBMRegressor(random_state=42, n_jobs=-1, verbose=-1)
+            lgb.fit(X_train, y_train)
+            lgb_preds = lgb.predict(X_test)
+            lgb_r2 = r2_score(y_test, lgb_preds)
+            lgb_mse = mean_squared_error(y_test, lgb_preds)
+            lgb_rmse = np.sqrt(lgb_mse)
+            lgb_mae = mean_absolute_error(y_test, lgb_preds)
+            lgb_reg = lgb
+        except Exception as lgb_err:
+            sys.stderr.write(f"Warning: LightGBM training failed: {str(lgb_err)}\n")
+            
+        # CatBoost Regressor
+        cat_reg = None
+        cat_r2 = -999.0
+        cat_mse, cat_rmse, cat_mae = 0.0, 0.0, 0.0
+        cat_preds = None
+        try:
+            from catboost import CatBoostRegressor
+            publish_progress(0.80, "Training CatBoost Regressor...")
+            cat = CatBoostRegressor(random_state=42, thread_count=1, verbose=0)
+            cat.fit(X_train, y_train)
+            cat_preds = cat.predict(X_test)
+            cat_r2 = r2_score(y_test, cat_preds)
+            cat_mse = mean_squared_error(y_test, cat_preds)
+            cat_rmse = np.sqrt(cat_mse)
+            cat_mae = mean_absolute_error(y_test, cat_preds)
+            cat_reg = cat
+        except Exception as cat_err:
+            sys.stderr.write(f"Warning: CatBoost training failed: {str(cat_err)}\n")
+            
         best_model = "Linear Regression"
         best_score = lr_r2
         best_preds = lr_preds
@@ -260,11 +379,27 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             best_preds = xgb_preds
             best_reg = xgb
             
+        if lgb_reg is not None and lgb_r2 >= best_score:
+            best_model = "LightGBM"
+            best_score = lgb_r2
+            best_preds = lgb_preds
+            best_reg = lgb_reg
+            
+        if cat_reg is not None and cat_r2 >= best_score:
+            best_model = "CatBoost"
+            best_score = cat_r2
+            best_preds = cat_preds
+            best_reg = cat_reg
+            
         models_compared = [
-            {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score"},
-            {"name": "Tuned Random Forest", "score": float(rf_r2_rf), "metric": "R² Score"},
-            {"name": "Tuned XGBoost", "score": float(xgb_r2), "metric": "R² Score"}
+            {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score", "mse": float(lr_mse), "rmse": float(lr_rmse), "mae": float(lr_mae)},
+            {"name": "Tuned Random Forest", "score": float(rf_r2_rf), "metric": "R² Score", "mse": float(rf_mse), "rmse": float(rf_rmse), "mae": float(rf_mae)},
+            {"name": "Tuned XGBoost", "score": float(xgb_r2), "metric": "R² Score", "mse": float(xgb_mse), "rmse": float(xgb_rmse), "mae": float(xgb_mae)}
         ]
+        if lgb_reg is not None:
+            models_compared.append({"name": "LightGBM", "score": float(lgb_r2), "metric": "R² Score", "mse": float(lgb_mse), "rmse": float(lgb_rmse), "mae": float(lgb_mae)})
+        if cat_reg is not None:
+            models_compared.append({"name": "CatBoost", "score": float(cat_r2), "metric": "R² Score", "mse": float(cat_mse), "rmse": float(cat_rmse), "mae": float(cat_mae)})
         
         try:
             publish_progress(0.82, "Training Tabular Deep Learning (CPU)...")
@@ -272,7 +407,10 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
                 X_train.to_numpy(), y_train, X_test.to_numpy(), y_test,
                 is_classification=False, epochs=15, batch_size=128
             )
-            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "R² Score"})
+            dl_mse = mean_squared_error(y_test, dl_preds)
+            dl_rmse = np.sqrt(dl_mse)
+            dl_mae = mean_absolute_error(y_test, dl_preds)
+            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "R² Score", "mse": float(dl_mse), "rmse": float(dl_rmse), "mae": float(dl_mae)})
             if dl_score >= best_score:
                 best_model = "Tabular Deep Learning"
                 best_score = dl_score

@@ -230,6 +230,19 @@ class StatefulCleaner:
     def transform(self, df, is_training=True):
         df_out = df.copy()
         
+        # 0. Rename actions (run first)
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType")
+            if act_type and act_type.startswith("rename:") and col in df_out.columns:
+                new_name = act_type.split(":", 1)[1].strip()
+                if new_name:
+                    df_out = df_out.rename(columns={col: new_name})
+                    # Update column name for any subsequent actions on this column
+                    for sub_act in self.actions:
+                        if sub_act.get("column") == col:
+                            sub_act["column"] = new_name
+                            
         # 1. Drop actions
         drop_cols = [act.get("column") for act in self.actions if act.get("actionType") == "drop" and act.get("column") in df_out.columns]
         if drop_cols:

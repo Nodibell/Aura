@@ -320,6 +320,14 @@ struct ModelComparison: Codable, Identifiable {
     let name: String
     let score: Double
     let metric: String
+    
+    // Additional metrics computed for v0.4.3
+    let mse: Double?
+    let rmse: Double?
+    let mae: Double?
+    let f1: Double?
+    let precision: Double?
+    let recall: Double?
 }
 
 

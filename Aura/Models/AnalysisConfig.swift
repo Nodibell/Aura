@@ -166,4 +166,6 @@ struct AnalysisConfig: Codable, Equatable {
     var codeExportPath: String?           = nil   // Path to save reproduction code (.py)
     var featureSelection: Bool            = false // Phase 8
     var columnTypeOverrides: [String: String] = [:]
+    var timeRangeStart: String?           = nil   // Time Series Date Range Start
+    var timeRangeEnd: String?             = nil     // Time Series Date Range End
 }

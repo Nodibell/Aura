@@ -515,15 +515,19 @@ struct MarkdownMessageView: View {
                         .textSelection(.enabled)
                 } else if trimmed.hasPrefix("* ") || trimmed.hasPrefix("- ") {
                     let rawText = String(trimmed.dropFirst(2))
+                    // Count leading spaces to determine nesting depth
+                    let leadingSpaces = line.prefix(while: { $0 == " " }).count
+                    let nestLevel = leadingSpaces / 2  // 2 spaces = 1 level
+                    let bulletSymbol = nestLevel == 0 ? "•" : nestLevel == 1 ? "◦" : "▪"
                     HStack(alignment: .top, spacing: 6) {
-                        Text("•")
+                        Text(bulletSymbol)
                             .font(.body)
                             .foregroundColor(.purple)
                         Text(parseInlineMathAndMarkdown(rawText))
                             .font(.body)
                             .textSelection(.enabled)
                     }
-                    .padding(.leading, 8)
+                    .padding(.leading, CGFloat(8 + nestLevel * 16))
                 } else if let numberMatch = parseNumberedList(trimmed) {
                     HStack(alignment: .top, spacing: 6) {
                         Text(numberMatch.prefix)

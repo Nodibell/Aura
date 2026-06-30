@@ -237,6 +237,86 @@ def analyze_clustering(df, row_count, col_count, columns, full_preview, missing,
             "y_label": "Count",
             "data": [{"x_val": f"Cluster {k}", "x_num": None, "y": float(v)} for k, v in km_counts.items()]
         })
+
+        # Ridgeline/Density distribution of the top numeric feature across K-Means clusters
+        numeric_cols = [col for col in df.columns if pd.api.types.is_numeric_dtype(df[col]) and df[col].nunique() > 2]
+        if numeric_cols and len(kmeans_labels) > 0:
+            top_col = numeric_cols[0]
+            col_data = df[top_col].dropna()
+            if len(col_data) > 10:
+                col_min = float(col_data.min())
+                col_max = float(col_data.max())
+                bin_edges = np.linspace(col_min, col_max, 31)
+                bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                
+                ridgeline_data = []
+                unique_labels = sorted(list(set(kmeans_labels)))
+                
+                for label in unique_labels:
+                    cluster_indices = [i for i, l in enumerate(kmeans_labels) if l == label]
+                    cluster_vals = df[top_col].iloc[cluster_indices].dropna()
+                    
+                    if len(cluster_vals) > 0:
+                        counts, _ = np.histogram(cluster_vals, bins=bin_edges)
+                        total_cluster_points = len(cluster_vals)
+                        densities = [float(c) / total_cluster_points for c in counts]
+                        
+                        for bc, dens in zip(bin_centers, densities):
+                            ridgeline_data.append({
+                                "x_val": None,
+                                "x_num": float(bc),
+                                "y": float(dens),
+                                "series": f"Cluster {label}"
+                            })
+                
+                if ridgeline_data:
+                    charts.append({
+                        "type": "ridgeline",
+                        "title": f"Feature Distribution Across K-Means Clusters ({top_col})",
+                        "x_label": top_col,
+                        "y_label": "Density",
+                        "data": ridgeline_data
+                    })
+
+        # Ridgeline/Density distribution of the top numeric feature across HDBSCAN clusters
+        if dbscan_labels is not None and numeric_cols and len(dbscan_labels) > 0:
+            top_col = numeric_cols[0]
+            col_data = df[top_col].dropna()
+            if len(col_data) > 10:
+                col_min = float(col_data.min())
+                col_max = float(col_data.max())
+                bin_edges = np.linspace(col_min, col_max, 31)
+                bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+                
+                ridgeline_data = []
+                unique_labels = sorted(list(set(dbscan_labels)))
+                
+                for label in unique_labels:
+                    label_name = f"Cluster {label}" if label != -1 else "Noise"
+                    cluster_indices = [i for i, l in enumerate(dbscan_labels) if l == label]
+                    cluster_vals = df[top_col].iloc[cluster_indices].dropna()
+                    
+                    if len(cluster_vals) > 0:
+                        counts, _ = np.histogram(cluster_vals, bins=bin_edges)
+                        total_cluster_points = len(cluster_vals)
+                        densities = [float(c) / total_cluster_points for c in counts]
+                        
+                        for bc, dens in zip(bin_centers, densities):
+                            ridgeline_data.append({
+                                "x_val": None,
+                                "x_num": float(bc),
+                                "y": float(dens),
+                                "series": label_name
+                            })
+                
+                if ridgeline_data:
+                    charts.append({
+                        "type": "ridgeline",
+                        "title": f"Feature Distribution Across HDBSCAN Clusters ({top_col})",
+                        "x_label": top_col,
+                        "y_label": "Density",
+                        "data": ridgeline_data
+                    })
         
         # Profile original dataset columns
         print_progress(0.92, "Profiling columns & generating data statistics...")

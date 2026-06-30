@@ -21,23 +21,25 @@ class HTMLToPDFConverter: NSObject, WKNavigationDelegate {
             self.continuation = continuation
             
             let config = WKWebViewConfiguration()
-            // Enable JavaScript and network access so ECharts can be fetched
             config.preferences.setValue(true, forKey: "developerExtrasEnabled")
             
-            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 800, height: 1000), configuration: config)
+            // Use A4 width (794px) so single-column layout renders at the correct scale
+            let webView = WKWebView(frame: CGRect(x: 0, y: 0, width: 794, height: 2000), configuration: config)
             webView.navigationDelegate = self
+            // Force print media so @media print rules (single-column, white background) are applied
+            webView.mediaType = "print"
             self.webView = webView
             
-            // Load HTML
-            webView.loadHTMLString(html, baseURL: URL(string: "https://localhost"))
+            // Load from nil baseURL — JS is now inline (no external CDN)
+            webView.loadHTMLString(html, baseURL: nil)
         }
     }
     
     nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Task { @MainActor in
-            // Wait for ECharts to load and render the diagrams
-            // A delay of 1.5 seconds ensures Javascript execution of ECharts finishes
-            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            // Poll JS until all ECharts instances signal ready,
+            // or bail out after a maximum of 8 seconds.
+            await self.waitForChartsReady(webView: webView, maxWaitMs: 8000)
             
             guard let continuation = self.continuation else { return }
             self.continuation = nil
@@ -53,6 +55,22 @@ class HTMLToPDFConverter: NSObject, WKNavigationDelegate {
                 self.webView = nil
             }
         }
+    }
+    
+    /// Polls `window.__auraChartsReady` (set by ReportCompiler JS after all charts render) until true or timeout.
+    @MainActor
+    private func waitForChartsReady(webView: WKWebView, maxWaitMs: Int) async {
+        let pollIntervalNs: UInt64 = 150_000_000  // 150ms
+        let maxIterations = maxWaitMs / 150
+        
+        for _ in 0..<maxIterations {
+            if let result = try? await webView.evaluateJavaScript("window.__auraChartsReady === true"),
+               let ready = result as? Bool, ready {
+                return
+            }
+            try? await Task.sleep(nanoseconds: pollIntervalNs)
+        }
+        // Timeout reached — proceed anyway (charts may still render acceptably)
     }
     
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

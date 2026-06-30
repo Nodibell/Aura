@@ -2,6 +2,20 @@ import Foundation
 
 @MainActor
 struct ReportCompiler {
+
+    // MARK: - Bundle JS Loader
+    /// Reads a JS file from the app bundle and returns it as an inline <script> tag.
+    /// Falls back to the CDN URL if the bundle file is missing (dev builds without bundled JS).
+    private static func inlineScript(filename: String, cdnFallback: String) -> String {
+        if let url = Bundle.main.url(forResource: (filename as NSString).deletingPathExtension,
+                                     withExtension: (filename as NSString).pathExtension),
+           let source = try? String(contentsOf: url, encoding: .utf8) {
+            return "<script>\(source)</script>"
+        }
+        // Fallback to CDN when running in Xcode without bundled JS
+        return "<script src=\"\(cdnFallback)\"></script>"
+    }
+
     static func buildMarkdownReport(result: AnalysisResult, narrative: String?, includeStats: Bool = true, includeCharts: Bool = true, includeTable: Bool = false) -> String {
         var md = ""
         if let narrative = narrative {
@@ -269,8 +283,10 @@ struct ReportCompiler {
                     height: 350px;
                     margin-top: 15px;
                 }
+                /* In PDF mode, force single-column layout so charts render at full width
+                   and labels cannot overlap. On screen keep 2-column grid. */
                 .grid-2 {
-                    display: grid;
+                    display: \(isForPDF ? "block" : "grid");
                     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
                     gap: 20px;
                     margin-bottom: 24px;
@@ -425,8 +441,8 @@ struct ReportCompiler {
                     }
                 }
             </style>
-            <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
-            <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+            \(ReportCompiler.inlineScript(filename: "echarts.min.js", cdnFallback: "https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"))
+            \(ReportCompiler.inlineScript(filename: "marked.min.js", cdnFallback: "https://cdn.jsdelivr.net/npm/marked/marked.min.js"))
         </head>
         <body>
             <div class="container">
@@ -484,7 +500,7 @@ struct ReportCompiler {
                 \(compileConfusionMatricesHTML(result: result))
 
                 <!-- Feature Correlation Matrix -->
-                \(compileCorrelationMatrixHTML(result: result))
+                \(compileCorrelationMatrixHTML(result: result, isForPDF: isForPDF))
 
                 <!-- Top Correlations -->
                 \(compileCorrelationsSectionHTML(result: result))
@@ -910,6 +926,8 @@ struct ReportCompiler {
                         }
                     });
                 }
+                // Signal to HTMLToPDFConverter that all charts are rendered
+                window.__auraChartsReady = true;
             </script>
         </body>
         </html>
@@ -989,7 +1007,7 @@ struct ReportCompiler {
         return html
     }
     
-    static func compileCorrelationMatrixHTML(result: AnalysisResult) -> String {
+    static func compileCorrelationMatrixHTML(result: AnalysisResult, isForPDF: Bool = false) -> String {
         guard !result.correlations.isEmpty else { return "" }
         
         // Extract unique variables in order
@@ -1055,14 +1073,15 @@ struct ReportCompiler {
                     cellColor = "rgba(99, 102, 241, 0.85)"
                     textColor = "#fff"
                 } else if absVal < 0.01 {
-                    cellColor = "rgba(255, 255, 255, 0.02)"
-                    textColor = "rgba(255, 255, 255, 0.3)"
+                    // Use visible light-gray on PDF white background; dark ghost on dark background
+                    cellColor = isForPDF ? "#f1f5f9" : "rgba(255, 255, 255, 0.02)"
+                    textColor = isForPDF ? "#94a3b8" : "rgba(255, 255, 255, 0.3)"
                 } else if val > 0 {
                     cellColor = "rgba(59, 130, 246, \(0.1 + absVal * 0.75))"
-                    textColor = absVal > 0.5 ? "#fff" : "var(--text-color)"
+                    textColor = absVal > 0.5 ? "#fff" : (isForPDF ? "#1e293b" : "var(--text-color)")
                 } else {
                     cellColor = "rgba(239, 68, 68, \(0.1 + absVal * 0.75))"
-                    textColor = absVal > 0.5 ? "#fff" : "var(--text-color)"
+                    textColor = absVal > 0.5 ? "#fff" : (isForPDF ? "#1e293b" : "var(--text-color)")
                 }
                 
                 let cellBorder = rowVar == colVar ? "border: 1px solid var(--purple-accent);" : ""

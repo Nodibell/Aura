@@ -9,6 +9,8 @@ struct SummaryView: View {
     let onAskAI: (String) -> Void
     let onScheduleAnalysis: () -> Void
 
+    @State private var selectedLeaderboardSortMetric: String = "default"
+
     // MARK: - Helper Methods for interactive cleaning actions
     
     private func actionsFor(recommendation rec: CleaningRecommendation) -> [CleaningAction] {
@@ -430,14 +432,58 @@ struct SummaryView: View {
                 .buttonStyle(.bordered)
             }
 
+            let isRegression = result.taskType.lowercased().contains("regress")
+            
+            HStack {
+                Text("Sort By Metric:")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.secondary)
+                
+                Picker("", selection: $selectedLeaderboardSortMetric) {
+                    Text(isRegression ? "R² Score" : "Accuracy").tag("default")
+                    if isRegression {
+                        Text("MSE").tag("mse")
+                        Text("RMSE").tag("rmse")
+                        Text("MAE").tag("mae")
+                    } else {
+                        Text("F1 Score").tag("f1")
+                        Text("Precision").tag("precision")
+                        Text("Recall").tag("recall")
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(maxWidth: 320)
+            }
+            .padding(.vertical, 4)
+
             VStack(spacing: 10) {
-                ForEach(result.modelsCompared.sorted { $0.score > $1.score }) { model in
+                let sortedList = sortedModels(result.modelsCompared, isRegression: isRegression)
+                let scores = sortedList.map { displayScore(for: $0).value }
+                let maxVal = scores.max() ?? 1.0
+                let minVal = scores.min() ?? 0.0
+                let range = maxVal - minVal
+                let isLowerBetter = ["mse", "rmse", "mae"].contains(selectedLeaderboardSortMetric)
+
+                ForEach(sortedList) { model in
                     let isWinner = model.name == result.metrics.model
-                    let pct = min(max(model.score, 0), 1)
-                    let scoreColor: Color = isWinner ? (model.score >= 0 ? .green : .orange) : .primary
-                    let barColor: Color = isWinner ? (model.score >= 0 ? .green : .orange) : .blue.opacity(0.4)
-                    let strokeColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.2) : .orange.opacity(0.2)) : Color.primary.opacity(0.08)
-                    let bgColor: Color = isWinner ? (model.score >= 0 ? .green.opacity(0.05) : .orange.opacity(0.05)) : Color(nsColor: .controlBackgroundColor)
+                    let displayInfo = displayScore(for: model)
+                    
+                    let pct: Double = {
+                        if range > 0 {
+                            if isLowerBetter {
+                                return min(max((maxVal - displayInfo.value) / range, 0), 1)
+                            } else {
+                                return min(max((displayInfo.value - minVal) / range, 0), 1)
+                            }
+                        }
+                        return 1.0
+                    }()
+                    
+                    let scoreColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .primary
+                    let barColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .blue.opacity(0.4)
+                    let strokeColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green.opacity(0.2) : .orange.opacity(0.2)) : Color.primary.opacity(0.08)
+                    let bgColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green.opacity(0.05) : .orange.opacity(0.05)) : Color(nsColor: .controlBackgroundColor)
                     
                     HStack(spacing: 12) {
                         // Medal
@@ -455,7 +501,7 @@ struct SummaryView: View {
                             Text(model.name)
                                 .font(.subheadline)
                                 .fontWeight(isWinner ? .bold : .regular)
-                            Text(model.metric)
+                            Text(displayInfo.label)
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
@@ -472,7 +518,7 @@ struct SummaryView: View {
                                 .frame(width: max(4, 100 * pct), height: 6)
                         }
 
-                        Text(String(format: "%.4f", model.score))
+                        Text(String(format: "%.4f", displayInfo.value))
                             .font(.system(.body, design: .monospaced))
                             .fontWeight(isWinner ? .bold : .regular)
                             .foregroundColor(scoreColor)
@@ -614,6 +660,44 @@ struct SummaryView: View {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         return formatter.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+    
+    private func sortedModels(_ models: [ModelComparison], isRegression: Bool) -> [ModelComparison] {
+        switch selectedLeaderboardSortMetric {
+        case "mse":
+            return models.sorted { ($0.mse ?? Double.infinity) < ($1.mse ?? Double.infinity) }
+        case "rmse":
+            return models.sorted { ($0.rmse ?? Double.infinity) < ($1.rmse ?? Double.infinity) }
+        case "mae":
+            return models.sorted { ($0.mae ?? Double.infinity) < ($1.mae ?? Double.infinity) }
+        case "f1":
+            return models.sorted { ($0.f1 ?? -Double.infinity) > ($1.f1 ?? -Double.infinity) }
+        case "precision":
+            return models.sorted { ($0.precision ?? -Double.infinity) > ($1.precision ?? -Double.infinity) }
+        case "recall":
+            return models.sorted { ($0.recall ?? -Double.infinity) > ($1.recall ?? -Double.infinity) }
+        default:
+            return models.sorted { $0.score > $1.score }
+        }
+    }
+    
+    private func displayScore(for model: ModelComparison) -> (value: Double, label: String) {
+        switch selectedLeaderboardSortMetric {
+        case "mse":
+            return (model.mse ?? 0.0, "MSE")
+        case "rmse":
+            return (model.rmse ?? 0.0, "RMSE")
+        case "mae":
+            return (model.mae ?? 0.0, "MAE")
+        case "f1":
+            return (model.f1 ?? 0.0, "F1 Score")
+        case "precision":
+            return (model.precision ?? 0.0, "Precision")
+        case "recall":
+            return (model.recall ?? 0.0, "Recall")
+        default:
+            return (model.score, model.metric)
+        }
     }
 }
 

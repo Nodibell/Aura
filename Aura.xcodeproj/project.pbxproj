@@ -86,6 +86,8 @@
 		EC8715C25E05C9D26FD50BD8 /* ProtectedDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */; };
 		F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E410A6F2A214865D1593E321 /* AnalysisConfig.swift */; };
 		F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */; };
+		FF01AB00FF01AB00FF01AB01 /* echarts.min.js in Resources */ = {isa = PBXBuildFile; fileRef = FF01AB00FF01AB00FF01AB00 /* echarts.min.js */; };
+		FF01AB00FF01AB00FF01AB02 /* marked.min.js in Resources */ = {isa = PBXBuildFile; fileRef = FF01AB00FF01AB00FF01AB03 /* marked.min.js */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -181,6 +183,8 @@
 		FD250D9E27667F0684F9B96A /* query_db.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = query_db.py; sourceTree = "<group>"; };
 		FD99CF1C61CC0C98DC66240B /* tabular.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = tabular.py; sourceTree = "<group>"; };
 		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
+		FF01AB00FF01AB00FF01AB00 /* echarts.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "echarts.min.js"; sourceTree = "<group>"; };
+		FF01AB00FF01AB00FF01AB03 /* marked.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = "marked.min.js"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -311,6 +315,8 @@
 				D21ABEC5EF698C64577CDF3E /* AuraApp.swift */,
 				4C361D432FEC9A9000E5E0C3 /* server.py */,
 				FD250D9E27667F0684F9B96A /* query_db.py */,
+				FF01AB00FF01AB00FF01AB00 /* echarts.min.js */,
+				FF01AB00FF01AB00FF01AB03 /* marked.min.js */,
 				392542F8312EE21DD7354B2F /* __pycache__ */,
 				CF8B789E1A9FBACB723B0A09 /* Models */,
 				B8FC08986204B9FC25427146 /* pipelines */,
@@ -469,6 +475,8 @@
 				3EC11651FB218D12A1DD94FD /* tabular.py in Resources */,
 				4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */,
 				76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */,
+				FF01AB00FF01AB00FF01AB01 /* echarts.min.js in Resources */,
+				FF01AB00FF01AB00FF01AB02 /* marked.min.js in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

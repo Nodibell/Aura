@@ -351,6 +351,12 @@ actor PythonRunner {
         if !config.excludedColumns.isEmpty {
             bodyDict["exclude_cols"] = config.excludedColumns.joined(separator: ",")
         }
+        if let start = config.timeRangeStart, !start.isEmpty {
+            bodyDict["time_range_start"] = start
+        }
+        if let end = config.timeRangeEnd, !end.isEmpty {
+            bodyDict["time_range_end"] = end
+        }
         if let testPath = config.testFilePath, !testPath.isEmpty {
             bodyDict["test_file_path"] = testPath
         }

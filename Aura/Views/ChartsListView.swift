@@ -444,9 +444,15 @@ struct ChartCard: View {
     let onAskAI: (String) -> Void
     var onTapPoint: ((ChartPoint) -> Void)? = nil
 
+    @State private var isPieView = false
+
+    private var isTogglableToPie: Bool {
+        config.type == "bar" && !config.data.isEmpty && config.data.allSatisfy { $0.xVal != nil }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top) {
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(config.title)
                         .font(.headline)
@@ -465,30 +471,47 @@ struct ChartCard: View {
                     }
                 }
                 Spacer()
-                Button {
-                    onAskAI(buildChartPrompt(config))
-                } label: {
-                    Label("AI Insight", systemImage: "sparkles")
-                        .font(.caption)
-                        .fontWeight(.medium)
+                
+                HStack(spacing: 12) {
+                    if isTogglableToPie {
+                        Picker("", selection: $isPieView) {
+                            Image(systemName: "chart.bar.fill").tag(false)
+                            Image(systemName: "chart.pie.fill").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 70)
+                        .labelsHidden()
+                    }
+
+                    Button {
+                        onAskAI(buildChartPrompt(config))
+                    } label: {
+                        Label("AI Insight", systemImage: "sparkles")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(.purple)
                 }
-                .buttonStyle(.bordered)
-                .tint(.purple)
             }
 
             chartView
                 .frame(height: (config.type == "image_grid" || config.type == "boxplot" || config.type == "wordcloud") ? 340 : 260)
         }
         .padding(20)
-        .background(Color.primary.opacity(0.02))
+        .background(Color(NSColor.controlBackgroundColor))
         .cornerRadius(16)
-        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.05), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.primary.opacity(0.08), lineWidth: 1))
     }
 
     @ViewBuilder
     private var chartView: some View {
         if config.type == "bar" {
-            BarChartView(config: config, onTapPoint: onTapPoint)
+            if isPieView {
+                PieDonutChartView(config: config)
+            } else {
+                BarChartView(config: config, onTapPoint: onTapPoint)
+            }
         } else if config.type == "line" {
             LineChartView(config: config)
         } else if config.type == "scatter" {
@@ -503,6 +526,8 @@ struct ChartCard: View {
             BoxPlotView(config: config)
         } else if config.type == "wordcloud" {
             WordCloudView(config: config)
+        } else if config.type == "ridgeline" {
+            RidgelineChartView(config: config)
         } else {
             Text("Unsupported chart type: \(config.type)")
                 .foregroundColor(.secondary)
@@ -516,88 +541,183 @@ struct BarChartView: View {
     let config: ChartConfig
     var onTapPoint: ((ChartPoint) -> Void)? = nil
 
+    @State private var selectedXVal: String? = nil
+    @State private var selectedXNum: Double? = nil
+
     var body: some View {
         let hasMultipleSeries = config.data.contains(where: { $0.series != nil })
+        let isCategorical = config.data.first?.xVal != nil
+        
+        let visibleCount = hasMultipleSeries ? 6 : 12
+        let needsScrolling = config.data.count > visibleCount
 
-        GeometryReader { geo in
-            ScrollView(.horizontal, showsIndicators: true) {
-                Chart {
-                    ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
-                        if let xVal = point.xVal {
-                            if hasMultipleSeries, let series = point.series {
-                                BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                                    .foregroundStyle(by: .value("Series", series))
-                                    .cornerRadius(4)
-                                    .annotation(position: .top) {
-                                        Text(formatValue(point.y))
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                                            .foregroundColor(.secondary)
-                                    }
-                            } else {
-                                BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                                    .foregroundStyle(barGradient(index: index, total: config.data.count))
-                                    .cornerRadius(4)
-                                    .annotation(position: .top) {
-                                        Text(formatValue(point.y))
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                                            .foregroundColor(.secondary)
-                                    }
-                            }
-                        } else if let xNum = point.xNum {
-                            if hasMultipleSeries, let series = point.series {
-                                BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                                    .foregroundStyle(by: .value("Series", series))
-                                    .cornerRadius(4)
-                                    .annotation(position: .top) {
-                                        Text(formatValue(point.y))
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                                            .foregroundColor(.secondary)
-                                    }
-                            } else {
-                                BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                                    .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .bottom, endPoint: .top))
-                                    .cornerRadius(4)
-                                    .annotation(position: .top) {
-                                        Text(formatValue(point.y))
-                                            .font(.system(size: 9, weight: .bold, design: .rounded))
-                                            .foregroundColor(.secondary)
-                                    }
-                            }
+        if isCategorical {
+            Chart {
+                ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
+                    if let xVal = point.xVal {
+                        if hasMultipleSeries, let series = point.series {
+                            BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                                .foregroundStyle(by: .value("Series", series))
+                                .cornerRadius(4)
+                                .accessibilityLabel("Category: \(xVal), Series: \(series)")
+                                .accessibilityValue("Value: \(formatValue(point.y))")
+                        } else {
+                            BarMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                                .foregroundStyle(barGradient(index: index, total: config.data.count))
+                                .cornerRadius(4)
+                                .accessibilityLabel("Category: \(xVal)")
+                                .accessibilityValue("Value: \(formatValue(point.y))")
                         }
                     }
                 }
-                .chartXAxis {
-                    AxisMarks()
-                }
-                .chartYAxis {
-                    AxisMarks(position: .leading)
-                }
-                .chartLegend(hasMultipleSeries ? .visible : .hidden)
-                // Removes the empty space on the left by un-anchoring 0
-                .chartXScale(domain: .automatic(includesZero: false))
-                .frame(width: max(geo.size.width, CGFloat(config.data.count) * (hasMultipleSeries ? 50 : 30)))
-                .padding(.all, 8)
-                .chartOverlay { proxy in
-                    Color.clear
-                        .contentShape(Rectangle())
-                        .onTapGesture { location in
-                            if let xVal = proxy.value(atX: location.x, as: String.self) {
-                                if let matchedPoint = config.data.first(where: { $0.xVal == xVal }) {
-                                    onTapPoint?(matchedPoint)
-                                }
-                            } else if let xNum = proxy.value(atX: location.x, as: Double.self) {
-                                let matchedPoint = config.data.min(by: { a, b in
-                                    let aDiff = abs((a.xNum ?? 0.0) - xNum)
-                                    let bDiff = abs((b.xNum ?? 0.0) - xNum)
-                                    return aDiff < bDiff
-                                })
-                                if let matched = matchedPoint {
-                                    onTapPoint?(matched)
-                                }
-                            }
+                
+                if let selectedXVal = selectedXVal {
+                    RuleMark(x: .value("Selected", selectedXVal))
+                        .foregroundStyle(Color.purple.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                            tooltipView(for: selectedXVal)
                         }
                 }
             }
+            .chartXSelection(value: $selectedXVal)
+            .chartXAxis { AxisMarks() }
+            .chartYAxis { AxisMarks(position: .leading) }
+            .chartLegend(hasMultipleSeries ? .visible : .hidden)
+            .chartXScale(domain: .automatic(includesZero: false))
+            .chartScrollableAxes(needsScrolling ? .horizontal : [])
+            .chartXVisibleDomain(length: needsScrolling ? visibleCount : config.data.count)
+            .padding(.all, 8)
+            
+        } else {
+            Chart {
+                ForEach(Array(config.data.enumerated()), id: \.element.id) { index, point in
+                    if let xNum = point.xNum {
+                        if hasMultipleSeries, let series = point.series {
+                            BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                                .foregroundStyle(by: .value("Series", series))
+                                .cornerRadius(4)
+                                .accessibilityLabel("Value: \(xNum), Series: \(series)")
+                                .accessibilityValue("Value: \(formatValue(point.y))")
+                        } else {
+                            BarMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                                .foregroundStyle(LinearGradient(colors: [.blue, .purple], startPoint: .bottom, endPoint: .top))
+                                .cornerRadius(4)
+                                .accessibilityLabel("Value: \(xNum)")
+                                .accessibilityValue("Value: \(formatValue(point.y))")
+                        }
+                    }
+                }
+                
+                if let selectedXNum = selectedXNum {
+                    RuleMark(x: .value("Selected", selectedXNum))
+                        .foregroundStyle(Color.purple.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                            tooltipView(for: selectedXNum)
+                        }
+                }
+            }
+            .chartXSelection(value: $selectedXNum)
+            .chartXAxis { AxisMarks() }
+            .chartYAxis { AxisMarks(position: .leading) }
+            .chartLegend(hasMultipleSeries ? .visible : .hidden)
+            .chartXScale(domain: .automatic(includesZero: false))
+            // ВИДАЛЕНО chartScrollableAxes та chartXVisibleDomain для числових даних!
+            .padding(.all, 8)
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xVal: String) -> some View {
+        let matchedPoints = config.data.filter { $0.xVal == xVal }
+        if !matchedPoints.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(xVal)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        if let series = pt.series {
+                            Text(series)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+                if let first = matchedPoints.first, onTapPoint != nil {
+                    Text("Click to Drill Down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(Color.purple)
+                        .cornerRadius(4)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(TapGesture().onEnded {
+                            onTapPoint?(first)
+                        })
+                        .padding(.top, 2)
+                }
+
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xNum: Double) -> some View {
+        let closestX = config.data.compactMap { $0.xNum }.min(by: { abs($0 - xNum) < abs($1 - xNum) })
+        if let targetX = closestX {
+            let matchedPoints = config.data.filter { $0.xNum == targetX }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(format: "%.2f", targetX))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        if let series = pt.series {
+                            Text(series)
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+                if let first = matchedPoints.first, onTapPoint != nil {
+                    Button(action: {
+                        onTapPoint?(first)
+                    }) {
+                        Text("Click to Drill Down")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.purple)
+                            .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
         }
     }
 
@@ -632,8 +752,33 @@ struct BarChartView: View {
 struct LineChartView: View {
     let config: ChartConfig
     
+    private static let formatters: [DateFormatter] = {
+        let formats = [
+            "yyyy-MM-dd",
+            "M/d/yyyy",
+            "d/M/yyyy",
+            "dd-mm-yyyy HH:mm:ss",
+            "dd.mm.yyyy HH:mm:ss",
+            "dd.dd.yyyy HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy"
+        ]
+        return formats.map { fmt in
+            let df = DateFormatter()
+            df.dateFormat = fmt
+            return df
+        }
+    }()
+    private static let isoFormatter = ISO8601DateFormatter()
+    
     @State private var viewMode: ViewMode = .raw
     @State private var selectedYear: String = "All"
+
+    @State private var selectedDate: Date? = nil
+    @State private var selectedXVal: String? = nil
+    @State private var selectedXNum: Double? = nil
     
     enum ViewMode: String, CaseIterable, Identifiable {
         case raw = "All Data"
@@ -642,28 +787,18 @@ struct LineChartView: View {
         
         var id: String { rawValue }
     }
-    
+
     private func parseDate(_ string: String) -> Date? {
-        let formatters = [
-            "yyyy-MM-dd",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "yyyy"
-        ]
-        let isoFormatter = ISO8601DateFormatter()
-        if let date = isoFormatter.date(from: string) {
-            return date
-        }
-        let formatter = DateFormatter()
-        for fmt in formatters {
-            formatter.dateFormat = fmt
-            if let date = formatter.date(from: string) {
+            if let date = Self.isoFormatter.date(from: string) {
                 return date
             }
+            for formatter in Self.formatters {
+                if let date = formatter.date(from: string) {
+                    return date
+                }
+            }
+            return nil
         }
-        return nil
-    }
     
     private var timeSeriesInfo: (isTS: Bool, years: [String]) {
         var parsedCount = 0
@@ -680,7 +815,7 @@ struct LineChartView: View {
     }
     
     struct ProcessedPoint: Identifiable {
-        let id = UUID()
+        let id: String
         let xVal: String?
         let xNum: Double?
         let xDate: Date?
@@ -707,6 +842,7 @@ struct LineChartView: View {
         case .raw:
             return filtered.map { item in
                 ProcessedPoint(
+                    id: item.point.id.uuidString,
                     xVal: item.point.xVal,
                     xNum: item.point.xNum,
                     xDate: item.date,
@@ -728,8 +864,10 @@ struct LineChartView: View {
             for m in 1...12 {
                 if let vals = monthGroups[m], !vals.isEmpty {
                     let avg = vals.reduce(0, +) / Double(vals.count)
+                    let name = monthNames[m - 1]
                     results.append(ProcessedPoint(
-                        xVal: monthNames[m - 1],
+                        id: "monthly-\(name)",
+                        xVal: name,
                         xNum: nil,
                         xDate: nil,
                         y: avg,
@@ -751,8 +889,10 @@ struct LineChartView: View {
             for d in 1...31 {
                 if let vals = dayGroups[d], !vals.isEmpty {
                     let avg = vals.reduce(0, +) / Double(vals.count)
+                    let name = String(d)
                     results.append(ProcessedPoint(
-                        xVal: String(d),
+                        id: "daily-\(name)",
+                        xVal: name,
                         xNum: Double(d),
                         xDate: nil,
                         y: avg,
@@ -777,6 +917,9 @@ struct LineChartView: View {
                             Button {
                                 withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
                                     viewMode = mode
+                                    selectedDate = nil
+                                    selectedXVal = nil
+                                    selectedXNum = nil
                                 }
                             } label: {
                                 Text(mode.rawValue)
@@ -798,6 +941,7 @@ struct LineChartView: View {
                             Button {
                                 withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
                                     selectedYear = "All"
+                                    selectedDate = nil
                                 }
                             } label: {
                                 Text("All Years")
@@ -814,6 +958,7 @@ struct LineChartView: View {
                                 Button {
                                     withAnimation(.spring(response: 0.2, dampingFraction: 0.85)) {
                                         selectedYear = year
+                                        selectedDate = nil
                                     }
                                 } label: {
                                     Text(year)
@@ -834,65 +979,31 @@ struct LineChartView: View {
             
             GeometryReader { geo in
                 if tsInfo.isTS {
-                    Chart {
-                        ForEach(processed) { point in
-                            if viewMode == .raw, let date = point.xDate {
-                                LineMark(
-                                    x: .value(config.xLabel, date),
-                                    y: .value(config.yLabel, point.y)
-                                )
-                                .foregroundStyle(by: .value("Series", point.series))
-                                .lineStyle(StrokeStyle(lineWidth: 1.8))
-                            } else if viewMode == .monthly, let xVal = point.xVal {
-                                LineMark(
-                                    x: .value(config.xLabel, xVal),
-                                    y: .value(config.yLabel, point.y)
-                                )
-                                .foregroundStyle(Color.purple)
-                                .lineStyle(StrokeStyle(lineWidth: 2.2))
-                            } else if viewMode == .daily, let xNum = point.xNum {
-                                LineMark(
-                                    x: .value(config.xLabel, xNum),
-                                    y: .value(config.yLabel, point.y)
-                                )
-                                .foregroundStyle(Color.indigo)
-                                .lineStyle(StrokeStyle(lineWidth: 2.2))
-                            }
-                        }
-                    }
-                    .chartXAxis {
-                        AxisMarks()
-                    }
-                    .chartYAxis {
-                        AxisMarks(position: .leading)
-                    }
-                    .chartXScale(domain: .automatic(includesZero: false))
-                    .chartYScale(domain: .automatic(includesZero: false))
-                    .chartLegend(hasMultipleSeries ? .visible : .hidden)
-                    .padding(.all, 4)
-                } else {
-                    let uniqueXCount = Set(config.data.map { point -> String in
-                        if let xVal = point.xVal { return xVal }
-                        if let xNum = point.xNum { return String(xNum) }
-                        return ""
-                    }).count
-                    
-                    ScrollView(.horizontal, showsIndicators: true) {
+                    if viewMode == .raw {
                         Chart {
-                            ForEach(config.data) { point in
-                                if let xVal = point.xVal {
-                                    LineMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
-                                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
-                                        .lineStyle(StrokeStyle(lineWidth: 2.5))
-                                        .interpolationMethod(.catmullRom)
-                                } else if let xNum = point.xNum {
-                                    LineMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
-                                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
-                                        .lineStyle(StrokeStyle(lineWidth: 2.5))
-                                        .interpolationMethod(.catmullRom)
+                            ForEach(processed) { point in
+                                if let date = point.xDate {
+                                    LineMark(
+                                        x: .value(config.xLabel, date),
+                                        y: .value(config.yLabel, point.y)
+                                    )
+                                    .foregroundStyle(by: .value("Series", point.series))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.8))
+                                    .accessibilityLabel("Date: \(date), Series: \(point.series)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
                                 }
                             }
+                            
+                            if let selectedDate = selectedDate {
+                                RuleMark(x: .value("Selected", selectedDate))
+                                    .foregroundStyle(Color.purple.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                        tooltipView(for: selectedDate, points: processed)
+                                    }
+                            }
                         }
+                        .chartXSelection(value: $selectedDate)
                         .chartXAxis {
                             AxisMarks()
                         }
@@ -902,11 +1013,285 @@ struct LineChartView: View {
                         .chartXScale(domain: .automatic(includesZero: false))
                         .chartYScale(domain: .automatic(includesZero: false))
                         .chartLegend(hasMultipleSeries ? .visible : .hidden)
-                        .frame(width: max(geo.size.width, CGFloat(uniqueXCount) * 30))
+                        .padding(.all, 4)
+                    } else if viewMode == .monthly {
+                        Chart {
+                            ForEach(processed) { point in
+                                if let xVal = point.xVal {
+                                    LineMark(
+                                        x: .value(config.xLabel, xVal),
+                                        y: .value(config.yLabel, point.y)
+                                    )
+                                    .foregroundStyle(Color.purple)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.2))
+                                    .accessibilityLabel("Month: \(xVal)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                                }
+                            }
+                            
+                            if let selectedXVal = selectedXVal {
+                                RuleMark(x: .value("Selected", selectedXVal))
+                                    .foregroundStyle(Color.purple.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                        tooltipView(for: selectedXVal, points: processed)
+                                    }
+                            }
+                        }
+                        .chartXSelection(value: $selectedXVal)
+                        .chartXAxis {
+                            AxisMarks()
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+                        .chartXScale(domain: .automatic(includesZero: false))
+                        .chartYScale(domain: .automatic(includesZero: false))
+                        .chartLegend(.hidden)
+                        .padding(.all, 4)
+                    } else if viewMode == .daily {
+                        Chart {
+                            ForEach(processed) { point in
+                                if let xNum = point.xNum {
+                                    LineMark(
+                                        x: .value(config.xLabel, xNum),
+                                        y: .value(config.yLabel, point.y)
+                                    )
+                                    .foregroundStyle(Color.indigo)
+                                    .lineStyle(StrokeStyle(lineWidth: 2.2))
+                                    .accessibilityLabel("Day: \(xNum)")
+                                    .accessibilityValue("Value: \(formatValue(point.y))")
+                                }
+                            }
+                            
+                            if let selectedXNum = selectedXNum {
+                                RuleMark(x: .value("Selected", selectedXNum))
+                                    .foregroundStyle(Color.purple.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                        tooltipView(for: selectedXNum, points: processed)
+                                    }
+                            }
+                        }
+                        .chartXSelection(value: $selectedXNum)
+                        .chartXAxis {
+                            AxisMarks()
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+                        .chartXScale(domain: .automatic(includesZero: false))
+                        .chartYScale(domain: .automatic(includesZero: false))
+                        .chartLegend(.hidden)
+                        .padding(.all, 4)
+                    }
+                } else {
+                    let uniqueXCount = Set(config.data.map { point -> String in
+                        if let xVal = point.xVal { return xVal }
+                        if let xNum = point.xNum { return String(xNum) }
+                        return ""
+                    }).count
+                    
+                    let isCat = config.data.first?.xVal != nil
+                    let visibleLength = 12
+                    let needsScroll = uniqueXCount > visibleLength
+
+                    if isCat {
+                        Chart {
+                            ForEach(config.data) { point in
+                                if let xVal = point.xVal {
+                                    LineMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
+                                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
+                                        .lineStyle(StrokeStyle(lineWidth: 2.5))
+                                        .interpolationMethod(.catmullRom)
+                                        .accessibilityLabel("Category: \(xVal)")
+                                        .accessibilityValue("Value: \(formatValue(point.y))")
+                                }
+                            }
+                            
+                            if let selectedXVal = selectedXVal {
+                                RuleMark(x: .value("Selected", selectedXVal))
+                                    .foregroundStyle(Color.purple.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                        tooltipView(for: selectedXVal, points: processed)
+                                    }
+                            }
+                        }
+                        .chartXSelection(value: $selectedXVal)
+                        .chartXAxis {
+                            AxisMarks()
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+                        .chartXScale(domain: .automatic(includesZero: false))
+                        .chartYScale(domain: .automatic(includesZero: false))
+                        .chartLegend(hasMultipleSeries ? .visible : .hidden)
+                        .chartScrollableAxes(needsScroll ? .horizontal : [])
+                        .chartXVisibleDomain(length: needsScroll ? visibleLength : uniqueXCount)
+                        .padding(.all, 8)
+                    } else {
+                        Chart {
+                            ForEach(config.data) { point in
+                                if let xNum = point.xNum {
+                                    LineMark(x: .value(config.xLabel, xNum), y: .value(config.yLabel, point.y))
+                                        .foregroundStyle(by: .value("Series", point.series ?? "Value"))
+                                        .lineStyle(StrokeStyle(lineWidth: 2.5))
+                                        .interpolationMethod(.catmullRom)
+                                        .accessibilityLabel("Value: \(xNum)")
+                                        .accessibilityValue("Value: \(formatValue(point.y))")
+                                }
+                            }
+                            
+                            if let selectedXNum = selectedXNum {
+                                RuleMark(x: .value("Selected", selectedXNum))
+                                    .foregroundStyle(Color.purple.opacity(0.4))
+                                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                                        tooltipView(for: selectedXNum, points: processed)
+                                    }
+                            }
+                        }
+                        .chartXSelection(value: $selectedXNum)
+                        .chartXAxis {
+                            AxisMarks()
+                        }
+                        .chartYAxis {
+                            AxisMarks(position: .leading)
+                        }
+                        .chartXScale(domain: .automatic(includesZero: false))
+                        .chartYScale(domain: .automatic(includesZero: false))
+                        .chartLegend(hasMultipleSeries ? .visible : .hidden)
+                        .chartScrollableAxes(needsScroll ? .horizontal : [])
+                        .chartXVisibleDomain(length: needsScroll ? visibleLength : uniqueXCount)
                         .padding(.all, 8)
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for date: Date, points: [ProcessedPoint]) -> some View {
+        let closestPt = points.compactMap { pt -> (ProcessedPoint, TimeInterval)? in
+            guard let ptDate = pt.xDate else { return nil }
+            return (pt, abs(ptDate.timeIntervalSince(date)))
+        }
+        .min(by: { $0.1 < $1.1 })?.0
+
+        if let targetPt = closestPt, let targetDate = targetPt.xDate {
+            let matchedPoints = points.filter { pt in
+                guard let d = pt.xDate else { return false }
+                return Calendar.current.isDate(d, inSameDayAs: targetDate)
+            }
+            
+            let dateFormatter: DateFormatter = {
+                let df = DateFormatter()
+                df.dateStyle = .medium
+                df.timeStyle = .none
+                return df
+            }()
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(dateFormatter.string(from: targetDate))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xVal: String, points: [ProcessedPoint]) -> some View {
+        let matchedPoints = points.filter { $0.xVal == xVal }
+        if !matchedPoints.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(xVal)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xNum: Double, points: [ProcessedPoint]) -> some View {
+        let closestX = points.compactMap { $0.xNum }.min(by: { abs($0 - xNum) < abs($1 - xNum) })
+        if let targetX = closestX {
+            let matchedPoints = points.filter { $0.xNum == targetX }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(format: "%.2f", targetX))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series)
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        if value == 0 { return "0" }
+        let absVal = abs(value)
+        if absVal >= 1000 {
+            return String(format: "%.0f", value)
+        } else if absVal >= 1 {
+            if value.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "%.0f", value)
+            } else {
+                return String(format: "%.1f", value)
+            }
+        } else if absVal >= 0.01 {
+            return String(format: "%.2f", value)
+        } else {
+            return String(format: "%.3f", value)
         }
     }
 }
@@ -916,6 +1301,9 @@ struct LineChartView: View {
 struct ScatterChartView: View {
     let config: ChartConfig
     @State private var visibleSeries: Set<String> = []
+    
+    @State private var selectedXVal: String? = nil
+    @State private var selectedXNum: Double? = nil
 
     private func resetVisibleSeries() {
         let unique = Set(config.data.compactMap { $0.series })
@@ -1026,7 +1414,21 @@ struct ScatterChartView: View {
                             .symbolSize(28)
                     }
                 }
+                
+                // 2. Лінія повзунка (RuleMark)
+                if let selectedXVal = selectedXVal {
+                    RuleMark(x: .value("Selected", selectedXVal))
+                        .foregroundStyle(Color.purple.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                } else if let selectedXNum = selectedXNum {
+                    RuleMark(x: .value("Selected", selectedXNum))
+                        .foregroundStyle(Color.purple.opacity(0.4))
+                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                }
             }
+            
+            .chartXSelection(value: $selectedXVal)
+            .chartXSelection(value: $selectedXNum)
             .chartXAxis {
                 AxisMarks()
             }
@@ -1034,6 +1436,16 @@ struct ScatterChartView: View {
                 AxisMarks(position: .leading)
             }
             .chartLegend(hasMultipleSeries ? .visible : .hidden)
+      
+            .overlay(alignment: .topTrailing) {
+                if let selectedXVal = selectedXVal {
+                    tooltipView(for: selectedXVal, data: filteredData)
+                        .padding(8)
+                } else if let selectedXNum = selectedXNum {
+                    tooltipView(for: selectedXNum, data: filteredData)
+                        .padding(8)
+                }
+            }
 
             // Apply scale bounds dynamically
             if xValues.isEmpty {
@@ -1062,6 +1474,98 @@ struct ScatterChartView: View {
             resetVisibleSeries()
         }
     }
+    
+    // MARK: - Tooltip Methods
+    
+    @ViewBuilder
+    private func tooltipView(for xVal: String, data: [ChartPoint]) -> some View {
+        let matchedPoints = data.filter { $0.xVal == xVal }
+        if !matchedPoints.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(xVal)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                
+                ForEach(matchedPoints.prefix(5)) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series ?? "Value")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+                if matchedPoints.count > 5 {
+                    Text("+ \(matchedPoints.count - 5) more")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xNum: Double, data: [ChartPoint]) -> some View {
+        let closestX = data.compactMap { $0.xNum }.min(by: { abs($0 - xNum) < abs($1 - xNum) })
+        if let targetX = closestX {
+            let matchedPoints = data.filter { $0.xNum == targetX }
+            VStack(alignment: .leading, spacing: 6) {
+                let titleText = matchedPoints.first?.xVal ?? String(format: "%.2f", targetX)
+                Text(titleText)
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                
+                ForEach(matchedPoints.prefix(5)) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series ?? "Value")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+                if matchedPoints.count > 5 {
+                    Text("+ \(matchedPoints.count - 5) more")
+                        .font(.system(size: 9))
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+        }
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        if value == 0 { return "0" }
+        let absVal = abs(value)
+        if absVal >= 1000 {
+            return String(format: "%.0f", value)
+        } else if absVal >= 1 {
+            if value.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "%.0f", value)
+            } else {
+                return String(format: "%.1f", value)
+            }
+        } else if absVal >= 0.01 {
+            return String(format: "%.2f", value)
+        } else {
+            return String(format: "%.3f", value)
+        }
+    }
 }
 
 // MARK: - SHAP Beeswarm Chart
@@ -1071,7 +1575,7 @@ struct ShapBeeswarmView: View {
     
     // Stacking point structure
     struct StackingPoint: Identifiable {
-        let id = UUID()
+        let id: UUID
         let x: Double
         let y: Double
         let yOffset: Double
@@ -1135,22 +1639,31 @@ struct ShapBeeswarmView: View {
     }
     
     private func computeStacking(points: [ChartPoint], featureIndex: Int, featuresCount: Int) -> [StackingPoint] {
-        let sortedPoints = points.compactMap { pt -> (x: Double, y: Double)? in
+        let sortedPoints = points.compactMap { pt -> (id: UUID, x: Double, y: Double)? in
             guard let x = pt.xNum else { return nil }
-            return (x: x, y: pt.y)
+            return (id: pt.id, x: x, y: pt.y)
         }.sorted { $0.x < $1.x }
         
         var stacked: [StackingPoint] = []
+        stacked.reserveCapacity(sortedPoints.count)
         
-        let xs = sortedPoints.map { $0.x }
-        let xMin = xs.min() ?? 0.0
-        let xMax = xs.max() ?? 1.0
+        let xMin = sortedPoints.first?.x ?? 0.0
+        let xMax = sortedPoints.last?.x ?? 1.0
         let xRange = xMax - xMin
         let cellWidth = xRange > 0 ? (xRange * 0.02) : 0.015
         let diameter = 0.07 // vertical stacking step
         
         for pt in sortedPoints {
-            let neighbors = stacked.filter { abs($0.x - pt.x) < cellWidth }
+            var neighbors: [StackingPoint] = []
+        
+            for i in stride(from: stacked.count - 1, through: 0, by: -1) {
+                let diff = pt.x - stacked[i].x
+                if diff <= cellWidth {
+                    neighbors.append(stacked[i])
+                } else {
+                    break
+                }
+            }
             
             var offset = 0.0
             var found = false
@@ -1178,6 +1691,7 @@ struct ShapBeeswarmView: View {
             
             stacked.append(
                 StackingPoint(
+                    id: pt.id,
                     x: pt.x,
                     y: pt.y,
                     yOffset: offset,
@@ -1595,6 +2109,197 @@ struct WordCloudLayout: Layout {
             )
             currentX += size.width + spacing
             lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
+// MARK: - Pie / Donut Chart
+
+struct PieDonutChartView: View {
+    let config: ChartConfig
+    
+    @State private var selectedValue: Double? = nil
+    @State private var hoveredID: UUID? = nil
+
+    private var processedData: [ChartPoint] {
+        config.data
+            .filter { $0.y > 0 }
+            .sorted { ($0.xVal ?? "") < ($1.xVal ?? "") }
+    }
+
+    private var totalY: Double {
+        processedData.reduce(0) { $0 + $1.y }
+    }
+
+    private func matchedPoint(for targetValue: Double) -> ChartPoint? {
+        var sum = 0.0
+        for pt in processedData {
+            sum += pt.y
+            if targetValue <= sum {
+                return pt
+            }
+        }
+        return processedData.last
+    }
+
+    var body: some View {
+        let total = totalY
+        
+        Chart {
+            ForEach(processedData) { point in
+                let category = point.xVal ?? "Unknown"
+                let value = point.y
+                let percentage = total > 0 ? (value / total) * 100 : 0
+                let percentageString = String(format: "%.1f%%", percentage)
+                let isSelected = hoveredID == nil || hoveredID == point.id
+                
+                SectorMark(
+                    angle: .value("Value", value),
+                    innerRadius: .ratio(config.type == "donut" ? 0.6 : 0.0),
+                    angularInset: 1.5
+                )
+                .foregroundStyle(by: .value("Category", category))
+                .cornerRadius(4)
+                .opacity(isSelected ? 1.0 : 0.55)
+                .accessibilityLabel("Category: \(category), Value: \(value)")
+                .accessibilityValue("Percentage: \(percentageString)")
+            }
+        }
+        .chartLegend(.visible)
+        .chartAngleSelection(value: $selectedValue)
+        .onChange(of: selectedValue) { oldValue, newValue in
+            if let val = newValue {
+                hoveredID = matchedPoint(for: val)?.id
+            } else {
+                hoveredID = nil
+            }
+        }
+        .chartOverlay { proxy in
+            if let val = selectedValue, let pt = matchedPoint(for: val) {
+                ZStack {
+                    VStack(alignment: .center, spacing: 4) {
+                        Text(pt.xVal ?? "")
+                            .font(.system(size: 11, weight: .bold))
+                            .lineLimit(1)
+                        Text(formatValue(pt.y))
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .foregroundColor(.purple)
+                        Text(String(format: "%.1f%%", total > 0 ? (pt.y / total) * 100 : 0))
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(8)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(8)
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
+                    .shadow(color: .black.opacity(0.1), radius: 3)
+                    .frame(width: 110, height: 75)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .padding(.all, 8)
+    }
+
+    private func formatValue(_ value: Double) -> String {
+        if value == 0 { return "0" }
+        let absVal = abs(value)
+        if absVal >= 1000 {
+            return String(format: "%.0f", value)
+        } else if absVal >= 1 {
+            if value.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "%.0f", value)
+            } else {
+                return String(format: "%.1f", value)
+            }
+        } else if absVal >= 0.01 {
+            return String(format: "%.2f", value)
+        } else {
+            return String(format: "%.3f", value)
+        }
+    }
+}
+
+// MARK: - Ridgeline Chart
+
+struct RidgelineChartView: View {
+    let config: ChartConfig
+    
+    @State private var selectedXNum: Double? = nil
+    
+    var body: some View {
+        Chart {
+            ForEach(config.data) { point in
+                if let xNum = point.xNum {
+                    AreaMark(
+                        x: .value(config.xLabel, xNum),
+                        y: .value(config.yLabel, point.y)
+                    )
+                    .foregroundStyle(by: .value("Cluster", point.series ?? ""))
+                    .opacity(0.35)
+                    .interpolationMethod(.catmullRom)
+                    .accessibilityLabel("Bin: \(xNum), Cluster: \(point.series ?? "")")
+                    .accessibilityValue("Density: \(point.y)")
+                    
+                    LineMark(
+                        x: .value(config.xLabel, xNum),
+                        y: .value(config.yLabel, point.y)
+                    )
+                    .foregroundStyle(by: .value("Cluster", point.series ?? ""))
+                    .lineStyle(StrokeStyle(lineWidth: 2.0))
+                    .interpolationMethod(.catmullRom)
+                }
+            }
+            
+            if let selectedXNum = selectedXNum {
+                RuleMark(x: .value("Selected", selectedXNum))
+                    .foregroundStyle(Color.purple.opacity(0.4))
+                    .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                    .annotation(position: .top, spacing: 0, overflowResolution: .init(x: .fit, y: .fit)) {
+                        tooltipView(for: selectedXNum)
+                    }
+            }
+        }
+        .chartXSelection(value: $selectedXNum)
+        .chartXAxis {
+            AxisMarks()
+        }
+        .chartYAxis {
+            AxisMarks(position: .leading)
+        }
+        .chartXScale(domain: .automatic(includesZero: false))
+        .chartYScale(domain: .automatic(includesZero: true))
+        .chartLegend(.visible)
+        .padding(.all, 8)
+    }
+
+    @ViewBuilder
+    private func tooltipView(for xNum: Double) -> some View {
+        let closestX = config.data.compactMap { $0.xNum }.min(by: { abs($0 - xNum) < abs($1 - xNum) })
+        if let targetX = closestX {
+            let matchedPoints = config.data.filter { $0.xNum == targetX }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(String(format: "Bin Center: %.2f", targetX))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(.primary)
+                Divider().background(Color.primary.opacity(0.1))
+                ForEach(matchedPoints) { pt in
+                    HStack(spacing: 12) {
+                        Text(pt.series ?? "Value")
+                            .font(.system(size: 10))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(String(format: "%.4f", pt.y))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundColor(.purple)
+                    }
+                }
+            }
+            .padding(8)
+            .background(.ultraThinMaterial)
+            .cornerRadius(8)
+            .shadow(color: .black.opacity(0.15), radius: 4)
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
         }
     }
 }

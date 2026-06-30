@@ -57,6 +57,12 @@ struct PreviewTableView: View {
                     timeColumnPicker
                         .padding(.horizontal, 20)
                         .padding(.vertical, 12)
+                    
+                    Divider().background(Color.primary.opacity(0.06))
+                    
+                    dateRangePickerSection
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
                 }
 
                 // ── Exclusion Banner ────────────────────────────────────────────
@@ -223,6 +229,52 @@ struct PreviewTableView: View {
             .menuStyle(.borderlessButton)
         }
     }
+    
+    private var dateRangePickerSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Date Range Filter (Optional)", systemImage: "calendar")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary.opacity(0.7))
+                .tracking(0.5)
+            
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Start Date")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("YYYY-MM-DD", text: Binding(
+                        get: { self.config.timeRangeStart ?? "" },
+                        set: { self.config.timeRangeStart = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+                    ))
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(5)
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.primary.opacity(0.1), lineWidth: 1))
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("End Date")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("YYYY-MM-DD", text: Binding(
+                        get: { self.config.timeRangeEnd ?? "" },
+                        set: { self.config.timeRangeEnd = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+                    ))
+                    .textFieldStyle(.plain)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(5)
+                    .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.primary.opacity(0.1), lineWidth: 1))
+                }
+            }
+        }
+    }
+
 
     // MARK: - Exclusion Banner
 

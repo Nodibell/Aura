@@ -31,6 +31,8 @@ class AnalyzeRequest(BaseModel):
     cleaning_actions: Optional[str] = None
     feature_selection: bool = False
     column_type_overrides: Optional[str] = None
+    time_range_start: Optional[str] = None
+    time_range_end: Optional[str] = None
 
 class PreviewRequest(BaseModel):
     file_path: str
@@ -157,6 +159,10 @@ async def analyze_endpoint(req: AnalyzeRequest):
         args.append("--feature-selection")
     if req.column_type_overrides:
         args += ["--column-type-overrides", req.column_type_overrides]
+    if req.time_range_start:
+        args += ["--time-range-start", req.time_range_start]
+    if req.time_range_end:
+        args += ["--time-range-end", req.time_range_end]
 
     return StreamingResponse(run_subprocess_stream(args), media_type="text/event-stream")
 

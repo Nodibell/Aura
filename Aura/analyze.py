@@ -249,7 +249,8 @@ def compute_mixed_correlation(df, col1, col2):
 def analyze(file_path, target_col=None, dataset_type="tabular",
             task_type_override="auto", time_col=None, exclude_cols=None, test_file_path=None, val_file_path=None,
             model_export_path=None, code_export_path=None, smart_sample=False, cleaning_actions=None,
-            feature_selection=False, column_type_overrides=None):
+            feature_selection=False, column_type_overrides=None,
+            time_range_start=None, time_range_end=None):
     from utils.helpers import print_progress
     from utils.loader import download_dataset, load_dataset
     from utils.cleaning import StatefulCleaner
@@ -266,6 +267,13 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             except Exception as download_err:
                 return {"error": f"Failed to download dataset: {str(download_err)}"}
 
+        # Run Smart Ingestion Adapter to detect format & standardize input paths
+        try:
+            from utils.ingestion import ingest_dataset
+            file_path, dataset_type = ingest_dataset(file_path, dataset_type)
+        except Exception as ingest_err:
+            sys.stderr.write(f"Warning: Smart Ingestion failed: {str(ingest_err)}\n")
+
         if dataset_type == "image":
             from pipelines.image import analyze_image
             return analyze_image(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
@@ -280,6 +288,30 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
 
         if df.empty:
             return {"error": "The dataset is empty."}
+
+        # Apply Time Range Filtering for Time Series datasets
+        if dataset_type == "timeseries" and (time_range_start or time_range_end):
+            resolved_time_col = time_col
+            if not resolved_time_col:
+                ts_keywords = ["date", "time", "timestamp", "datetime", "year", "month", "period", "week"]
+                for col in df.columns:
+                    if any(kw in col.lower() for kw in ts_keywords):
+                        resolved_time_col = col
+                        break
+                if not resolved_time_col:
+                    resolved_time_col = df.columns[0]
+            
+            try:
+                temp_time = pd.to_datetime(df[resolved_time_col], errors='coerce')
+                mask = pd.Series(True, index=df.index)
+                if time_range_start:
+                    mask &= (temp_time >= pd.to_datetime(time_range_start))
+                if time_range_end:
+                    mask &= (temp_time <= pd.to_datetime(time_range_end))
+                df = df[mask].reset_index(drop=True)
+                sys.stderr.write(f"Filtered time series dataset to {len(df)} rows between {time_range_start} and {time_range_end}.\n")
+            except Exception as filter_err:
+                sys.stderr.write(f"Warning: Failed to filter by time range: {str(filter_err)}\n")
 
         original_row_count = len(df)
         sampled_row_count = None
@@ -980,6 +1012,8 @@ if __name__ == "__main__":
     parser.add_argument("--cleaning-actions", default=None, help="JSON string of cleaning actions to apply")
     parser.add_argument("--feature-selection", action="store_true", help="Enable automatic feature selection (RFE)")
     parser.add_argument("--column-type-overrides", default=None, help="JSON string of column type overrides")
+    parser.add_argument("--time-range-start", default=None, help="Start date/time for time series filtering")
+    parser.add_argument("--time-range-end", default=None, help="End date/time for time series filtering")
     
     # Merge options
     parser.add_argument("--merge", action="store_true", help="Merge two files and exit")
@@ -1061,7 +1095,9 @@ if __name__ == "__main__":
             smart_sample=args.smart_sample,
             cleaning_actions=args.cleaning_actions,
             feature_selection=args.feature_selection,
-            column_type_overrides=column_type_overrides
+            column_type_overrides=column_type_overrides,
+            time_range_start=args.time_range_start,
+            time_range_end=args.time_range_end
         )
 
     from utils.helpers import clean_nan

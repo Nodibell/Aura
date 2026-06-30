@@ -323,7 +323,8 @@ def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_pa
     if model_export_path or code_export_path:
         import joblib
         if model_export_path:
-            joblib.dump(rf, model_export_path)
+            # compress=3 reduces peak RAM during serialization (prevents -9 SIGKILL on Apple Silicon)
+            joblib.dump(rf, model_export_path, compress=3)
         if code_export_path:
             with open(code_export_path, "w") as f:
                 f.write("# Segmentation Model Reproduction Script\n")

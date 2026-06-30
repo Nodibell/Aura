@@ -499,7 +499,8 @@ def _export_model_and_code(model_obj, model_path, code_path, dataset_path, datas
                 'target_col': target_col,
                 'label_encoder': label_encoder
             }
-            joblib.dump(pipeline_dict, model_path)
+            # compress=3 reduces peak RAM during serialization (prevents -9 SIGKILL on Apple Silicon)
+            joblib.dump(pipeline_dict, model_path, compress=3)
             sys.stderr.write(f"Model exported successfully to {model_path}\n")
             
         # Save reproduction code

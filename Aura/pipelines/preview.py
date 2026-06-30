@@ -16,6 +16,13 @@ def analyze_preview(file_path, dataset_type=None):
             except Exception as download_err:
                 return {"error": f"Failed to download dataset: {str(download_err)}"}
 
+        # Run Smart Ingestion Adapter to detect format & standardize input paths
+        try:
+            from utils.ingestion import ingest_dataset
+            file_path, dataset_type = ingest_dataset(file_path, dataset_type)
+        except Exception as ingest_err:
+            sys.stderr.write(f"Warning: Smart Ingestion failed: {str(ingest_err)}\n")
+
         # Determine if it's object detection
         print_progress(0.20, "Detecting dataset format...")
         is_object_detection = False

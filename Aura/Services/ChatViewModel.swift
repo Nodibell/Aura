@@ -75,6 +75,15 @@ class ChatViewModel {
         - Missing values: \(topMissing.isEmpty ? "none" : topMissing)
         
         Answer questions about this specific dataset concisely using markdown formatting. Use bullet points and headers where helpful. Be direct and data-specific.
+        You are Aura, an advanced AI Data Analyst. 
+        A pandas DataFrame named `df` is already loaded in memory.
+        If you need to analyze the data, you MUST write Python code to inspect it. 
+        To execute code, output EXACTLY like this:
+        <execute_python>
+        print(df.describe())
+        </execute_python>
+
+        Wait for the system to return the <execution_result> before answering the user.
         """
 
         // Clear and re-inject

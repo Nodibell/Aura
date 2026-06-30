@@ -105,10 +105,25 @@ def profile_dataset(df, column_type_overrides=None):
         else:
             col_type = "identifier" if is_identifier else ("datetime" if is_datetime else ("numeric" if is_num else ("text" if is_text else "categorical")))
         
+        # Check for multi-label target format (comma-separated strings)
+        is_multi_label = False
+        if col_type in ["categorical", "text"]:
+            try:
+                non_nulls = col_series.dropna().astype(str)
+                if not non_nulls.empty:
+                    comma_count = non_nulls.str.contains(',').sum()
+                    if comma_count / len(non_nulls) >= 0.1:
+                        split_lens = non_nulls.str.split(',').apply(len)
+                        if split_lens.mean() > 1.1:
+                            is_multi_label = True
+            except Exception:
+                pass
+
         col_profile = {
             "nunique": int(col_series.nunique()),
             "missing": int(col_series.isnull().sum()),
-            "type": col_type
+            "type": col_type,
+            "is_multi_label": is_multi_label
         }
         
         if col_type == "numeric":

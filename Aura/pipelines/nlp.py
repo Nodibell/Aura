@@ -62,10 +62,34 @@ def analyze_nlp(df, target_col, task_type_override,
             is_classification = False
         else:
             is_classification = not is_numeric_target
-            
+
+        is_multi_label = False
+        mlb = None
         if is_classification:
-            y = y_raw.ffill().bfill().astype(str).to_numpy()
-            unique_targets = len(np.unique(y))
+            try:
+                non_nulls = y_raw.dropna().astype(str)
+                if not non_nulls.empty:
+                    comma_count = non_nulls.str.contains(',').sum()
+                    if comma_count / len(non_nulls) >= 0.1:
+                        split_lens = non_nulls.str.split(',').apply(len)
+                        if split_lens.mean() > 1.1:
+                            is_multi_label = True
+            except Exception:
+                pass
+
+        if is_classification:
+            if is_multi_label:
+                from sklearn.preprocessing import MultiLabelBinarizer
+                mlb = MultiLabelBinarizer()
+                y_parsed = [
+                    [label.strip() for label in str(val).split(",") if label.strip()]
+                    for val in y_raw.fillna("").values
+                ]
+                y = mlb.fit_transform(y_parsed)
+                unique_targets = len(mlb.classes_)
+            else:
+                y = y_raw.ffill().bfill().astype(str).to_numpy()
+                unique_targets = len(np.unique(y))
         else:
             y = y_raw.interpolate(method='linear').ffill().bfill().to_numpy()
             
@@ -349,8 +373,8 @@ def analyze_nlp(df, target_col, task_type_override,
                 X_train, X_test = X_train_full, X_processed[test_mask]
                 y_train, y_test = y_train_full, y[test_mask]
             else:
-                use_stratify = y_train_full if is_classification else None
-                if is_classification:
+                use_stratify = y_train_full if is_classification and not is_multi_label else None
+                if is_classification and not is_multi_label:
                     unique_classes, class_counts = np.unique(y_train_full, return_counts=True)
                     if min(class_counts) < 2:
                         use_stratify = None
@@ -359,8 +383,8 @@ def analyze_nlp(df, target_col, task_type_override,
                     X_train_full, y_train_full, test_size=0.2, random_state=42, stratify=use_stratify
                 )
         else:
-            use_stratify = y if is_classification else None
-            if is_classification:
+            use_stratify = y if is_classification and not is_multi_label else None
+            if is_classification and not is_multi_label:
                 unique_classes, class_counts = np.unique(y, return_counts=True)
                 if min(class_counts) < 2:
                     use_stratify = None
@@ -396,71 +420,108 @@ def analyze_nlp(df, target_col, task_type_override,
             from sklearn.naive_bayes import MultinomialNB, ComplementNB
             from sklearn.linear_model import LogisticRegression, SGDClassifier
             from sklearn.svm import LinearSVC
-            from sklearn.metrics import accuracy_score, f1_score, confusion_matrix as sklearn_cm
-            from sklearn.preprocessing import LabelEncoder
+            from sklearn.metrics import accuracy_score, f1_score
+            from sklearn.multiclass import OneVsRestClassifier
             import optuna
             from xgboost import XGBClassifier
             
-            le = LabelEncoder()
-            y_train_encoded = le.fit_transform(y_train)
-            y_test_encoded = le.transform(y_test)
-            
-            nb = MultinomialNB()
-            nb.fit(X_train, y_train)
-            nb_preds = nb.predict(X_test)
-            nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
-            
-            cnb = ComplementNB()
-            cnb.fit(X_train, y_train)
-            cnb_preds = cnb.predict(X_test)
-            cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
-            
-            lr = LogisticRegression(max_iter=1000, random_state=42)
-            lr.fit(X_train, y_train)
-            lr_preds = lr.predict(X_test)
-            lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
-            
-            svc = LinearSVC(random_state=42, max_iter=2000)
-            svc.fit(X_train, y_train)
-            svc_preds = svc.predict(X_test)
-            svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
-            
-            sgd = SGDClassifier(random_state=42, max_iter=2000)
-            sgd.fit(X_train, y_train)
-            sgd_preds = sgd.predict(X_test)
-            sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
-            
-            print_progress(0.66, "Tuning XGBoost Text Classifier with Optuna...")
-            optuna.logging.set_verbosity(optuna.logging.WARNING)
-            
-            tuning_split_idx = int(len(X_train) * 0.8)
-            if tuning_split_idx >= 2:
-                tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
-                tuning_y_tr_encoded = y_train_encoded[:tuning_split_idx]
-                tuning_y_val_encoded = y_train_encoded[tuning_split_idx:]
+            if is_multi_label:
+                y_train_encoded = y_train
+                y_test_encoded = y_test
                 
-                def objective(trial):
-                    n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
-                    max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
-                    learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
-                    clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
-                    clf.fit(tuning_X_tr, tuning_y_tr_encoded)
-                    preds = clf.predict(tuning_X_val)
-                    return f1_score(tuning_y_val_encoded, preds, average='weighted', zero_division=0)
+                nb = OneVsRestClassifier(MultinomialNB())
+                nb.fit(X_train, y_train)
+                nb_preds = nb.predict(X_test)
+                nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
                 
-                study = optuna.create_study(direction="maximize")
-                study.optimize(objective, n_trials=30, timeout=8.0)
-                xgb_best_n = study.best_params.get("xgb_n_estimators", 50)
-                xgb_best_d = study.best_params.get("xgb_max_depth", 5)
-                xgb_best_lr = study.best_params.get("xgb_learning_rate", 0.1)
-            else:
+                cnb = OneVsRestClassifier(ComplementNB())
+                cnb.fit(X_train, y_train)
+                cnb_preds = cnb.predict(X_test)
+                cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
+                
+                lr = OneVsRestClassifier(LogisticRegression(max_iter=1000, random_state=42))
+                lr.fit(X_train, y_train)
+                lr_preds = lr.predict(X_test)
+                lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
+                
+                svc = OneVsRestClassifier(LinearSVC(random_state=42, max_iter=2000))
+                svc.fit(X_train, y_train)
+                svc_preds = svc.predict(X_test)
+                svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
+                
+                sgd = OneVsRestClassifier(SGDClassifier(random_state=42, max_iter=2000))
+                sgd.fit(X_train, y_train)
+                sgd_preds = sgd.predict(X_test)
+                sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
+                
+                # Tuned XGBoost in multi-label: wrap XGBClassifier in OneVsRestClassifier
                 xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
+                xgb = OneVsRestClassifier(XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss"))
+                xgb.fit(X_train, y_train)
+                xgb_preds = xgb.predict(X_test)
+                xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+            else:
+                from sklearn.preprocessing import LabelEncoder
+                le = LabelEncoder()
+                y_train_encoded = le.fit_transform(y_train)
+                y_test_encoded = le.transform(y_test)
                 
-            xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
-            xgb.fit(X_train, y_train_encoded)
-            xgb_preds_encoded = xgb.predict(X_test)
-            xgb_preds = le.inverse_transform(xgb_preds_encoded)
-            xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
+                nb = MultinomialNB()
+                nb.fit(X_train, y_train)
+                nb_preds = nb.predict(X_test)
+                nb_f1 = f1_score(y_test, nb_preds, average='weighted', zero_division=0)
+                
+                cnb = ComplementNB()
+                cnb.fit(X_train, y_train)
+                cnb_preds = cnb.predict(X_test)
+                cnb_f1 = f1_score(y_test, cnb_preds, average='weighted', zero_division=0)
+                
+                lr = LogisticRegression(max_iter=1000, random_state=42)
+                lr.fit(X_train, y_train)
+                lr_preds = lr.predict(X_test)
+                lr_f1 = f1_score(y_test, lr_preds, average='weighted', zero_division=0)
+                
+                svc = LinearSVC(random_state=42, max_iter=2000)
+                svc.fit(X_train, y_train)
+                svc_preds = svc.predict(X_test)
+                svc_f1 = f1_score(y_test, svc_preds, average='weighted', zero_division=0)
+                
+                sgd = SGDClassifier(random_state=42, max_iter=2000)
+                sgd.fit(X_train, y_train)
+                sgd_preds = sgd.predict(X_test)
+                sgd_f1 = f1_score(y_test, sgd_preds, average='weighted', zero_division=0)
+                
+                print_progress(0.66, "Tuning XGBoost Text Classifier with Optuna...")
+                optuna.logging.set_verbosity(optuna.logging.WARNING)
+                
+                tuning_split_idx = int(len(X_train) * 0.8)
+                if tuning_split_idx >= 2:
+                    tuning_X_tr, tuning_X_val = X_train[:tuning_split_idx], X_train[tuning_split_idx:]
+                    tuning_y_tr_encoded = y_train_encoded[:tuning_split_idx]
+                    tuning_y_val_encoded = y_train_encoded[tuning_split_idx:]
+                    
+                    def objective(trial):
+                        n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
+                        max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
+                        learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
+                        clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                        clf.fit(tuning_X_tr, tuning_y_tr_encoded)
+                        preds = clf.predict(tuning_X_val)
+                        return f1_score(tuning_y_val_encoded, preds, average='weighted', zero_division=0)
+                    
+                    study = optuna.create_study(direction="maximize")
+                    study.optimize(objective, n_trials=30, timeout=8.0)
+                    xgb_best_n = study.best_params.get("xgb_n_estimators", 50)
+                    xgb_best_d = study.best_params.get("xgb_max_depth", 5)
+                    xgb_best_lr = study.best_params.get("xgb_learning_rate", 0.1)
+                else:
+                    xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
+                    
+                xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                xgb.fit(X_train, y_train_encoded)
+                xgb_preds_encoded = xgb.predict(X_test)
+                xgb_preds = le.inverse_transform(xgb_preds_encoded)
+                xgb_f1 = f1_score(y_test, xgb_preds, average='weighted', zero_division=0)
             
             best_model = "Logistic Regression"
             best_score = lr_f1
@@ -498,7 +559,14 @@ def analyze_nlp(df, target_col, task_type_override,
                 best_clf = xgb
                 
             from sklearn.metrics import classification_report
-            report = classification_report(y_test, best_preds, output_dict=True, zero_division=0)
+            if is_multi_label:
+                report = classification_report(
+                    y_test, best_preds,
+                    target_names=[str(c) for c in mlb.classes_],
+                    output_dict=True, zero_division=0
+                )
+            else:
+                report = classification_report(y_test, best_preds, output_dict=True, zero_division=0)
             
             f1_breakdown = []
             for k, v in report.items():
@@ -517,18 +585,26 @@ def analyze_nlp(df, target_col, task_type_override,
                 "data": f1_breakdown
             })
             
-            unique_labels = sorted(list(np.unique(y)))
-            cm_vals = sklearn_cm(y_test, best_preds, labels=unique_labels)
-            confusion_matrix = {
-                "labels": unique_labels,
-                "values": cm_vals.tolist()
-            }
-            
-            from sklearn.dummy import DummyClassifier
-            dummy = DummyClassifier(strategy="most_frequent")
-            dummy.fit(X_train, y_train)
-            dummy_preds = dummy.predict(X_test)
-            dummy_score = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
+            if is_multi_label:
+                confusion_matrix = {
+                    "labels": ["Not Match", "Match"],
+                    "values": [[0, 0], [0, 0]]
+                }
+                dummy_score = 0.0
+            else:
+                from sklearn.metrics import confusion_matrix as sklearn_cm
+                unique_labels = sorted(list(np.unique(y)))
+                cm_vals = sklearn_cm(y_test, best_preds, labels=unique_labels)
+                confusion_matrix = {
+                    "labels": unique_labels,
+                    "values": cm_vals.tolist()
+                }
+                
+                from sklearn.dummy import DummyClassifier
+                dummy = DummyClassifier(strategy="most_frequent")
+                dummy.fit(X_train, y_train)
+                dummy_preds = dummy.predict(X_test)
+                dummy_score = float(f1_score(y_test, dummy_preds, average='weighted', zero_division=0))
             
             models_compared = [
                 {"name": "Multinomial Naive Bayes", "score": float(nb_f1), "metric": "Weighted F1"},
