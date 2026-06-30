@@ -81,10 +81,17 @@ def analyze_nlp(df, target_col, task_type_override,
             if is_multi_label:
                 from sklearn.preprocessing import MultiLabelBinarizer
                 mlb = MultiLabelBinarizer()
-                y_parsed = [
-                    [label.strip() for label in str(val).split(",") if label.strip()]
-                    for val in y_raw.fillna("").values
-                ]
+                y_parsed = []
+                for val in y_raw.fillna("").values:
+                    s = str(val).strip()
+                    if s.startswith('[') and s.endswith(']'):
+                        s = s[1:-1].strip()
+                    labels_list = []
+                    for label in s.split(','):
+                        clean_lbl = label.strip().strip("'").strip('"').strip()
+                        if clean_lbl:
+                            labels_list.append(clean_lbl)
+                    y_parsed.append(labels_list)
                 y = mlb.fit_transform(y_parsed)
                 unique_targets = len(mlb.classes_)
             else:
@@ -276,8 +283,8 @@ def analyze_nlp(df, target_col, task_type_override,
                 y_val = float(X_svd[idx, 1])
                 if is_classification:
                     if is_multi_label and mlb is not None:
-                        active_labels = [mlb.classes_[c] for c in range(len(mlb.classes_)) if y[idx, c] == 1]
-                        class_label = ", ".join(active_labels) if active_labels else "None"
+                        active_labels = [str(mlb.classes_[c]).replace('[', '').replace(']', '').strip() for c in range(len(mlb.classes_)) if y[idx, c] == 1]
+                        class_label = active_labels[0] if active_labels else "None"
                     else:
                         class_label = str(y[idx])
                 else:
