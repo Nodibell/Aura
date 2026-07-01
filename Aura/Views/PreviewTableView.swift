@@ -272,6 +272,114 @@ struct PreviewTableView: View {
                     .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.primary.opacity(0.1), lineWidth: 1))
                 }
             }
+            
+            if let hint = dateRangeRangeHint {
+                HStack(spacing: 6) {
+                    Text(hint)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(.indigo)
+                    
+                    Button(action: applyEstimatedDateRange) {
+                        Text("Apply Range")
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.indigo)
+                            .cornerRadius(4)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 2)
+            }
+        }
+    }
+
+    private var dateRangeRangeHint: String? {
+        guard let timeColumn = config.timeColumn else { return nil }
+        guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return nil }
+        
+        let formatters = [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy",
+            "dd-MM-yyyy"
+        ].map { fmt -> DateFormatter in
+            let df = DateFormatter()
+            df.dateFormat = fmt
+            return df
+        }
+        
+        var dates: [Date] = []
+        for row in preview.previewRows {
+            guard colIndex < row.count else { continue }
+            let valStr = row[colIndex].displayString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if valStr.isEmpty { continue }
+            
+            var parsedDate: Date? = nil
+            for formatter in formatters {
+                if let date = formatter.date(from: valStr) {
+                    parsedDate = date
+                    break
+                }
+            }
+            if let date = parsedDate {
+                dates.append(date)
+            }
+        }
+        
+        guard !dates.isEmpty else { return nil }
+        let sortedDates = dates.sorted()
+        if let minDate = sortedDates.first, let maxDate = sortedDates.last {
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd"
+            return "Estimated range: \(df.string(from: minDate)) to \(df.string(from: maxDate))"
+        }
+        return nil
+    }
+
+    private func applyEstimatedDateRange() {
+        guard let timeColumn = config.timeColumn else { return }
+        guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return }
+        
+        let formatters = [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy",
+            "dd-MM-yyyy"
+        ].map { fmt -> DateFormatter in
+            let df = DateFormatter()
+            df.dateFormat = fmt
+            return df
+        }
+        
+        var dates: [Date] = []
+        for row in preview.previewRows {
+            guard colIndex < row.count else { continue }
+            let valStr = row[colIndex].displayString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if valStr.isEmpty { continue }
+            
+            var parsedDate: Date? = nil
+            for formatter in formatters {
+                if let date = formatter.date(from: valStr) {
+                    parsedDate = date
+                    break
+                }
+            }
+            if let date = parsedDate {
+                dates.append(date)
+            }
+        }
+        
+        guard !dates.isEmpty else { return }
+        let sortedDates = dates.sorted()
+        if let minDate = sortedDates.first, let maxDate = sortedDates.last {
+            let df = DateFormatter()
+            df.dateFormat = "yyyy-MM-dd"
+            config.timeRangeStart = df.string(from: minDate)
+            config.timeRangeEnd = df.string(from: maxDate)
         }
     }
 

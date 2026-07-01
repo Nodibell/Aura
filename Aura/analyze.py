@@ -966,18 +966,28 @@ def run_predict(model_path, input_data_json):
                 import traceback; _log(traceback.format_exc())
                 raise
 
-    # Apply LabelEncoder inverse transform
+    # Apply LabelEncoder / MultiLabelBinarizer inverse transform
     if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
         try:
             le = pipeline['label_encoder']
-            pred_label = le.inverse_transform([res["prediction"]])[0]
-            _log(f"LabelEncoder inverse_transform: {res['prediction']} -> {pred_label}")
-            res["prediction"] = pred_label
+            from sklearn.preprocessing import MultiLabelBinarizer
+            if isinstance(le, MultiLabelBinarizer):
+                # inverse_transform takes 2D binarized array, e.g. [res["prediction"]]
+                pred_label_tuple = le.inverse_transform([res["prediction"]])[0]
+                pred_label = ", ".join(str(lbl) for lbl in pred_label_tuple)
+                _log(f"MultiLabelBinarizer inverse_transform: {res['prediction']} -> {pred_label}")
+                res["prediction"] = pred_label
+            else:
+                pred_label = le.inverse_transform([res["prediction"]])[0]
+                _log(f"LabelEncoder inverse_transform: {res['prediction']} -> {pred_label}")
+                res["prediction"] = pred_label
         except Exception as e:
-            _log(f"WARNING: LabelEncoder inverse_transform failed: {e}")
+            _log(f"WARNING: LabelEncoder/MultiLabelBinarizer inverse_transform failed: {e}")
 
     # Convert numpy types for JSON serialization
-    if hasattr(res["prediction"], "item"):
+    if hasattr(res["prediction"], "ndim") and res["prediction"].ndim > 0:
+        res["prediction"] = res["prediction"].tolist()
+    elif hasattr(res["prediction"], "item"):
         res["prediction"] = res["prediction"].item()
 
     _log(f"Final prediction: {res['prediction']}")

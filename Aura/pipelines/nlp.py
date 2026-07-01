@@ -876,8 +876,11 @@ def analyze_nlp(df, target_col, task_type_override,
                 ('clf', raw_clf)
             ])
             export_le = None
-            if is_classification and best_model == "Tuned XGBoost Classifier":
-                export_le = le
+            if is_classification:
+                if is_multi_label:
+                    export_le = mlb
+                elif best_model == "Tuned XGBoost Classifier":
+                    export_le = le
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
                 file_path, "nlp", target_col, None,
