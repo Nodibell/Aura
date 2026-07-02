@@ -278,4 +278,47 @@ class StatefulCleaner:
             if strategy:
                 df_out = strategy.transform(df_out, col, is_training)
                 
+        # 5. Dynamic plugin execution (Phase 16)
+        for act in self.actions:
+            act_type = act.get("actionType", "")
+            if act_type.startswith("plugin:"):
+                import os
+                import importlib.util
+                parts = act_type.split(":", 2)
+                plugin_id = parts[1]
+                params_str = parts[2] if len(parts) > 2 else ""
+                
+                params = {}
+                if params_str:
+                    for p in params_str.split(","):
+                        if "=" in p:
+                            k, v = p.split("=", 1)
+                            try:
+                                if "." in v:
+                                    params[k] = float(v)
+                                else:
+                                    params[k] = int(v)
+                            except ValueError:
+                                if v.lower() == "true":
+                                    params[k] = True
+                                elif v.lower() == "false":
+                                    params[k] = False
+                                else:
+                                    params[k] = v
+                
+                try:
+                    home = os.path.expanduser("~")
+                    plugins_dir = os.path.join(home, "Documents", "Aura", "Plugins")
+                    plugin_path = os.path.join(plugins_dir, f"{plugin_id}.py")
+                    if os.path.exists(plugin_path):
+                        spec = importlib.util.spec_from_file_location(plugin_id, plugin_path)
+                        module = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(module)
+                        if hasattr(module, "transform"):
+                            df_out = module.transform(df_out, **params)
+                except Exception as plugin_err:
+                    import sys
+                    sys.stderr.write(f"Warning: Failed to run plugin {plugin_id}: {plugin_err}\n")
+                    
         return df_out
+

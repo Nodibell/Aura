@@ -211,7 +211,7 @@ def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_pa
     y_train, y_test = y_labels[train_pixels_mask], y_labels[~train_pixels_mask]
     
     # Fit Random Forest
-    rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+    rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=2)
     rf.fit(X_train, y_train)
     y_pred = rf.predict(X_test)
     

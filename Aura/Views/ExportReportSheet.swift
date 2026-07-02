@@ -63,12 +63,10 @@ struct ExportReportSheet: View {
                     VStack(alignment: .leading, spacing: 10) {
                         sectionHeader("Report Export Format", icon: "doc.badge.gearshape")
                         
-                        Picker("", selection: $exportFormat) {
-                            ForEach(ExportFormat.allCases) { format in
-                                Text(format.rawValue).tag(format)
-                            }
-                        }
-                        .pickerStyle(.segmented)
+                        CustomSegmentedPicker(
+                            selection: $exportFormat,
+                            items: ExportFormat.allCases.map { ($0.rawValue, $0) }
+                        )
                     }
                     
                     Divider().background(Color.primary.opacity(0.07))

@@ -9,10 +9,13 @@ class ChatViewModel {
 
     private var streamTask: Task<Void, Never>?
     private var systemPrompt: String = ""
+    private var replLoopDepth: Int = 0
+    private static let maxREPLDepth = 5
+
 
     // MARK: - Context Injection
 
-    func injectContext(_ result: AnalysisResult) {
+    func injectContext(_ result: AnalysisResult, datasetURL: String? = nil) {
         // Cap correlation pairs to avoid flooding a local LLM's context window
         let maxCorr = 10
         let corrList = result.correlations.prefix(maxCorr).map {
@@ -62,33 +65,60 @@ class ChatViewModel {
         }
 
         systemPrompt = """
-        You are an expert data scientist providing concise, insightful analysis. The user loaded this dataset:
-        
+        You are an agentic AI Data Analyst running inside Aura, a macOS machine learning app.
+        A pandas DataFrame `df` is already loaded in the Python environment.
+
+        To inspect or compute anything about the data, output Python code wrapped EXACTLY like this:
+        <execute_python>
+        print(df['column'].describe())
+        </execute_python>
+        The system will execute the code and return <execution_result>…</execution_result>.
+        You MUST wait for the result before giving your final answer.
+
+        For processing large text columns chunk-by-chunk, use the built-in recursive helper:
+          result = llm_query(chunk=df['review'][0], question="Summarise sentiment")
+        This performs a lightweight sub-LLM call on just that chunk of text.
+
+        Rules:
+        - Never hallucinate execution results — always wait for <execution_result>.
+        - Keep code blocks focused (one task per block).
+        - Maximum \(ChatViewModel.maxREPLDepth) code execution rounds per question.
+        - Answer in markdown. Use bullet points and headers.
+        - Be direct and data-specific.
+
+        Dataset context (auto-generated):
         - Size: \(result.rowCount) rows × \(result.colCount) columns
         - Task: \(result.taskType.uppercased())
         - Target column: "\(result.targetColumn)"
-        - Numeric columns: \(result.numericColCount), Categorical: \(result.categoricalColCount), Text (TF-IDF): \(result.textColCount)\(validationDetails)
+        - Numeric columns: \(result.numericColCount), Categorical: \(result.categoricalColCount)\(validationDetails)
         - Models trained: \(modelLeaderboard)
         - Best model: \(result.metrics.model) (\(result.metrics.scoreType): \(String(format: "%.4f", result.metrics.score)))
         - Top feature importances: \(featureImportances.isEmpty ? "none" : featureImportances)
-        - Top correlations (showing \(min(result.correlations.count, maxCorr)) of \(result.correlations.count)): \(topCorr)
+        - Top correlations: \(topCorr)
         - Missing values: \(topMissing.isEmpty ? "none" : topMissing)
-        
-        Answer questions about this specific dataset concisely using markdown formatting. Use bullet points and headers where helpful. Be direct and data-specific.
-        You are Aura, an advanced AI Data Analyst. 
-        A pandas DataFrame named `df` is already loaded in memory.
-        If you need to analyze the data, you MUST write Python code to inspect it. 
-        To execute code, output EXACTLY like this:
-        <execute_python>
-        print(df.describe())
-        </execute_python>
-
-        Wait for the system to return the <execution_result> before answering the user.
         """
+
+        // Append rich dataset context snapshot (column stats + sample rows)
+        if let ctx = result.datasetContext, !ctx.isEmpty {
+            systemPrompt += "\n\n" + ctx
+        }
 
         // Clear and re-inject
         messages = []
+
+        // Reset the REPL sandbox so df reflects the new dataset (Phase 16)
+        var pathForREPL = result.filePath
+        if let path = pathForREPL, !FileManager.default.fileExists(atPath: path), let url = datasetURL, !url.isEmpty {
+            pathForREPL = url
+        }
+        
+        if let filePath = pathForREPL {
+            Task {
+                try? await REPLService.shared.reset(filePath: filePath)
+            }
+        }
     }
+
 
     func clearConversation() {
         cancelGeneration()
@@ -97,20 +127,34 @@ class ChatViewModel {
 
     // MARK: - Message Sending
 
-    @MainActor func sendMessage(_ text: String, model: String, temperature: Double, maxTokens: Int) {
+    @MainActor func sendMessage(
+        _ text: String,
+        model: String,
+        temperature: Double,
+        maxTokens: Int,
+        isREPLInjection: Bool = false
+    ) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
-        let userMessage = ChatMessage(role: .user, content: text)
-        messages.append(userMessage)
+        // Only add a visible user message for real user inputs (not REPL result injections)
+        if !isREPLInjection {
+            let userMessage = ChatMessage(role: .user, content: text)
+            messages.append(userMessage)
+        }
 
         let assistantMessage = ChatMessage(role: .assistant, content: "", state: .streaming)
         messages.append(assistantMessage)
+
         let assistantId = assistantMessage.id
 
         isStreaming = true
         inputText = ""
+        if !isREPLInjection {
+            replLoopDepth = 0
+        }
 
         let historyMessages = buildHistoryMessages()
+
         let providerStr = UserDefaults.standard.string(forKey: "Aura_LLMProvider") ?? "Ollama"
         let provider = LLMProvider(rawValue: providerStr) ?? .ollama
         let service = AIService.shared
@@ -141,6 +185,18 @@ class ChatViewModel {
                     }
                     self.isStreaming = false
                 }
+
+                // ── Phase 16: RLM agentic REPL loop ──
+                let finalContent = await MainActor.run {
+                    self.messages.first(where: { $0.id == assistantId })?.content ?? ""
+                }
+                await self.runREPLLoopIfNeeded(
+                    assistantContent: finalContent,
+                    model: model,
+                    temperature: temperature,
+                    maxTokens: maxTokens
+                )
+
             } catch {
                 await MainActor.run {
                     if let idx = self.messages.firstIndex(where: { $0.id == assistantId }) {
@@ -163,20 +219,102 @@ class ChatViewModel {
     func cancelGeneration() {
         streamTask?.cancel()
         streamTask = nil
-        if let idx = messages.indices.last, messages[idx].state == .streaming {
+        if let idx = messages.indices.last, messages[idx].state == .streaming || messages[idx].state == .executingCode {
             messages[idx].state = .complete
         }
         isStreaming = false
     }
+
+    // MARK: - RLM REPL Loop
+
+    @MainActor
+    private func runREPLLoopIfNeeded(
+        assistantContent: String,
+        model: String,
+        temperature: Double,
+        maxTokens: Int
+    ) async {
+        guard replLoopDepth < ChatViewModel.maxREPLDepth else { return }
+
+        // Extract first <execute_python>…</execute_python> block
+        guard let code = extractFirstCodeBlock(from: assistantContent) else { return }
+
+        replLoopDepth += 1
+        isStreaming = true
+
+        // Show a "⚙ Executing code…" tool message
+        let toolMsg = ChatMessage(role: .tool, content: "⚙ Executing Python code…", state: .executingCode)
+        messages.append(toolMsg)
+        let toolMsgId = toolMsg.id
+
+        // Execute in background
+        do {
+            let result = try await REPLService.shared.execute(code)
+
+            // Build the execution result string
+            var resultText = ""
+            if let err = result.error, !err.isEmpty {
+                resultText = "<execution_result>\nError:\n\(err)\n</execution_result>"
+            } else {
+                let out = result.stdout.isEmpty ? "(no output)" : result.stdout
+                resultText = "<execution_result>\n\(out)\n</execution_result>"
+            }
+
+            // Attach figure count note if any
+            if !result.figures.isEmpty {
+                resultText += "\n\n_(\(result.figures.count) figure(s) captured — displayed above)_"
+            }
+
+            // Update tool message with result + store figures
+            if let idx = messages.firstIndex(where: { $0.id == toolMsgId }) {
+                messages[idx].content = resultText
+                messages[idx].state = .complete
+                messages[idx].figures = result.figures
+            }
+
+            // Inject result as "user" turn and re-trigger AI
+            sendMessage(
+                resultText,
+                model: model,
+                temperature: temperature,
+                maxTokens: maxTokens,
+                isREPLInjection: true
+            )
+
+        } catch {
+            if let idx = messages.firstIndex(where: { $0.id == toolMsgId }) {
+                messages[idx].content = "⚙ Code execution failed: \(error.localizedDescription)"
+                messages[idx].state = .error
+            }
+            isStreaming = false
+        }
+    }
+
+    private func extractFirstCodeBlock(from text: String) -> String? {
+        guard let start = text.range(of: "<execute_python>"),
+              let end   = text.range(of: "</execute_python>") else { return nil }
+        let code = String(text[start.upperBound..<end.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return code.isEmpty ? nil : code
+    }
+
 
     // MARK: - Helpers
 
     private func buildHistoryMessages() -> [OllamaChatMessage] {
         var result: [OllamaChatMessage] = []
         for msg in messages.dropLast() { // drop last (empty assistant placeholder)
-            let role = msg.role == .user ? "user" : "assistant"
-            if !msg.content.isEmpty {
-                result.append(OllamaChatMessage(role: role, content: msg.content))
+            switch msg.role {
+            case .user, .tool:
+                // Tool messages (REPL results) are injected as user turns so the
+                // model sees the execution output in context.
+                if !msg.content.isEmpty {
+                    result.append(OllamaChatMessage(role: "user", content: msg.content))
+                }
+            case .assistant:
+                if !msg.content.isEmpty {
+                    result.append(OllamaChatMessage(role: "assistant", content: msg.content))
+                }
             }
         }
         return result

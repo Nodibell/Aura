@@ -123,12 +123,12 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             if model_type == "rf":
                 n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
                 max_depth = trial.suggest_int("rf_max_depth", 3, 10)
-                clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                clf = RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=2)
             else:
                 n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
                 max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
                 learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
-                clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=2, eval_metric="mlogloss")
             
             clf.fit(tuning_X_tr, tuning_y_tr)
             preds = clf.predict(tuning_X_val)
@@ -141,7 +141,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         rf_best_n = best_params.get("rf_n_estimators", 100)
         rf_best_d = best_params.get("rf_max_depth", 5)
         publish_progress(0.72, f"Training Tuned Random Forest (n_estimators={rf_best_n}, max_depth={rf_best_d})...")
-        rf = RandomForestClassifier(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
+        rf = RandomForestClassifier(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=2)
         rf.fit(X_train, y_train)
         rf_preds = rf.predict(X_test)
         rf_acc_rf = accuracy_score(y_test, rf_preds)
@@ -153,7 +153,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         xgb_best_d = best_params.get("xgb_max_depth", 5)
         xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
         publish_progress(0.76, f"Training Tuned XGBoost (n_estimators={xgb_best_n}, max_depth={xgb_best_d}, lr={xgb_best_lr:.4f})...")
-        xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+        xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=2, eval_metric="mlogloss")
         xgb.fit(X_train, y_train_encoded)
         xgb_preds_encoded = xgb.predict(X_test)
         xgb_preds = le.inverse_transform(xgb_preds_encoded)
@@ -170,7 +170,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from lightgbm import LGBMClassifier
             publish_progress(0.78, "Training LightGBM Classifier...")
-            lgb = LGBMClassifier(random_state=42, n_jobs=-1, verbose=-1)
+            lgb = LGBMClassifier(random_state=42, n_jobs=2, verbose=-1)
             lgb.fit(X_train, y_train_encoded)
             lgb_preds_encoded = lgb.predict(X_test)
             lgb_preds = le.inverse_transform(lgb_preds_encoded)
@@ -286,12 +286,12 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             if model_type == "rf":
                 n_estimators = trial.suggest_int("rf_n_estimators", 10, 100)
                 max_depth = trial.suggest_int("rf_max_depth", 3, 10)
-                reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=-1)
+                reg = RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=2)
             else:
                 n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
                 max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
                 learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
-                reg = XGBRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1)
+                reg = XGBRegressor(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=2)
             
             reg.fit(tuning_X_tr, tuning_y_tr)
             preds = reg.predict(tuning_X_val)
@@ -304,7 +304,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         rf_best_n = best_params.get("rf_n_estimators", 100)
         rf_best_d = best_params.get("rf_max_depth", 5)
         publish_progress(0.72, f"Training Tuned Random Forest (n_estimators={rf_best_n}, max_depth={rf_best_d})...")
-        rf = RandomForestRegressor(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=-1)
+        rf = RandomForestRegressor(n_estimators=rf_best_n, max_depth=rf_best_d, random_state=42, n_jobs=2)
         rf.fit(X_train, y_train)
         rf_preds = rf.predict(X_test)
         rf_r2_rf = r2_score(y_test, rf_preds)
@@ -316,7 +316,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         xgb_best_d = best_params.get("xgb_max_depth", 5)
         xgb_best_lr = best_params.get("xgb_learning_rate", 0.1)
         publish_progress(0.76, f"Training Tuned XGBoost (n_estimators={xgb_best_n}, max_depth={xgb_best_d}, lr={xgb_best_lr:.4f})...")
-        xgb = XGBRegressor(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1)
+        xgb = XGBRegressor(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=2)
         xgb.fit(X_train, y_train)
         xgb_preds = xgb.predict(X_test)
         xgb_r2 = r2_score(y_test, xgb_preds)
@@ -332,7 +332,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from lightgbm import LGBMRegressor
             publish_progress(0.78, "Training LightGBM Regressor...")
-            lgb = LGBMRegressor(random_state=42, n_jobs=-1, verbose=-1)
+            lgb = LGBMRegressor(random_state=42, n_jobs=2, verbose=-1)
             lgb.fit(X_train, y_train)
             lgb_preds = lgb.predict(X_test)
             lgb_r2 = r2_score(y_test, lgb_preds)

@@ -11,11 +11,11 @@ from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_sco
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
-# Import torch BEFORE XGBoost n_jobs=-1 training ever runs.
+# Import torch BEFORE XGBoost n_jobs=2 training ever runs.
 # On macOS both XGBoost and PyTorch ship their own libomp. Whichever library
 # initialises the OpenMP runtime first wins; the second one deadlocks waiting
 # for an already-held init mutex. Importing torch here ensures PyTorch claims
-# the runtime before any n_jobs=-1 sklearn/XGBoost call happens.
+# the runtime before any n_jobs=2 sklearn/XGBoost call happens.
 try:
     import torch as _torch_preload  # noqa: F401 – side-effect import only
     from xgboost import XGBClassifier, XGBRegressor
@@ -850,11 +850,11 @@ def analyze_tabular(df, target_col, task_type_override,
                 from sklearn.feature_selection import RFE
                 from sklearn.preprocessing import LabelEncoder
                 if is_classification:
-                    estimator = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+                    estimator = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=2)
                     le_temp = LabelEncoder()
                     y_train_fit = le_temp.fit_transform(y_train)
                 else:
-                    estimator = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+                    estimator = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42, n_jobs=2)
                     y_train_fit = y_train
                 
                 rfe = RFE(estimator=estimator, n_features_to_select=n_to_select, step=0.2)

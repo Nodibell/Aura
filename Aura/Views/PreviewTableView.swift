@@ -243,11 +243,37 @@ struct PreviewTableView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
                     
-                    TextField("YYYY-MM-DD", text: Binding(
-                        get: { self.config.timeRangeStart ?? "" },
-                        set: { self.config.timeRangeStart = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
-                    ))
-                    .textFieldStyle(.plain)
+                    HStack(spacing: 4) {
+                        TextField("YYYY-MM-DD", text: Binding(
+                            get: { self.config.timeRangeStart ?? "" },
+                            set: { self.config.timeRangeStart = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+                        ))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11, design: .monospaced))
+                        
+                        if !uniqueDatesInDataset.isEmpty {
+                            Menu {
+                                Button("Clear") {
+                                    self.config.timeRangeStart = nil
+                                }
+                                Divider()
+                                ForEach(uniqueDatesInDataset, id: \.self) { dateStr in
+                                    Button(dateStr) {
+                                        self.config.timeRangeStart = dateStr
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .contentShape(Rectangle())
+                            }
+                            .menuStyle(.button)
+                            .buttonStyle(.plain)
+                        }
+                    }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(Color.primary.opacity(0.04))
@@ -260,11 +286,37 @@ struct PreviewTableView: View {
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(.secondary)
                     
-                    TextField("YYYY-MM-DD", text: Binding(
-                        get: { self.config.timeRangeEnd ?? "" },
-                        set: { self.config.timeRangeEnd = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
-                    ))
-                    .textFieldStyle(.plain)
+                    HStack(spacing: 4) {
+                        TextField("YYYY-MM-DD", text: Binding(
+                            get: { self.config.timeRangeEnd ?? "" },
+                            set: { self.config.timeRangeEnd = $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 }
+                        ))
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 11, design: .monospaced))
+                        
+                        if !uniqueDatesInDataset.isEmpty {
+                            Menu {
+                                Button("Clear") {
+                                    self.config.timeRangeEnd = nil
+                                }
+                                Divider()
+                                ForEach(uniqueDatesInDataset, id: \.self) { dateStr in
+                                    Button(dateStr) {
+                                        self.config.timeRangeEnd = dateStr
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 2)
+                                    .contentShape(Rectangle())
+                            }
+                            .menuStyle(.button)
+                            .buttonStyle(.plain)
+                        }
+                    }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
                     .background(Color.primary.opacity(0.04))
@@ -380,6 +432,45 @@ struct PreviewTableView: View {
             df.dateFormat = "yyyy-MM-dd"
             config.timeRangeStart = df.string(from: minDate)
             config.timeRangeEnd = df.string(from: maxDate)
+        }
+    }
+    
+    private var uniqueDatesInDataset: [String] {
+        guard let timeColumn = config.timeColumn else { return [] }
+        guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return [] }
+        
+        var valuesSet = Set<String>()
+        for row in preview.previewRows {
+            guard colIndex < row.count else { continue }
+            let valStr = row[colIndex].displayString.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !valStr.isEmpty && valStr != "—" {
+                valuesSet.insert(valStr)
+            }
+        }
+        
+        let formatters = [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy",
+            "dd-MM-yyyy"
+        ].map { fmt -> DateFormatter in
+            let df = DateFormatter()
+            df.dateFormat = fmt
+            return df
+        }
+        
+        return valuesSet.sorted { val1, val2 in
+            var d1: Date? = nil
+            var d2: Date? = nil
+            for formatter in formatters {
+                if d1 == nil { d1 = formatter.date(from: val1) }
+                if d2 == nil { d2 = formatter.date(from: val2) }
+            }
+            if let d1 = d1, let d2 = d2 {
+                return d1 < d2
+            }
+            return val1 < val2
         }
     }
 
@@ -691,7 +782,7 @@ struct PreviewTableView: View {
                     .font(.system(size: 10, weight: .semibold, design: .rounded))
                     .foregroundColor(.secondary)
                 
-                Picker("", selection: Binding<String>(
+                let previewBinding = Binding<String>(
                     get: {
                         if config.validationFilePath != nil && preview.localPath == config.validationFilePath {
                             return "val"
@@ -714,16 +805,21 @@ struct PreviewTableView: View {
                             onPreviewFileRequested?(path)
                         }
                     }
-                )) {
-                    Text("Train").tag("train")
+                )
+                let previewItems: [(String, String)] = {
+                    var list = [("Train", "train")]
                     if config.testFilePath != nil {
-                        Text("Test").tag("test")
+                        list.append(("Test", "test"))
                     }
                     if config.validationFilePath != nil {
-                        Text("Validation").tag("val")
+                        list.append(("Validation", "val"))
                     }
-                }
-                .pickerStyle(.segmented)
+                    return list
+                }()
+                CustomSegmentedPicker(
+                    selection: previewBinding,
+                    items: previewItems
+                )
                 .frame(width: 280)
             }
             .padding(.top, 4)

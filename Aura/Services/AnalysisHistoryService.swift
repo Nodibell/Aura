@@ -143,6 +143,7 @@ class AnalysisHistoryService {
             do {
                 let stream = OllamaService.shared.streamChat(
                     messages: messages,
+                    systemPrompt: "",
                     model: modelToUse,
                     temperature: 0.1,
                     maxTokens: 30
@@ -185,6 +186,9 @@ class AnalysisHistoryService {
             let data = try JSONEncoder().encode(result)
             try data.write(to: resultURL)
             
+            let isRemote = originalSource?.lowercased().hasPrefix("http://") == true || originalSource?.lowercased().hasPrefix("https://") == true
+            let finalURL = isRemote ? originalSource : nil
+
             let newItem = HistoryItem(
                 id: resultId,
                 datasetName: datasetName,
@@ -197,7 +201,8 @@ class AnalysisHistoryService {
                 bestScore: result.metrics.score,
                 scoreType: result.metrics.scoreType,
                 rowCount: result.rowCount,
-                colCount: result.colCount
+                colCount: result.colCount,
+                datasetURL: finalURL
             )
             
             context.insert(newItem)

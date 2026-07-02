@@ -44,6 +44,14 @@ struct AnalysisResult: Codable {
     
     /// Optional warning message from the Python pipeline (e.g. image truncation notice).
     let warning: String?
+
+    /// Rich column-level dataset snapshot injected into the AI system prompt (Phase 16 RAG).
+    let datasetContext: String?
+
+    /// The path to the dataset file analyzed (Phase 16 RAG).
+    let filePath: String?
+
+
     
     enum CodingKeys: String, CodingKey {
         case summary
@@ -82,6 +90,8 @@ struct AnalysisResult: Codable {
         case valConfusionMatrix = "val_confusion_matrix"
         case targets
         case warning
+        case datasetContext = "dataset_context"
+        case filePath = "file_path"
     }
 }
 
@@ -148,10 +158,13 @@ extension AnalysisResult {
             valMetrics: targetRes.valMetrics,
             valConfusionMatrix: targetRes.valConfusionMatrix,
             targets: self.targets,
-            warning: self.warning
+            warning: self.warning,
+            datasetContext: self.datasetContext,
+            filePath: self.filePath
         )
     }
 }
+
 
 struct CleaningRecommendation: Codable, Identifiable {
     var id: String { "\(column)-\(issue)" }

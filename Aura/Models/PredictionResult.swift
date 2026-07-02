@@ -9,6 +9,7 @@ enum PredictionValue: Codable {
     case string(String)
     case number(Double)
     case boolean(Bool)
+    case array([PredictionValue])
     
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -18,8 +19,10 @@ enum PredictionValue: Codable {
             self = .number(d)
         } else if let b = try? container.decode(Bool.self) {
             self = .boolean(b)
+        } else if let arr = try? container.decode([PredictionValue].self) {
+            self = .array(arr)
         } else {
-            throw DecodingError.typeMismatch(PredictionValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Not a string, number, or boolean"))
+            throw DecodingError.typeMismatch(PredictionValue.self, DecodingError.Context(codingPath: decoder.codingPath, debugDescription: "Not a string, number, boolean, or array"))
         }
     }
     
@@ -29,6 +32,7 @@ enum PredictionValue: Codable {
         case .string(let s): try container.encode(s)
         case .number(let d): try container.encode(d)
         case .boolean(let b): try container.encode(b)
+        case .array(let arr): try container.encode(arr)
         }
     }
     
@@ -42,6 +46,8 @@ enum PredictionValue: Codable {
                 return String(format: "%.4f", d)
             }
         case .boolean(let b): return b ? "True" : "False"
+        case .array(let arr):
+            return arr.map { $0.displayString }.joined(separator: ", ")
         }
     }
 }

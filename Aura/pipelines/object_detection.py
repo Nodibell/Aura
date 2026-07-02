@@ -488,7 +488,7 @@ def _crop_and_classify(splits, class_names, max_crops_per_class=200, crop_size=6
     lr_acc = accuracy_score(y_test, lr_preds)
 
     print_progress(0.76, "Training Random Forest on crops…")
-    rf = RandomForestClassifier(n_estimators=50, max_depth=6, random_state=42, n_jobs=-1)
+    rf = RandomForestClassifier(n_estimators=50, max_depth=6, random_state=42, n_jobs=2)
     rf.fit(X_train, y_train)
     rf_preds = rf.predict(X_test)
     rf_acc = accuracy_score(y_test, rf_preds)

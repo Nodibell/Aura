@@ -5,12 +5,14 @@ import Foundation
 enum ChatRole {
     case user
     case assistant
+    case tool          // Phase 16: REPL execution result
 }
 
 enum MessageState {
     case complete
     case streaming
     case error
+    case executingCode // Phase 16: waiting for REPL result
 }
 
 // MARK: - Chat Message
@@ -20,6 +22,15 @@ struct ChatMessage: Identifiable {
     let role: ChatRole
     var content: String
     var state: MessageState
+    var figures: [String] = []   // base64 PNG strings from REPL execution (Phase 16)
+
+    var formattedContent: String {
+        content
+            .replacingOccurrences(of: "<execute_python>", with: "```python\n")
+            .replacingOccurrences(of: "</execute_python>", with: "\n```")
+            .replacingOccurrences(of: "<execution_result>", with: "```\n")
+            .replacingOccurrences(of: "</execution_result>", with: "\n```")
+    }
 
     init(id: UUID = UUID(), role: ChatRole, content: String, state: MessageState = .complete) {
         self.id = id

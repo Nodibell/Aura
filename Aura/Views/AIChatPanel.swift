@@ -294,29 +294,40 @@ struct AIChatPanel: View {
                 Button {
                     viewModel.cancelGeneration()
                 } label: {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(Color.red.gradient)
+                    Image(systemName: "stop.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(Color.red)
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
             } else {
                 Button {
                     send(viewModel.inputText)
                 } label: {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(
+                    Image(systemName: "arrow.up")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(8)
+                        .background(
                             viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                                 ? AnyShapeStyle(Color.secondary.opacity(0.3))
                                 : AnyShapeStyle(LinearGradient(colors: [.purple, .blue], startPoint: .leading, endPoint: .trailing))
                         )
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
         }
-        .padding(12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(Color.primary.opacity(0.03))
+        .cornerRadius(20)
+        .padding(10)
     }
+
 
     // MARK: - Helpers
 
@@ -343,17 +354,84 @@ struct AIChatPanel: View {
 
 private struct MessageBubble: View {
     let message: ChatMessage
+    @State private var isExpanded = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if message.role == .user { Spacer(minLength: 40) }
+        if message.role == .tool {
+            toolBubble
+        } else {
+            HStack(alignment: .top, spacing: 8) {
+                if message.role == .user { Spacer(minLength: 40) }
 
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                bubbleContent
+                VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+                    bubbleContent
+                }
+
+                if message.role == .assistant { Spacer(minLength: 40) }
             }
-
-            if message.role == .assistant { Spacer(minLength: 40) }
         }
+    }
+
+    // MARK: - Tool (REPL) bubble
+
+    @ViewBuilder
+    private var toolBubble: some View {
+        VStack(spacing: 6) {
+            Button(action: { withAnimation(.spring(duration: 0.25)) { isExpanded.toggle() } }) {
+                HStack(spacing: 6) {
+                    if message.state == .executingCode {
+                        ProgressView().scaleEffect(0.6)
+                    } else {
+                        Image(systemName: message.state == .error ? "exclamationmark.triangle" : "checkmark.circle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(message.state == .error ? .orange : .green)
+                    }
+                    Text(message.state == .executingCode ? "Running Python…" : "⚙ Code executed")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10))
+                        .foregroundColor(.secondary.opacity(0.6))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Color.primary.opacity(0.05))
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.primary.opacity(0.1), lineWidth: 1)
+                )
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    // Execution output text
+                    Text(message.content)
+                        .font(.system(.caption, design: .monospaced))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(Color.primary.opacity(0.04))
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                    // Inline figures
+                    ForEach(message.figures.indices, id: \.self) { idx in
+                        if let data = Data(base64Encoded: message.figures[idx]),
+                           let nsImg = NSImage(data: data) {
+                            Image(nsImage: nsImg)
+                                .resizable()
+                                .scaledToFit()
+                                .frame(maxHeight: 320)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .padding(.horizontal, 8)
     }
 
     @ViewBuilder
@@ -377,7 +455,7 @@ private struct MessageBubble: View {
                 } else {
                     ZStack(alignment: .topTrailing) {
                         VStack(alignment: .leading, spacing: 6) {
-                            MarkdownMessageView(content: message.content.isEmpty ? " " : message.content)
+                            MarkdownMessageView(content: message.formattedContent.isEmpty ? " " : message.formattedContent)
                                 .foregroundColor(message.state == .error ? .red : .primary)
                                 .padding(.trailing, 24)
 

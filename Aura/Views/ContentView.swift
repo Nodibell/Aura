@@ -269,24 +269,28 @@ struct ContentView: View {
 
                     // 1. Dataset Source Card
                     SidebarCard(title: "Dataset Source") {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 0) {
                             if let fileURL = selectedFileURL {
                                 datasetChip(
                                     icon: "doc.text.fill", color: .purple,
                                     title: fileURL.lastPathComponent,
                                     subtitle: fileDetails
                                 )
+                                Divider()
                             } else if !datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                 datasetChip(
                                     icon: "link.circle.fill", color: .orange,
                                     title: datasetURLInput,
                                     subtitle: getURLProviderName(datasetURLInput)
                                 )
+                                Divider()
                             } else {
                                 Text("No active dataset")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
-                                    .padding(.top, 8)
+                                    .padding(.vertical, 16)
+                                    .frame(maxWidth: .infinity, alignment: .center)
+                                Divider()
                             }
                             
                             Menu {
@@ -305,66 +309,73 @@ struct ContentView: View {
                                     Label("Import from Database...", systemImage: "server.rack")
                                 }
                             } label: {
-                                HStack(spacing: 4) {
+                                HStack(spacing: 6) {
                                     Image(systemName: "square.and.arrow.down.on.square")
                                     Text("Import Dataset...")
+                                    Spacer()
+                                    Image(systemName: "chevron.down")
+                                        .font(.system(size: 8))
                                 }
                                 .font(.system(size: 11, weight: .semibold))
                                 .foregroundColor(.purple)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .contentShape(Rectangle())
                             }
                             .menuStyle(.borderlessButton)
-                            .padding(.bottom, 8)
+                            .buttonStyle(.plain)
                         }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 10)
                     }
 
                     // 1.5. Test Dataset Card
                     if !cannotRun {
                         SidebarCard(title: "Test Dataset (Optional)") {
-                            if let testPath = analysisConfig.testFilePath, !testPath.isEmpty {
-                                let testURL = URL(fileURLWithPath: testPath)
-                                HStack {
-                                    Image(systemName: "doc.text.fill").foregroundColor(.purple)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(testURL.lastPathComponent)
-                                            .font(.body)
-                                            .fontWeight(.semibold)
-                                            .lineLimit(1)
-                                        Text("Separate validation set")
-                                            .font(.caption2)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    Spacer()
-                                    Button(action: {
-                                        analysisConfig.testFilePath = nil
-                                    }) {
-                                        Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                                .padding(10)
-                                .background(Color.primary.opacity(0.02))
-                                .cornerRadius(10)
-                                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
-                            } else {
-                                VStack(spacing: 10) {
-                                    Text("No test dataset selected")
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                    
-                                    Button(action: selectTestFileManually) {
-                                        HStack(spacing: 4) {
-                                            Image(systemName: "doc.badge.plus")
-                                            Text("Load Test File...")
+                            VStack(spacing: 0) {
+                                if let testPath = analysisConfig.testFilePath, !testPath.isEmpty {
+                                    let testURL = URL(fileURLWithPath: testPath)
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "doc.text.fill").foregroundColor(.purple)
+                                            .font(.system(size: 14))
+                                        VStack(alignment: .leading, spacing: 1) {
+                                            Text(testURL.lastPathComponent)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundColor(.primary)
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                            Text("Separate validation set")
+                                                .font(.system(size: 9))
+                                                .foregroundColor(.secondary)
                                         }
-                                        .font(.system(size: 11, weight: .semibold))
-                                        .foregroundColor(.purple)
+                                        Spacer()
+                                        Button(action: {
+                                            analysisConfig.testFilePath = nil
+                                        }) {
+                                            Image(systemName: "xmark.circle.fill")
+                                                .foregroundColor(.secondary.opacity(0.8))
+                                                .font(.system(size: 11))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .help("Clear selection")
                                     }
-                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    
+                                    Divider()
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
+                                
+                                Button(action: selectTestFileManually) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "doc.badge.plus")
+                                        Text(analysisConfig.testFilePath == nil ? "Load Test File..." : "Change Test File...")
+                                        Spacer()
+                                    }
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(.purple)
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -767,19 +778,21 @@ struct ContentView: View {
             } else if let analysisResult = result {
                 VStack(spacing: 0) {
                     // Tab bar
-                    Picker("View", selection: $selectedTab) {
-                        Text("Summary").tag("Summary")
-                        Text("Charts").tag("Charts")
-                        Text("Correlations").tag("Correlations")
-                        Text("Data").tag("Data")
-                        Text("Cleaning").tag("Cleaning")
-                        Text("Diff").tag("Diff")
-                        if let res = result, res.taskType != "clustering" {
-                            Text("Predict").tag("Predict")
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .padding()
+                    CustomSegmentedPicker(
+                        selection: $selectedTab,
+                        items: [
+                            ("Summary", "Summary"),
+                            ("Charts", "Charts"),
+                            ("Correlations", "Correlations"),
+                            ("Data", "Data"),
+                            ("Cleaning", "Cleaning"),
+                            ("Diff", "Diff")
+                        ] + (result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(Color.primary.opacity(0.015))
+
 
                     // Target Selector Pill Bar for Multi-Target Time Series
                     if let targetsMap = analysisResult.targets, !targetsMap.isEmpty {
@@ -846,16 +859,20 @@ struct ContentView: View {
                                 if analysisResult.testFullPreview != nil || analysisResult.valFullPreview != nil {
                                     HStack {
                                         Spacer()
-                                        Picker("Select Table:", selection: $selectedDataTab) {
-                                            Text("Train").tag("train")
+                                        let dataItems: [(String, String)] = {
+                                            var list = [("Train", "train")]
                                             if analysisResult.testFullPreview != nil {
-                                                Text("Test").tag("test")
+                                                list.append(("Test", "test"))
                                             }
                                             if analysisResult.valFullPreview != nil {
-                                                Text("Validation").tag("val")
+                                                list.append(("Validation", "val"))
                                             }
-                                        }
-                                        .pickerStyle(.segmented)
+                                            return list
+                                        }()
+                                        CustomSegmentedPicker(
+                                            selection: $selectedDataTab,
+                                            items: dataItems
+                                        )
                                         .frame(width: 280)
                                         .padding(.horizontal)
                                         .padding(.vertical, 8)
@@ -968,27 +985,34 @@ struct ContentView: View {
     // MARK: - Reusable Subviews
 
     private func datasetChip(icon: String, color: Color, title: String, subtitle: String) -> some View {
-        HStack {
-            Image(systemName: icon).foregroundColor(color)
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(color)
+            
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.body)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundColor(.primary)
                     .lineLimit(1)
+                    .truncationMode(.middle)
                 Text(subtitle)
-                    .font(.caption2)
+                    .font(.system(size: 9))
                     .foregroundColor(.secondary)
             }
+            
             Spacer()
+            
             Button(action: clearSelection) {
-                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundColor(.secondary.opacity(0.8))
+                    .font(.system(size: 11))
             }
             .buttonStyle(.plain)
+            .help("Clear selection")
         }
-        .padding(10)
-        .background(Color.primary.opacity(0.02))
-        .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color.primary.opacity(0.06)))
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
     }
 
     private func loadingView(title: String, subtitle: String, fraction: Double? = nil, onCancel: (() -> Void)? = nil) -> some View {
@@ -1461,7 +1485,7 @@ struct ContentView: View {
                             }
                             let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
                             self.currentHistoryItemId = savedItem?.id
-                            self.chatViewModel.injectContext(data)
+                            self.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL)
                             if self.ollamaStatus.isAvailable { self.showAIPanel = true }
                         case .failure(let error):
                             if (error as NSError).code != -999 {
@@ -1487,9 +1511,14 @@ struct ContentView: View {
         var newConfig = AnalysisConfig()
         newConfig.trainFilePath = item.datasetPath
 
-        if item.datasetPath.hasPrefix("http://") || item.datasetPath.hasPrefix("https://") {
+        if let datasetURL = item.datasetURL, !datasetURL.isEmpty {
+            self.datasetURLInput = datasetURL
+            self.selectedFileURL = nil
+            self.fileDetails = "Remote URL Dataset"
+        } else if item.datasetPath.hasPrefix("http://") || item.datasetPath.hasPrefix("https://") {
             self.datasetURLInput = item.datasetPath
             self.selectedFileURL = nil
+            self.fileDetails = "Remote URL Dataset"
         } else {
             self.selectedFileURL = URL(fileURLWithPath: item.datasetPath)
             self.datasetURLInput = ""
@@ -1512,7 +1541,7 @@ struct ContentView: View {
                 self.result = loadedResult
                 self.currentHistoryItemId = item.id
                 self.trainColumns = loadedResult.columns
-                self.chatViewModel.injectContext(loadedResult)
+                self.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL)
 
                 if let targetsMap = loadedResult.targets, !targetsMap.isEmpty {
                     self.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn

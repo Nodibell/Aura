@@ -197,11 +197,18 @@ actor PythonRunner {
     }
     
     private func ensureServerRunning() async throws -> String {
+        let isHybrid = UserDefaults.standard.bool(forKey: "Aura_HybridMode")
+        if isHybrid {
+            let remoteURL = UserDefaults.standard.string(forKey: "Aura_RemoteServerURL") ?? "http://127.0.0.1:11435"
+            return remoteURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
         let baseURL = "http://127.0.0.1:\(serverPort)"
         
         if await checkServerHealth(url: baseURL) {
             return baseURL
         }
+
         
         if isServerStarting {
             for _ in 0..<25 {
@@ -245,15 +252,36 @@ actor PythonRunner {
         process.executableURL = URL(fileURLWithPath: pythonExecutable)
         process.arguments = [serverScriptPath, "--port", "\(serverPort)"]
         
-        process.standardOutput = FileHandle.nullDevice
-        process.standardError = FileHandle.nullDevice
+        let logURL: URL? = {
+            let fileManager = FileManager.default
+            if let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first {
+                let auraDir = appSupport.appendingPathComponent("Aura", isDirectory: true)
+                try? fileManager.createDirectory(at: auraDir, withIntermediateDirectories: true, attributes: nil)
+                let url = auraDir.appendingPathComponent("server.log")
+                if !fileManager.fileExists(atPath: url.path) {
+                    fileManager.createFile(atPath: url.path, contents: nil)
+                }
+                return url
+            }
+            return nil
+        }()
+
+        if let logURL = logURL, let fileHandle = try? FileHandle(forWritingTo: logURL) {
+            fileHandle.seekToEndOfFile()
+            process.standardOutput = fileHandle
+            process.standardError = fileHandle
+        } else {
+            process.standardOutput = FileHandle.nullDevice
+            process.standardError = FileHandle.nullDevice
+        }
+
         
         do {
             try process.run()
             self.serverProcess = process
             ServerProcessManager.shared.setProcess(process)
             
-            for _ in 0..<25 {
+            for _ in 0..<75 {
                 try? await Task.sleep(nanoseconds: 200_000_000)
                 if await checkServerHealth(url: baseURL) {
                     logInfo("Aura Local API Server successfully started on port \(serverPort).")
@@ -262,6 +290,7 @@ actor PythonRunner {
             }
             
             process.terminate()
+
             self.serverProcess = nil
             ServerProcessManager.shared.setProcess(nil)
             throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Local API server failed to respond in time."])
@@ -369,6 +398,10 @@ actor PythonRunner {
         if let codePath = config.codeExportPath, !codePath.isEmpty {
             bodyDict["code_export_path"] = codePath
         }
+        if let notebookPath = config.notebookExportPath, !notebookPath.isEmpty {
+            bodyDict["notebook_export_path"] = notebookPath
+        }
+
         if !config.cleaningActions.isEmpty {
             let actionsArray = Array(config.cleaningActions)
             if let encodedData = try? JSONEncoder().encode(actionsArray),
@@ -387,19 +420,61 @@ actor PythonRunner {
         let completionHandler = completion
         
         self.activeTask = Task {
+            var tempArrowPath: String? = nil
+            defer {
+                if let path = tempArrowPath, FileManager.default.fileExists(atPath: path) {
+                    try? FileManager.default.removeItem(atPath: path)
+                }
+            }
             do {
+
                 let baseURL = try await self.ensureServerRunning()
                 
-                guard let url = URL(string: "\(baseURL)/analyze") else {
-                    completionHandler(.failure(NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])))
-                    return
+                let isRemoteURL = csvPath.lowercased().hasPrefix("http://") || csvPath.lowercased().hasPrefix("https://")
+                let requestURL: URL
+                var requestBodyData: Data? = nil
+                var isArrowPayload = false
+                
+                if !isRemoteURL {
+                    // Local file: use Arrow IPC for 100x faster binary transfer
+                    progressHandler(0.08, "Serializing dataset with Apache Arrow...")
+                    let arrowFile = NSTemporaryDirectory() + UUID().uuidString + ".arrow"
+                    tempArrowPath = arrowFile
+                    
+                    try await self.runArrowConversion(csvPath: csvPath, tempArrowPath: arrowFile)
+                    
+                    // Compile binary payload: [4 bytes JSON len] + [JSON bytes] + [Arrow IPC bytes]
+                    guard let jsonData = try? JSONSerialization.data(withJSONObject: bodyDict) else {
+                        throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Failed to serialize JSON config."])
+                    }
+                    var jsonLen = UInt32(jsonData.count).bigEndian
+                    let lenData = withUnsafeBytes(of: &jsonLen) { Data($0) }
+                    
+                    var bodyData = Data()
+                    bodyData.append(lenData)
+                    bodyData.append(jsonData)
+                    
+                    let arrowData = try Data(contentsOf: URL(fileURLWithPath: arrowFile))
+                    bodyData.append(arrowData)
+                    
+                    requestBodyData = bodyData
+                    requestURL = URL(string: "\(baseURL)/analyze/arrow")!
+                    isArrowPayload = true
+                } else {
+                    // Remote URL: fallback to normal JSON
+                    requestURL = URL(string: "\(baseURL)/analyze")!
+                    requestBodyData = try? JSONSerialization.data(withJSONObject: bodyDict)
                 }
                 
-                var request = URLRequest(url: url)
+                var request = URLRequest(url: requestURL)
                 request.httpMethod = "POST"
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                if isArrowPayload {
+                    request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+                } else {
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                }
                 request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-                request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+                request.httpBody = requestBodyData
                 request.timeoutInterval = 600
                 
                 let (bytes, response) = try await URLSession.shared.bytes(for: request)
@@ -407,8 +482,12 @@ actor PythonRunner {
                     let (data, _) = try await URLSession.shared.data(for: request)
                     let responseString = String(data: data, encoding: .utf8) ?? "Unknown server error"
                     completionHandler(.failure(NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(responseString)"])))
+                    if let path = tempArrowPath, FileManager.default.fileExists(atPath: path) {
+                        try? FileManager.default.removeItem(atPath: path)
+                    }
                     return
                 }
+
                 
                 var finalResultData: Data? = nil
                 var serverError: String? = nil
@@ -749,4 +828,93 @@ actor PythonRunner {
         let result = try decoder.decode(PredictionResult.self, from: data)
         return result
     }
+
+    private func runArrowConversion(csvPath: String, tempArrowPath: String) async throws {
+        let pythonExecutable = self.resolvePythonPath()
+        
+        let arrowHelperPath: String
+        if let scriptURL = Bundle.main.url(forResource: "arrow_helper", withExtension: "py") {
+            arrowHelperPath = scriptURL.path
+        } else {
+            let currentDir = FileManager.default.currentDirectoryPath
+            let possibleWorkspacePath = (currentDir as NSString).appendingPathComponent("Aura/utils/arrow_helper.py")
+            let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
+            let possibleHomeWorkspacePath = (homeDir as NSString).appendingPathComponent("Developer/Xcode.projects/Aura/Aura/utils/arrow_helper.py")
+            
+            if FileManager.default.fileExists(atPath: possibleWorkspacePath) {
+                arrowHelperPath = possibleWorkspacePath
+            } else {
+                arrowHelperPath = possibleHomeWorkspacePath
+            }
+        }
+        
+        guard FileManager.default.fileExists(atPath: arrowHelperPath) else {
+            throw NSError(domain: "PythonRunner", code: 404, userInfo: [NSLocalizedDescriptionKey: "arrow_helper.py not found."])
+        }
+        
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: pythonExecutable)
+        process.arguments = [arrowHelperPath, "--to-arrow", csvPath, tempArrowPath]
+        
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            process.terminationHandler = { proc in
+                if proc.terminationStatus == 0 {
+                    continuation.resume()
+                } else {
+                    continuation.resume(throwing: NSError(domain: "PythonRunner", code: Int(proc.terminationStatus), userInfo: [NSLocalizedDescriptionKey: "Arrow conversion exited with code \(proc.terminationStatus)."]))
+                }
+            }
+            do {
+                try process.run()
+            } catch {
+                continuation.resume(throwing: error)
+            }
+        }
+    }
+
+    // MARK: - Cache Management
+
+    struct CacheInfo: Decodable {
+        let path: String
+        let sizeBytes: Int64
+        let fileCount: Int
+        
+        enum CodingKeys: String, CodingKey {
+            case path
+            case sizeBytes = "size_bytes"
+            case fileCount = "file_count"
+        }
+    }
+
+    func getCacheInfo() async throws -> CacheInfo {
+        let baseURL = try await self.ensureServerRunning()
+        let url = URL(string: "\(baseURL)/cache/info")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.timeoutInterval = 10
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
+        }
+        
+        let decoder = JSONDecoder()
+        return try decoder.decode(CacheInfo.self, from: data)
+    }
+
+    func cleanCache() async throws {
+        let baseURL = try await self.ensureServerRunning()
+        let url = URL(string: "\(baseURL)/cache/clean")!
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 15
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
+        }
+    }
 }
+

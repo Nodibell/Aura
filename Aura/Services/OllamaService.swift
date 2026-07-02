@@ -85,6 +85,7 @@ final class OllamaService: Sendable {
     // Stream a chat response — returns AsyncThrowingStream<String, Error>
     func streamChat(
         messages: [OllamaChatMessage],
+        systemPrompt: String,
         model: String,
         temperature: Double = 0.3,
         maxTokens: Int = 2048
@@ -104,9 +105,15 @@ final class OllamaService: Sendable {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
                 request.timeoutInterval = 60
 
+                var finalMessages = messages
+                let trimmedSystem = systemPrompt.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !trimmedSystem.isEmpty {
+                    finalMessages.insert(OllamaChatMessage(role: "system", content: trimmedSystem), at: 0)
+                }
+
                 let body = OllamaChatRequest(
                     model: model,
-                    messages: messages,
+                    messages: finalMessages,
                     stream: true,
                     options: OllamaOptions(temperature: temperature, num_predict: maxTokens)
                 )

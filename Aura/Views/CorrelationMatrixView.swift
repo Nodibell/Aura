@@ -185,7 +185,12 @@ struct CorrelationMatrixView: View {
                     .padding(.vertical, 8)
                     .background(Color.primary.opacity(0.02))
                     .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.primary.opacity(0.04), lineWidth: 1)
+                    )
                 }
+
             }
         }
     }

@@ -8,6 +8,8 @@ struct ModelExportSheet: View {
     @State private var selectedFolderURL: URL? = nil
     @State private var modelFilename: String = "best_model.joblib"
     @State private var codeFilename: String = "reproduce_pipeline.py"
+    @State private var notebookFilename: String = "reproduce_pipeline.ipynb"
+    @State private var exportType: Int = 0 // 0 = Python Script, 1 = Jupyter Notebook
     @State private var errorMessage: String? = nil
 
     var body: some View {
@@ -17,7 +19,7 @@ struct ModelExportSheet: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Export Trained Model & Code")
                         .font(.title3.bold())
-                    Text("Save scikit-learn pipeline (.joblib) and reproduction script (.py)")
+                    Text("Save scikit-learn pipeline (.joblib) and reproduction format")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -42,7 +44,7 @@ struct ModelExportSheet: View {
                             .foregroundColor(.secondary.opacity(0.7))
                             .tracking(0.3)
                         
-                        Text("Aura will fit the best model pipeline on your dataset and serialize it using the 'joblib' library. A corresponding Python script will be generated containing the exact steps (imputation, scaling, encoding, training) to replicate the pipeline locally.")
+                        Text("Aura will fit the best model pipeline on your dataset and serialize it using the 'joblib' library. A corresponding reproduction format will be generated containing the exact steps (imputation, scaling, encoding, training) to replicate the pipeline locally.")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
@@ -50,6 +52,21 @@ struct ModelExportSheet: View {
                             .background(Color.primary.opacity(0.02))
                             .cornerRadius(8)
                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.05)))
+                    }
+
+                    // Export Format Picker
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("Export Format", systemImage: "doc.text")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(.secondary.opacity(0.7))
+                            .tracking(0.3)
+                        
+                        Picker("", selection: $exportType) {
+                            Text("Python Script (.py)").tag(0)
+                            Text("Jupyter Notebook (.ipynb)").tag(1)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
                     }
 
                     // Directory selector
@@ -70,17 +87,20 @@ struct ModelExportSheet: View {
                                 }
                                 .padding(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.primary.opacity(0.03))
+                                .background(Color.primary.opacity(0.025))
                                 .cornerRadius(6)
+                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                             } else {
                                 Text("No folder selected")
                                     .font(.system(size: 11))
                                     .foregroundColor(.secondary)
                                     .padding(8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.primary.opacity(0.03))
+                                    .background(Color.primary.opacity(0.025))
                                     .cornerRadius(6)
+                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.06), lineWidth: 1))
                             }
+
 
                             Button("Browse...") {
                                 selectFolder()
@@ -106,13 +126,24 @@ struct ModelExportSheet: View {
                                         .font(.system(size: 11, design: .monospaced))
                                 }
                                 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Reproduction Script (.py)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                    TextField("Code Filename", text: $codeFilename)
-                                        .textFieldStyle(.roundedBorder)
-                                        .font(.system(size: 11, design: .monospaced))
+                                if exportType == 0 {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Reproduction Script (.py)")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        TextField("Code Filename", text: $codeFilename)
+                                            .textFieldStyle(.roundedBorder)
+                                            .font(.system(size: 11, design: .monospaced))
+                                    }
+                                } else {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Jupyter Notebook (.ipynb)")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                        TextField("Notebook Filename", text: $notebookFilename)
+                                            .textFieldStyle(.roundedBorder)
+                                            .font(.system(size: 11, design: .monospaced))
+                                    }
                                 }
                             }
                         }
@@ -185,18 +216,33 @@ struct ModelExportSheet: View {
         guard let folder = selectedFolderURL else { return }
         
         let mFilename = modelFilename.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cFilename = codeFilename.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !mFilename.isEmpty && !cFilename.isEmpty else {
-            errorMessage = "Filenames cannot be empty."
+        guard !mFilename.isEmpty else {
+            errorMessage = "Model filename cannot be empty."
             return
         }
-        
+
         let modelURL = folder.appendingPathComponent(mFilename.hasSuffix(".joblib") ? mFilename : "\(mFilename).joblib")
-        let codeURL = folder.appendingPathComponent(cFilename.hasSuffix(".py") ? cFilename : "\(cFilename).py")
-        
         config.modelExportPath = modelURL.path
-        config.codeExportPath = codeURL.path
+
+        if exportType == 0 {
+            let cFilename = codeFilename.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !cFilename.isEmpty else {
+                errorMessage = "Script filename cannot be empty."
+                return
+            }
+            let codeURL = folder.appendingPathComponent(cFilename.hasSuffix(".py") ? cFilename : "\(cFilename).py")
+            config.codeExportPath = codeURL.path
+            config.notebookExportPath = nil
+        } else {
+            let nFilename = notebookFilename.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !nFilename.isEmpty else {
+                errorMessage = "Notebook filename cannot be empty."
+                return
+            }
+            let notebookURL = folder.appendingPathComponent(nFilename.hasSuffix(".ipynb") ? nFilename : "\(nFilename).ipynb")
+            config.notebookExportPath = notebookURL.path
+            config.codeExportPath = nil
+        }
         
         isPresented = false
         

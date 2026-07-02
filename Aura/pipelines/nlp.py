@@ -493,7 +493,7 @@ def analyze_nlp(df, target_col, task_type_override,
                 sgd_rec = float(recall_score(y_test, sgd_preds, average='weighted', zero_division=0))
                 
                 xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
-                xgb = OneVsRestClassifier(XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss"))
+                xgb = OneVsRestClassifier(XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=2, eval_metric="mlogloss"))
                 xgb.fit(X_train, y_train)
                 xgb_preds = xgb.predict(X_test)
                 xgb_acc = float(accuracy_score(y_test, xgb_preds))
@@ -559,7 +559,7 @@ def analyze_nlp(df, target_col, task_type_override,
                         n_estimators = trial.suggest_int("xgb_n_estimators", 10, 100)
                         max_depth = trial.suggest_int("xgb_max_depth", 3, 8)
                         learning_rate = trial.suggest_float("xgb_learning_rate", 0.01, 0.3, log=True)
-                        clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                        clf = XGBClassifier(n_estimators=n_estimators, max_depth=max_depth, learning_rate=learning_rate, random_state=42, n_jobs=2, eval_metric="mlogloss")
                         clf.fit(tuning_X_tr, tuning_y_tr_encoded)
                         preds = clf.predict(tuning_X_val)
                         return f1_score(tuning_y_val_encoded, preds, average='weighted', zero_division=0)
@@ -572,7 +572,7 @@ def analyze_nlp(df, target_col, task_type_override,
                 else:
                     xgb_best_n, xgb_best_d, xgb_best_lr = 50, 5, 0.1
                     
-                xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=-1, eval_metric="mlogloss")
+                xgb = XGBClassifier(n_estimators=xgb_best_n, max_depth=xgb_best_d, learning_rate=xgb_best_lr, random_state=42, n_jobs=2, eval_metric="mlogloss")
                 xgb.fit(X_train, y_train_encoded)
                 xgb_preds_encoded = xgb.predict(X_test)
                 xgb_preds = le.inverse_transform(xgb_preds_encoded)

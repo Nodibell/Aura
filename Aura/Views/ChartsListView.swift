@@ -650,7 +650,7 @@ struct BarChartView: View {
                     onTapPoint?(selectedPoint)
                 } label: {
                     let desc = selectedPoint.xVal ?? (selectedPoint.xNum != nil ? String(format: "%.2f", selectedPoint.xNum!) : "")
-                    Label("Drill Down Details: \(desc)", systemImage: "arrow.down.magnifyingglass")
+                    Label("Drill Down Details: \(desc)", systemImage: "arrow.up.left.and.down.right.magnifyingglass")
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
@@ -1234,7 +1234,7 @@ struct LineChartView: View {
                 Button {
                     onTapPoint?(selectedPoint)
                 } label: {
-                    Label("Drill Down Details: \(selectedPointDescription)", systemImage: "arrow.down.magnifyingglass")
+                    Label("Drill Down Details: \(selectedPointDescription)", systemImage: "arrow.up.left.and.down.right.magnifyingglass")
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
@@ -1593,7 +1593,7 @@ struct ScatterChartView: View {
                 Button {
                     onTapPoint?(selectedPoint)
                 } label: {
-                    Label("Drill Down Details: \(getSelectedPointDescription(point: selectedPoint))", systemImage: "arrow.down.magnifyingglass")
+                    Label("Drill Down Details: \(getSelectedPointDescription(point: selectedPoint))", systemImage: "arrow.up.left.and.down.right.magnifyingglass")
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)

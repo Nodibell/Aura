@@ -18,6 +18,11 @@ struct SettingsView: View {
     @State private var serverErrorMsg: String? = nil
     @State private var isPerformingServerAction = false
     
+    // Cloud Offloading (Hybrid Mode)
+    @AppStorage("Aura_HybridMode") private var hybridMode = false
+    @AppStorage("Aura_RemoteServerURL") private var remoteServerURL = "http://127.0.0.1:11435"
+
+    
     private let statusTimer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     
     enum ServerStatus {
@@ -47,248 +52,71 @@ struct SettingsView: View {
     @State private var pullStatus = ""
     @Environment(\.dismiss) private var dismiss
 
+    // Cache Cleaner State
+    @State private var cachePath = ""
+    @State private var cacheSizeBytes: Int64 = 0
+    @State private var cacheFileCount = 0
+    @State private var isCleaningCache = false
+    @State private var cleaningCacheError: String? = nil
+    
+    private var cacheSizeFormatted: String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useAll]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: cacheSizeBytes)
+    }
+
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // TAB 1: Python Runtime Settings
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
+        HStack(spacing: 0) {
+            // Sidebar
+            VStack(alignment: .leading, spacing: 0) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Settings & Diagnostics")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Configure local Python runtime environment")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    sidebarButton(title: "Python Runtime", icon: "terminal", tag: 0)
+                    sidebarButton(title: "Local Server", icon: "network", tag: 1)
+                    sidebarButton(title: "API Credentials", icon: "key.fill", tag: 2)
+                    sidebarButton(title: "AI / LLM", icon: "sparkles", tag: 3)
+                    sidebarButton(title: "System Logs", icon: "doc.text.magnifyingglass", tag: 4)
+                    sidebarButton(title: "Appearance", icon: "paintpalette", tag: 5)
+                    sidebarButton(title: "Cache Cleaner", icon: "trash", tag: 6)
                 }
-                .padding(.bottom, 8)
-                
-                // Python executable settings
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Python 3 Executable Path")
-                        .font(.headline)
-                    
-                    HStack(spacing: 12) {
-                        TextField("Enter path to python3 binary", text: $pythonPath)
-                            .textFieldStyle(.roundedBorder)
-                            .font(.system(.body, design: .monospaced))
-                        
-                        Button("Browse...") {
-                            selectPythonBinary()
-                        }
-                        
-                        Button("Verify") {
-                            verifyPath()
-                        }
-                        .disabled(pythonPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isChecking)
-                    }
-                    
-                    Text("Ensure the path points to a python3 environment containing: pandas, numpy, scikit-learn, torch (with MPS support).")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                Divider()
-                
-                // Diagnostic Status
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Verification Result")
-                        .font(.headline)
-                    
-                    if isChecking {
-                        HStack(spacing: 8) {
-                            NativeProgressView(controlSize: .small)
-                            Text("Testing python environment...")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 8)
-                    } else {
-                        HStack(alignment: .top, spacing: 12) {
-                            Image(systemName: isValid ? "checkmark.seal.fill" : "exclamationmark.octagon.fill")
-                                .font(.title2)
-                                .foregroundColor(isValid ? .green : .orange)
-                            
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(isValid ? "Environment OK" : "Configuration Warning")
-                                    .fontWeight(.bold)
-                                    .foregroundColor(isValid ? .green : .orange)
-                                
-                                Text(validationMessage)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                        .padding(16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isValid ? Color.green.opacity(0.04) : Color.orange.opacity(0.04))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(isValid ? Color.green.opacity(0.15) : Color.orange.opacity(0.15), lineWidth: 1)
-                        )
-                    }
-                }
-                
-                Spacer()
-                
-                // Actions footer
-                HStack {
-                    Button(action: autoDetectPath) {
-                        Label("Auto-detect Python", systemImage: "sparkles")
-                    }
-                    .disabled(isChecking)
-                    
-                    Spacer()
-                    
-                    if !isValid && !isChecking {
-                        Text("Tip: Run 'pip install pandas scikit-learn' in terminal")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                    }
-                }
-            }
-            .padding(24)
-            .tabItem {
-                Label("Python Runtime", systemImage: "terminal")
-            }
-            .tag(0)
-            
-            // TAB 2: Local Server Control Panel
-            localServerTab
-                .tabItem {
-                    Label("Local Server", systemImage: "network")
-                }
-                .tag(1)
-            
-            // TAB 3: API Credentials
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("API Credentials")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Configure optional credentials for dataset downloads")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.bottom, 8)
-                
-                // Kaggle section
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Kaggle API Credentials")
-                        .font(.headline)
-                        .foregroundColor(.blue)
-                    
-                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-                        GridRow {
-                            Text("Username:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .frame(width: 80, alignment: .trailing)
-                            TextField("Kaggle Username", text: $kaggleUsername)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                        GridRow {
-                            Text("API Key:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .frame(width: 80, alignment: .trailing)
-                            SecureField("Kaggle API Key", text: $kaggleKey)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                    }
-                    
-                    Text("Required to download datasets from Kaggle. Find yours in: Kaggle Profile > Account > Create New Token.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                
-                Divider()
-                
-                // Hugging Face section
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Hugging Face Credentials")
-                        .font(.headline)
-                        .foregroundColor(.orange)
-                    
-                    Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
-                        GridRow {
-                            Text("User Token:")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .frame(width: 80, alignment: .trailing)
-                            SecureField("HF User Token (hf_...)", text: $hfToken)
-                                .textFieldStyle(.roundedBorder)
-                        }
-                    }
-                    
-                    Text("Only needed for private datasets. Generate at: Hugging Face > Settings > Access Tokens.")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .padding(.top, 16)
+                .padding(.horizontal, 8)
                 
                 Spacer()
             }
-            .padding(24)
-            .tabItem {
-                Label("API Credentials", systemImage: "key.fill")
-            }
-            .tag(2)
-
-            // TAB 4: AI / Local LLM
-            aiTab
-                .tabItem {
-                    Label("AI / LLM", systemImage: "sparkles")
-                }
-                .tag(3)
-
-            // TAB 5: System Logs
-            logsTab
-                .tabItem {
-                    Label("System Logs", systemImage: "doc.text.magnifyingglass")
-                }
-                .tag(4)
+            .frame(width: 180)
+            .background(Color.primary.opacity(0.02))
             
-            // TAB 6: Appearance
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Appearance Settings")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    Text("Configure your user interface appearance preference.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.bottom, 8)
-                
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Theme Mode").font(.headline)
-                    Picker("Theme Mode", selection: $appearanceMode) {
-                        Text("System").tag("System")
-                        Text("Light").tag("Light")
-                        Text("Dark").tag("Dark")
+            Divider()
+            
+            // Detail Content
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    switch selectedTab {
+                    case 0:
+                        pythonRuntimeTab
+                    case 1:
+                        localServerTab
+                    case 2:
+                        apiCredentialsTab
+                    case 3:
+                        aiTab
+                    case 4:
+                        logsTab
+                    case 5:
+                        appearanceTab
+                    case 6:
+                        cacheCleanerTab
+                    default:
+                        EmptyView()
                     }
-                    .pickerStyle(.segmented)
-                    .frame(width: 250)
                 }
-                .padding()
-                .background(Color(NSColor.controlBackgroundColor))
-                .cornerRadius(8)
-                
-                Spacer()
+                .padding(24)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(24)
-            .tabItem {
-                Label("Appearance", systemImage: "paintpalette")
-            }
-            .tag(5)
+            .background(Color(NSColor.windowBackgroundColor))
         }
-        .frame(width: 600, height: 520)
+        .frame(width: 820, height: 560)
         .onAppear {
             pythonPath = PythonRunner.shared.resolvePythonPath()
             verifyPath()
@@ -417,13 +245,10 @@ struct SettingsView: View {
                 
                 // Provider Picker
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("AI Provider").font(.headline)
-                    Picker("AI Provider", selection: $llmProvider) {
-                        ForEach(LLMProvider.allCases, id: \.self) { provider in
-                            Text(provider.rawValue).tag(provider)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    CustomSegmentedPicker(
+                        selection: $llmProvider,
+                        items: LLMProvider.allCases.map { ($0.rawValue, $0) }
+                    )
                 }
 
                 Divider()
@@ -859,7 +684,35 @@ struct SettingsView: View {
                     .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
             )
             
+            // Hybrid Mode / Cloud Compute Offloading Card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cloud Compute Offloading (Hybrid Mode)")
+                    .font(.headline)
+                
+                Toggle("Enable Hybrid Mode (Offload to Cloud)", isOn: $hybridMode)
+                    .toggleStyle(.checkbox)
+                
+                if hybridMode {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Remote Server Base URL")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        TextField("http://remote-gpu-server-ip:11435", text: $remoteServerURL)
+                            .textFieldStyle(.roundedBorder)
+                            .font(.system(.body, design: .monospaced))
+                    }
+                }
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.secondary.opacity(0.1), lineWidth: 1)
+            )
+
             Spacer()
+
             
             // Info Note
             Text("The local API server handles dataset previewing, profiling, DB queries, data cleaning, and model training asynchronously. If it stops, Aura will attempt to restart it automatically on the next ML request.")
@@ -941,6 +794,353 @@ struct SettingsView: View {
                     self.serverPID = nil
                     self.serverErrorMsg = error.localizedDescription
                     self.isPerformingServerAction = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Tab Views (Sidebar navigation)
+
+    private var pythonRuntimeTab: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Settings & Diagnostics")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Configure local Python runtime environment")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
+            
+            // Python executable settings
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Python 3 Executable Path")
+                    .font(.headline)
+                
+                HStack(spacing: 12) {
+                    TextField("Enter path to python3 binary", text: $pythonPath)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.body, design: .monospaced))
+                    
+                    Button("Browse...") {
+                        selectPythonBinary()
+                    }
+                    
+                    Button("Verify") {
+                        verifyPath()
+                    }
+                    .disabled(pythonPath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isChecking)
+                }
+                
+                Text("Ensure the path points to a python3 environment containing: pandas, numpy, scikit-learn, torch (with MPS support).")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            
+            Divider()
+            
+            // Diagnostic Status
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Verification Result")
+                    .font(.headline)
+                
+                if isChecking {
+                    HStack(spacing: 8) {
+                        NativeProgressView(controlSize: .small)
+                        Text("Testing python environment...")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.vertical, 8)
+                } else {
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: isValid ? "checkmark.seal.fill" : "exclamationmark.octagon.fill")
+                            .font(.title2)
+                            .foregroundColor(isValid ? .green : .orange)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(isValid ? "Environment OK" : "Configuration Warning")
+                                .fontWeight(.bold)
+                                .foregroundColor(isValid ? .green : .orange)
+                            
+                            Text(validationMessage)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(isValid ? Color.green.opacity(0.04) : Color.orange.opacity(0.04))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isValid ? Color.green.opacity(0.15) : Color.orange.opacity(0.15), lineWidth: 1)
+                    )
+                }
+            }
+            
+            Spacer()
+            
+            // Actions footer
+            HStack {
+                Button(action: autoDetectPath) {
+                    Label("Auto-detect Python", systemImage: "sparkles")
+                }
+                .disabled(isChecking)
+                
+                Spacer()
+                
+                if !isValid && !isChecking {
+                    Text("Tip: Run 'pip install pandas scikit-learn' in terminal")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+
+    private var apiCredentialsTab: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("API Credentials")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Configure optional credentials for dataset downloads")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
+            
+            // Kaggle section
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Kaggle API Credentials")
+                    .font(.headline)
+                    .foregroundColor(.blue)
+                
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                    GridRow {
+                        Text("Username:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 80, alignment: .trailing)
+                        TextField("Kaggle Username", text: $kaggleUsername)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    GridRow {
+                        Text("API Key:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 80, alignment: .trailing)
+                        SecureField("Kaggle API Key", text: $kaggleKey)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+                
+                Text("Required to download datasets from Kaggle. Find yours in: Kaggle Profile > Account > Create New Token.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Divider()
+            
+            // Hugging Face section
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Hugging Face Credentials")
+                    .font(.headline)
+                    .foregroundColor(.orange)
+                
+                Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                    GridRow {
+                        Text("User Token:")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .frame(width: 80, alignment: .trailing)
+                        SecureField("HF User Token (hf_...)", text: $hfToken)
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+                
+                Text("Only needed for private datasets. Generate at: Hugging Face > Settings > Access Tokens.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            
+            Spacer()
+        }
+    }
+
+    private var appearanceTab: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Appearance Settings")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Configure your user interface appearance preference.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
+            
+            VStack(alignment: .leading, spacing: 12) {
+                CustomSegmentedPicker(
+                    selection: $appearanceMode,
+                    items: [
+                        ("System", "System"),
+                        ("Light", "Light"),
+                        ("Dark", "Dark")
+                    ]
+                )
+                .frame(width: 250)
+            }
+            .padding()
+            .background(Color(NSColor.controlBackgroundColor))
+            .cornerRadius(8)
+            
+            Spacer()
+        }
+    }
+
+    private func sidebarButton(title: String, icon: String, tag: Int) -> some View {
+        Button(action: {
+            selectedTab = tag
+        }) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.body)
+                    .foregroundColor(selectedTab == tag ? .white : .primary.opacity(0.8))
+                    .frame(width: 20, alignment: .center)
+                Text(title)
+                    .font(.body)
+                    .foregroundColor(selectedTab == tag ? .white : .primary.opacity(0.8))
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(selectedTab == tag ? Color.accentColor : Color.clear)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var cacheCleanerTab: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Cache Cleaner")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Text("Manage and clear downloaded remote datasets cache")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.bottom, 8)
+            
+            // Cache Information Card
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Cache Information")
+                    .font(.headline)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Cache Folder:")
+                            .foregroundColor(.secondary)
+                        Text(cachePath)
+                            .font(.system(.body, design: .monospaced))
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
+                    
+                    HStack {
+                        Text("Total Size:")
+                            .foregroundColor(.secondary)
+                        Text(cacheSizeFormatted)
+                            .fontWeight(.semibold)
+                    }
+                    
+                    HStack {
+                        Text("Cached Files:")
+                            .foregroundColor(.secondary)
+                        Text("\(cacheFileCount) datasets")
+                    }
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.primary.opacity(0.02))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                )
+            }
+            
+            Divider()
+            
+            // Actions
+            HStack(spacing: 12) {
+                Button(action: performClearCache) {
+                    Label(isCleaningCache ? "Clearing..." : "Clear Cache Now", systemImage: "trash.fill")
+                }
+                .disabled(isCleaningCache || cacheFileCount == 0)
+                
+                Button(action: loadCacheInfo) {
+                    Label("Refresh", systemImage: "arrow.clockwise")
+                }
+                .disabled(isCleaningCache)
+            }
+            
+            if let err = cleaningCacheError {
+                Text(err)
+                    .foregroundColor(.red)
+                    .font(.caption)
+            }
+        }
+        .onAppear {
+            loadCacheInfo()
+        }
+    }
+
+    private func loadCacheInfo() {
+        Task {
+            do {
+                let info = try await PythonRunner.shared.getCacheInfo()
+                await MainActor.run {
+                    self.cachePath = info.path
+                    self.cacheSizeBytes = info.sizeBytes
+                    self.cacheFileCount = info.fileCount
+                }
+            } catch {
+                appLogger.error("Failed to load cache info: \(error.localizedDescription)")
+            }
+        }
+    }
+    
+    private func performClearCache() {
+        isCleaningCache = true
+        cleaningCacheError = nil
+        Task {
+            do {
+                try await PythonRunner.shared.cleanCache()
+                let info = try await PythonRunner.shared.getCacheInfo()
+                await MainActor.run {
+                    self.cachePath = info.path
+                    self.cacheSizeBytes = info.sizeBytes
+                    self.cacheFileCount = info.fileCount
+                    self.isCleaningCache = false
+                }
+            } catch {
+                await MainActor.run {
+                    self.cleaningCacheError = "Failed to clear cache: \(error.localizedDescription)"
+                    self.isCleaningCache = false
                 }
             }
         }

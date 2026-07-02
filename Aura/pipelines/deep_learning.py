@@ -178,7 +178,7 @@ def train_and_evaluate_tabular_nn(X_train, y_train, X_test, y_test, is_classific
     Falls back to CPU if any device-level exception occurs.
     """
     # Prevent XGBoost/PyTorch OpenMP deadlock on macOS.
-    # Both libraries ship their own libomp; when XGBoost runs n_jobs=-1 first
+    # Both libraries ship their own libomp; when XGBoost runs n_jobs=2 first
     # it holds the OpenMP init mutex. If PyTorch then tries to spawn its own
     # thread pool it deadlocks. Forcing single-threaded mode avoids the race.
     torch.set_num_threads(1)

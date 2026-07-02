@@ -271,8 +271,9 @@ struct PredictionTabView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(feature)
-                    .font(.body)
-                    .fontWeight(.medium)
+                    .font(.subheadline)
+                    .fontWeight(.bold)
+                    .foregroundColor(.primary)
                 Spacer()
                 if let missing = profile?.missing, missing > 0 {
                     Text("\(missing)% nulls")
@@ -294,11 +295,14 @@ struct PredictionTabView: View {
                 standardTextInputView(feature: feature)
             }
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(NSColor.controlBackgroundColor).opacity(0.5))
+        .padding(12)
+        .background(Color.primary.opacity(0.025))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
+
     }
     
     @ViewBuilder

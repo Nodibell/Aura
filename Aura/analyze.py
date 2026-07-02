@@ -248,7 +248,7 @@ def compute_mixed_correlation(df, col1, col2):
 
 def analyze(file_path, target_col=None, dataset_type="tabular",
             task_type_override="auto", time_col=None, exclude_cols=None, test_file_path=None, val_file_path=None,
-            model_export_path=None, code_export_path=None, smart_sample=False, cleaning_actions=None,
+            model_export_path=None, code_export_path=None, notebook_export_path=None, smart_sample=False, cleaning_actions=None,
             feature_selection=False, column_type_overrides=None,
             time_range_start=None, time_range_end=None):
     from utils.helpers import print_progress
@@ -276,11 +276,15 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
 
         if dataset_type == "image":
             from pipelines.image import analyze_image
-            return analyze_image(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
+            res = analyze_image(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
+            res["file_path"] = file_path
+            return res
 
         if dataset_type == "object_detection":
             from pipelines.object_detection import analyze_object_detection
-            return analyze_object_detection(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
+            res = analyze_object_detection(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
+            res["file_path"] = file_path
+            return res
 
 
         print_progress(0.15, "Loading dataset file...")
@@ -288,6 +292,15 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
 
         if df.empty:
             return {"error": "The dataset is empty."}
+
+        # ── Generate rich dataset context for AI chat (lightweight RAG) ──
+        _dataset_context = ""
+        try:
+            from utils.ai_analyst import AIAnalyst
+            _dataset_context = AIAnalyst().generate_dataset_context(df, target_col or "")
+        except Exception as _ctx_err:
+            sys.stderr.write(f"Warning: dataset context generation failed: {_ctx_err}\n")
+
 
         # Apply Time Range Filtering for Time Series datasets
         if dataset_type == "timeseries" and (time_range_start or time_range_end):
@@ -707,7 +720,10 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             res["targets"] = targets_result
             res.update(test_info)
             res.update(val_info)
+            res["dataset_context"] = _dataset_context
+            res["file_path"] = file_path
             return res
+
 
         if dataset_type == "nlp":
             from pipelines.nlp import analyze_nlp
@@ -719,7 +735,10 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             )
             res.update(test_info)
             res.update(val_info)
+            res["dataset_context"] = _dataset_context
+            res["file_path"] = file_path
             return res
+
 
 
         if task_type_override == "clustering" or (dataset_type == "tabular" and (not target_col or target_col == "")):
@@ -733,7 +752,10 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             )
             res.update(test_info)
             res.update(val_info)
+            res["dataset_context"] = _dataset_context
+            res["file_path"] = file_path
             return res
+
 
         # Delegate tabular analysis to the pipelines/tabular.py module
         from pipelines.tabular import analyze_tabular
@@ -779,8 +801,28 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
         
         if "error" not in res or res["error"] is None:
             res["correlations"] = correlations
-            
+            res["dataset_context"] = _dataset_context
+            res["file_path"] = file_path
+
+        # ── Optional: export as Jupyter Notebook ──
+        if notebook_export_path and ("error" not in res or res["error"] is None):
+            try:
+                from utils.notebook_exporter import generate_notebook
+                config_dict = {
+                    "train_file_path": file_path,
+                    "target_column": target_col or "",
+                    "dataset_type": dataset_type,
+                    "excluded_columns": list(exclude_cols) if exclude_cols else [],
+                    "cleaning_actions": json.loads(cleaning_actions) if cleaning_actions else [],
+                    "model_export_path": model_export_path,
+                }
+                generate_notebook(config_dict, res, notebook_export_path)
+                sys.stderr.write(f"Notebook exported to: {notebook_export_path}\n")
+            except Exception as nb_err:
+                sys.stderr.write(f"Warning: Notebook export failed: {nb_err}\n")
+
         return res
+
         
     except Exception as e:
         import traceback
@@ -1018,6 +1060,8 @@ if __name__ == "__main__":
     parser.add_argument("--preview", action="store_true", help="Run in preview mode")
     parser.add_argument("--model-export-path", default=None, help="Path to save the best model (.joblib)")
     parser.add_argument("--code-export-path", default=None, help="Path to save the reproduction code (.py)")
+    parser.add_argument("--notebook-export-path", default=None, help="Path to save the Jupyter Notebook (.ipynb)")
+
     parser.add_argument("--smart-sample", action="store_true", help="Enable smart sampling for large datasets")
     parser.add_argument("--cleaning-actions", default=None, help="JSON string of cleaning actions to apply")
     parser.add_argument("--feature-selection", action="store_true", help="Enable automatic feature selection (RFE)")
@@ -1102,6 +1146,7 @@ if __name__ == "__main__":
             val_file_path=args.val_file,
             model_export_path=args.model_export_path,
             code_export_path=args.code_export_path,
+            notebook_export_path=args.notebook_export_path,
             smart_sample=args.smart_sample,
             cleaning_actions=args.cleaning_actions,
             feature_selection=args.feature_selection,
@@ -1109,6 +1154,7 @@ if __name__ == "__main__":
             time_range_start=args.time_range_start,
             time_range_end=args.time_range_end
         )
+
 
     from utils.helpers import clean_nan
     analysis = clean_nan(analysis)

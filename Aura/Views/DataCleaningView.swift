@@ -6,6 +6,8 @@ struct DataCleaningView: View {
     let onRunAnalysis: () -> Void
     
     @State private var hoverColumn: String? = nil
+    @State private var activeCleaningTab = 0
+
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,9 +30,21 @@ struct DataCleaningView: View {
             .background(Color.primary.opacity(0.01))
             
             Divider()
+            CustomSegmentedPicker(
+                selection: $activeCleaningTab,
+                items: [
+                    ("Column Cleaning", 0),
+                    ("Time-Travel Lineage", 1),
+                    ("Custom Plugins", 2)
+                ]
+            )
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            
+            Divider()
 
-            // Columns List
-            ScrollView {
+            if activeCleaningTab == 0 {
+                ScrollView {
                 VStack(spacing: 12) {
                     let sortedCols = result.columns.sorted()
                     ForEach(sortedCols, id: \.self) { col in
@@ -272,6 +286,11 @@ struct DataCleaningView: View {
                 }
                 .padding()
             }
+            } else if activeCleaningTab == 1 {
+                lineageTab
+            } else {
+                pluginsTab
+            }
             
             Divider()
             
@@ -411,4 +430,338 @@ struct DataCleaningView: View {
             config.cleaningActions.insert(CleaningAction(column: col, actionType: "rename:\(trimmed)"))
         }
     }
+
+    // MARK: - Lineage Time-Travel tab view
+    
+    @State private var lineageNodes: [REPLService.LineageNode] = []
+    @State private var activeStateId: Int = 0
+    @State private var isRollingBack = false
+    @State private var lineageError: String? = nil
+    
+    private var lineageTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Dataset State Lineage")
+                            .font(.headline)
+                        Text("Track mutations and roll back to any previous state in the pipeline history.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button(action: loadLineage) {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(isRollingBack)
+                }
+                .padding(.bottom, 4)
+                
+                if lineageNodes.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary)
+                        Text("No lineage states recorded yet.")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(8)
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(Array(lineageNodes.enumerated()), id: \.element.id) { index, node in
+                            HStack(alignment: .top, spacing: 12) {
+                                VStack(spacing: 4) {
+                                    Circle()
+                                        .fill(node.id == activeStateId ? Color.purple : Color.blue)
+                                        .frame(width: 10, height: 10)
+                                    if index < lineageNodes.count - 1 {
+                                        Rectangle()
+                                            .fill(Color.primary.opacity(0.15))
+                                            .frame(width: 2, height: 40)
+                                    }
+                                }
+                                .padding(.top, 4)
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text(node.description)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(node.id == activeStateId ? .purple : .primary)
+                                            .font(.subheadline)
+                                        
+                                        if node.id == activeStateId {
+                                            Text("Active State")
+                                                .font(.system(size: 9, weight: .bold))
+                                                .foregroundColor(.purple)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.purple.opacity(0.15))
+                                                .cornerRadius(4)
+                                        }
+                                    }
+                                    
+                                    Text("Shape: \(node.shape)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                    
+                                    if node.id != activeStateId {
+                                        Button("Rollback to this state") {
+                                            rollbackToState(node.id)
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .font(.caption)
+                                        .tint(.orange)
+                                        .disabled(isRollingBack)
+                                        .padding(.top, 4)
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.vertical, 8)
+                        }
+                    }
+                    .padding()
+                    .background(Color.primary.opacity(0.03))
+                    .cornerRadius(12)
+                }
+                
+                if let err = lineageError {
+                    Text(err)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+            }
+            .padding()
+        }
+        .onAppear {
+            loadLineage()
+        }
+    }
+    
+    private func loadLineage() {
+        Task {
+            do {
+                let nodes = try await REPLService.shared.getLineage()
+                await MainActor.run {
+                    self.lineageNodes = nodes
+                    if let last = nodes.last {
+                        self.activeStateId = last.id
+                    }
+                }
+            } catch {
+                self.lineageError = "Failed to load lineage: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func rollbackToState(_ id: Int) {
+        isRollingBack = true
+        lineageError = nil
+        Task {
+            do {
+                let result = try await REPLService.shared.rollback(stateId: id)
+                let nodes = try await REPLService.shared.getLineage()
+                await MainActor.run {
+                    self.lineageNodes = nodes
+                    self.activeStateId = result.activeState
+                    self.isRollingBack = false
+                    onRunAnalysis()
+                }
+            } catch {
+                await MainActor.run {
+                    self.lineageError = "Rollback failed: \(error.localizedDescription)"
+                    self.isRollingBack = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Plugins tab view
+    
+    @State private var plugins: [REPLService.PluginInfo] = []
+    @State private var parameterValues: [String: Double] = [:]
+    @State private var pluginsError: String? = nil
+    @State private var isRunningPlugin = false
+    
+    private var pluginsTab: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Custom Transform Plugins")
+                            .font(.headline)
+                        Text("Write Python transform scripts in ~/Documents/Aura/Plugins and dynamically configure parameters.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Spacer()
+                    Button(action: loadPlugins) {
+                        Label("Scan Folder", systemImage: "arrow.clockwise")
+                    }
+                }
+                .padding(.bottom, 4)
+                
+                if plugins.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "puzzlepiece")
+                            .font(.system(size: 28))
+                            .foregroundColor(.secondary)
+                        Text("No plugins found.")
+                            .foregroundColor(.secondary)
+                            .font(.subheadline)
+                        Text("Add Python files with docstring schemas to ~/Documents/Aura/Plugins")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .background(Color.primary.opacity(0.02))
+                    .cornerRadius(8)
+                } else {
+                    VStack(spacing: 16) {
+                        ForEach(plugins) { plugin in
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack {
+                                    Image(systemName: "puzzlepiece.extension.fill")
+                                        .foregroundColor(.blue)
+                                    Text(plugin.name)
+                                        .font(.headline)
+                                    Spacer()
+                                    
+                                    Button("Apply Transform") {
+                                        applyPlugin(plugin)
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .tint(.blue)
+                                    .disabled(isRunningPlugin)
+                                }
+                                
+                                Text(plugin.description)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Divider()
+                                
+                                ForEach(plugin.parameters, id: \.name) { param in
+                                    let key = "\(plugin.id)-\(param.name)"
+                                    let binding = Binding<Double>(
+                                        get: { parameterValues[key] ?? param.default },
+                                        set: { parameterValues[key] = $0 }
+                                    )
+                                    
+                                    HStack {
+                                        Text(param.name.replacingOccurrences(of: "_", with: " ").capitalized)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+                                            .frame(width: 140, alignment: .leading)
+                                        
+                                        if param.type == "toggle" {
+                                            Toggle("", isOn: Binding<Bool>(
+                                                get: { binding.wrappedValue > 0.5 },
+                                                set: { binding.wrappedValue = $0 ? 1.0 : 0.0 }
+                                            ))
+                                            .labelsHidden()
+                                        } else {
+                                            Slider(value: binding, in: (param.min ?? 0.0)...(param.max ?? 1.0))
+                                            Text(String(format: "%.2f", binding.wrappedValue))
+                                                .font(.system(.caption, design: .monospaced))
+                                                .foregroundColor(.secondary)
+                                                .frame(width: 45, alignment: .trailing)
+                                        }
+                                    }
+                                }
+                            }
+                            .padding()
+                            .background(Color.primary.opacity(0.025))
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                            )
+                        }
+                    }
+
+
+                }
+                
+                if let err = pluginsError {
+                    Text(err)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                }
+            }
+            .padding()
+        }
+        .onAppear {
+            loadPlugins()
+        }
+    }
+    
+    private func loadPlugins() {
+        Task {
+            do {
+                let list = try await REPLService.shared.getPlugins()
+                await MainActor.run {
+                    self.plugins = list
+                    for p in list {
+                        for param in p.parameters {
+                            let key = "\(p.id)-\(param.name)"
+                            if self.parameterValues[key] == nil {
+                                self.parameterValues[key] = param.default
+                            }
+                        }
+                    }
+                }
+            } catch {
+                self.pluginsError = "Failed to load plugins: \(error.localizedDescription)"
+            }
+        }
+    }
+    
+    private func applyPlugin(_ plugin: REPLService.PluginInfo) {
+        isRunningPlugin = true
+        pluginsError = nil
+        
+        var paramsParts: [String] = []
+        for param in plugin.parameters {
+            let key = "\(plugin.id)-\(param.name)"
+            let val = parameterValues[key] ?? param.default
+            paramsParts.append("\(param.name)=\(val)")
+        }
+        
+        let execCode = """
+import os
+import importlib.util
+home = os.path.expanduser("~")
+plugins_dir = os.path.join(home, "Documents", "Aura", "Plugins")
+plugin_path = os.path.join(plugins_dir, "\(plugin.id).py")
+spec = importlib.util.spec_from_file_location("\(plugin.id)", plugin_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+df = module.transform(df, \(paramsParts.joined(separator: ", ")))
+"""
+        
+        Task {
+            do {
+                let result = try await REPLService.shared.execute(execCode)
+                await MainActor.run {
+                    self.isRunningPlugin = false
+                    if let err = result.error, !err.isEmpty {
+                        self.pluginsError = "Plugin Error: \(err)"
+                    } else {
+                        onRunAnalysis()
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.pluginsError = "Execution failed: \(error.localizedDescription)"
+                    self.isRunningPlugin = false
+                }
+            }
+        }
+    }
 }
+

@@ -17,6 +17,7 @@ class HistoryItem: Identifiable, Equatable {
     var scoreType: String?
     var rowCount: Int?
     var colCount: Int?
+    var datasetURL: String?
 
     init(
         id: UUID = UUID(),
@@ -30,7 +31,8 @@ class HistoryItem: Identifiable, Equatable {
         bestScore: Double? = nil,
         scoreType: String? = nil,
         rowCount: Int? = nil,
-        colCount: Int? = nil
+        colCount: Int? = nil,
+        datasetURL: String? = nil
     ) {
         self.id = id
         self.datasetName = datasetName
@@ -44,6 +46,7 @@ class HistoryItem: Identifiable, Equatable {
         self.scoreType = scoreType
         self.rowCount = rowCount
         self.colCount = colCount
+        self.datasetURL = datasetURL
     }
     
     static func == (lhs: HistoryItem, rhs: HistoryItem) -> Bool {

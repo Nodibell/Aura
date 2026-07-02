@@ -58,6 +58,7 @@ final class AIService: Sendable {
         case .ollama:
             return OllamaService.shared.streamChat(
                 messages: messages,
+                systemPrompt: systemPrompt,
                 model: model,
                 temperature: temperature,
                 maxTokens: maxTokens
