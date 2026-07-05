@@ -602,7 +602,6 @@ struct MarkdownMessageView: View {
                             .font(.body)
                             .foregroundColor(.purple)
                         Text(parseInlineMathAndMarkdown(rawText))
-                            .font(.body)
                             .textSelection(.enabled)
                     }
                     .padding(.leading, CGFloat(8 + nestLevel * 16))
@@ -612,13 +611,11 @@ struct MarkdownMessageView: View {
                             .font(.body)
                             .foregroundColor(.secondary)
                         Text(parseInlineMathAndMarkdown(numberMatch.text))
-                            .font(.body)
                             .textSelection(.enabled)
                     }
                     .padding(.leading, 8)
                 } else {
                     Text(parseInlineMathAndMarkdown(line))
-                        .font(.body)
                         .textSelection(.enabled)
                 }
             }
@@ -797,6 +794,7 @@ struct MarkdownMessageView: View {
                 }
             }
         }
+        result.font = .body
         return result
     }
     

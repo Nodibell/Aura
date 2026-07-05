@@ -317,7 +317,7 @@ struct CorrelationPair: Codable, Identifiable {
 }
 
 struct ImageItem: Codable, Identifiable {
-    var id: String { label + "-" + base64.prefix(10) }
+    var id: String { "\(label)-\(base64.suffix(30))" }
     let label: String
     let base64: String
 }

@@ -431,11 +431,20 @@ actor PythonRunner: PythonRunning {
                 let baseURL = try await self.ensureServerRunning()
                 
                 let isRemoteURL = csvPath.lowercased().hasPrefix("http://") || csvPath.lowercased().hasPrefix("https://")
+                
+                var isDir: ObjCBool = false
+                let fileExists = FileManager.default.fileExists(atPath: csvPath, isDirectory: &isDir)
+                let isDirectory = fileExists && isDir.boolValue
+                
+                let ext = (csvPath as NSString).pathExtension.lowercased()
+                let isTabularFile = ext == "csv" || ext == "tsv" || ext == "parquet"
+                
+                let useArrow = !isRemoteURL && !isDirectory && isTabularFile
                 let requestURL: URL
                 var requestBodyData: Data? = nil
                 var isArrowPayload = false
                 
-                if !isRemoteURL {
+                if useArrow {
                     // Local file: use Arrow IPC for 100x faster binary transfer
                     progressHandler(0.08, "Serializing dataset with Apache Arrow...")
                     let arrowFile = NSTemporaryDirectory() + UUID().uuidString + ".arrow"
@@ -461,7 +470,7 @@ actor PythonRunner: PythonRunning {
                     requestURL = URL(string: "\(baseURL)/analyze/arrow")!
                     isArrowPayload = true
                 } else {
-                    // Remote URL: fallback to normal JSON
+                    // Remote URL or Directory/Non-tabular local file: fallback to normal JSON
                     requestURL = URL(string: "\(baseURL)/analyze")!
                     requestBodyData = try? JSONSerialization.data(withJSONObject: bodyDict)
                 }
