@@ -8,7 +8,72 @@ struct PreviewTableView: View {
     @Binding var config: AnalysisConfig
     var onPreviewFileRequested: ((String) -> Void)? = nil
 
+    @State private var isShowingStartCalendar = false
+    @State private var isShowingEndCalendar = false
+
     private let colWidth: CGFloat = 148
+
+    private func parseDateString(_ str: String) -> Date? {
+        let formats = [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy/MM/dd",
+            "MM/dd/yyyy",
+            "dd-MM-yyyy"
+        ]
+        let df = DateFormatter()
+        for fmt in formats {
+            df.dateFormat = fmt
+            if let date = df.date(from: str) {
+                return date
+            }
+        }
+        return nil
+    }
+
+    private var timeRangeStartDateBinding: Binding<Date> {
+        Binding(
+            get: {
+                if let startStr = config.timeRangeStart, let date = parseDateString(startStr) {
+                    return date
+                }
+                if let timeColumn = config.timeColumn,
+                   let datetimeRange = preview.datetimeRange,
+                   let bounds = datetimeRange[timeColumn],
+                   let date = parseDateString(bounds.min) {
+                    return date
+                }
+                return Date()
+            },
+            set: { newDate in
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd"
+                config.timeRangeStart = df.string(from: newDate)
+            }
+        )
+    }
+
+    private var timeRangeEndDateBinding: Binding<Date> {
+        Binding(
+            get: {
+                if let endStr = config.timeRangeEnd, let date = parseDateString(endStr) {
+                    return date
+                }
+                if let timeColumn = config.timeColumn,
+                   let datetimeRange = preview.datetimeRange,
+                   let bounds = datetimeRange[timeColumn],
+                   let date = parseDateString(bounds.max) {
+                    return date
+                }
+                return Date()
+            },
+            set: { newDate in
+                let df = DateFormatter()
+                df.dateFormat = "yyyy-MM-dd"
+                config.timeRangeEnd = df.string(from: newDate)
+            }
+        )
+    }
 
     private func formatNumber(_ value: Int) -> String {
         let formatter = NumberFormatter()
@@ -251,27 +316,36 @@ struct PreviewTableView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 11, design: .monospaced))
                         
-                        if !uniqueDatesInDataset.isEmpty {
-                            Menu {
-                                Button("Clear") {
-                                    self.config.timeRangeStart = nil
+                        Button(action: { isShowingStartCalendar = true }) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $isShowingStartCalendar, arrowEdge: .bottom) {
+                            VStack(spacing: 8) {
+                                DatePicker(
+                                    "",
+                                    selection: timeRangeStartDateBinding,
+                                    displayedComponents: .date
+                                )
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                                .frame(width: 250, height: 250)
+                                
+                                Button("Clear Filter") {
+                                    config.timeRangeStart = nil
+                                    isShowingStartCalendar = false
                                 }
-                                Divider()
-                                ForEach(uniqueDatesInDataset, id: \.self) { dateStr in
-                                    Button(dateStr) {
-                                        self.config.timeRangeStart = dateStr
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .contentShape(Rectangle())
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.red)
+                                .buttonStyle(.plain)
+                                .padding(.bottom, 8)
                             }
-                            .menuStyle(.button)
-                            .buttonStyle(.plain)
+                            .padding(8)
                         }
                     }
                     .padding(.horizontal, 8)
@@ -294,27 +368,36 @@ struct PreviewTableView: View {
                         .textFieldStyle(.plain)
                         .font(.system(size: 11, design: .monospaced))
                         
-                        if !uniqueDatesInDataset.isEmpty {
-                            Menu {
-                                Button("Clear") {
-                                    self.config.timeRangeEnd = nil
+                        Button(action: { isShowingEndCalendar = true }) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $isShowingEndCalendar, arrowEdge: .bottom) {
+                            VStack(spacing: 8) {
+                                DatePicker(
+                                    "",
+                                    selection: timeRangeEndDateBinding,
+                                    displayedComponents: .date
+                                )
+                                .datePickerStyle(.graphical)
+                                .labelsHidden()
+                                .frame(width: 250, height: 250)
+                                
+                                Button("Clear Filter") {
+                                    config.timeRangeEnd = nil
+                                    isShowingEndCalendar = false
                                 }
-                                Divider()
-                                ForEach(uniqueDatesInDataset, id: \.self) { dateStr in
-                                    Button(dateStr) {
-                                        self.config.timeRangeEnd = dateStr
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 8, weight: .bold))
-                                    .foregroundColor(.secondary)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 2)
-                                    .contentShape(Rectangle())
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.red)
+                                .buttonStyle(.plain)
+                                .padding(.bottom, 8)
                             }
-                            .menuStyle(.button)
-                            .buttonStyle(.plain)
+                            .padding(8)
                         }
                     }
                     .padding(.horizontal, 8)
