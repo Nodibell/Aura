@@ -4,7 +4,7 @@ This roadmap outlines key enhancements, new features, and technical optimization
 
 ---
 
-## 📅 Roadmap Overview: Nineteen Implementation Phases
+## 📅 Roadmap Overview: Twenty-Two Implementation Phases
 
 ```mermaid
 gantt
@@ -77,6 +77,8 @@ gantt
     Refactor ContentView to MVVM, Service Protocols, Split Charts :p32, after p31, 15d
     section Phase 21: System Stability (Planned)
     FastAPI Zombie Process Cleanup on Startup :p33, after p32, 5d
+    section Phase 22: Complete UI/UX Audit & Refinement (Planned)
+    History Browser, Batch Predict, Main Undo, Selectable Leaderboard :p34, after p33, 15d
 ```
 
 ---
@@ -517,6 +519,35 @@ Ensure high reliability of the background local service during runtime anomalies
 * **Orphaned FastAPI Server Cleanup**:
   * Implement an automated port scan and active PID verification check in `ServerProcessManager` on application launch.
   * Terminate any orphaned FastAPI/uvicorn server instances left behind after non-graceful SwiftUI exits.
+
+### Phase 22: Complete UI/UX Audit & Refinement (Planned)
+
+Resolve the UI/UX findings raised in the recommendations audit (`temp/Aura_UIUX_Recommendations.md`) to establish native, high-quality, and premium usability characteristics.
+
+* **Full History Browser**:
+  * Implement a full-screen or sidebar-based History panel supporting `.searchable()` text query indexing across dataset names.
+  * Add dropdown filter options for task types and sort options based on date and model quality metrics.
+  * Support marking favorites ("pinning") to preserve runs for comparative diff runs.
+* **Batch Prediction (CSV to CSV)**:
+  * Extend `PredictionTabView` to support drag-and-drop CSV files for bulk inference.
+  * Update `run_predict()` in `analyze.py` (FastAPI side) to accept list payloads or file paths, executing inference and exporting results as structured CSVs.
+* **Main Toolbar Undo & Lineage Elevation**:
+  * Move the rollback time-travel feature out of sub-tabs and place a prominent "Undo last change" button (with `arrow.uturn.backward`) directly in the main toolbar or step header in `DataCleaningView`.
+* **Selectable Leaderboard Models**:
+  * Modify the Model Leaderboard list to make rows interactive, allowing users to tap a row to set it as the "Active" model for Predict and Export runs instead of forcing the automated winner.
+* **Theme-Aware Onboarding**:
+  * Refactor `OnboardingView` to dynamically bind to the user's `appearanceMode` settings rather than forcing dark mode.
+* **Charts Search & Category Filters**:
+  * Categorize the 12 chart cards into logical categories ("Model Quality", "Feature Importance", "Data Distributions") with a segment selection picker.
+  * Add a search bar to easily find plots by name or correlated feature.
+* **Sticky Anchor Navigation in Summary**:
+  * Embed a horizontal anchor bar in `SummaryView` ("Overview · Warnings · Models · Profiling · Missing") to easily jump to long scroll sections.
+* **Command Palette (`⌘K`)**:
+  * Build a native command palette for fast global navigation, dataset loading, and quick action execution (e.g., "Run Analysis", "Open Lineage").
+* **Public Plugin Gallery**:
+  * Provide pre-built bundled Python cleaning plugin templates in the UI to encourage custom cleaning plugin integration.
+* **Unified "Export Everything" Sheet**:
+  * Add a single-click option to bundle the HTML report, serialized pipelines, and chart resources into a single `.zip` package.
 
 ---
 
