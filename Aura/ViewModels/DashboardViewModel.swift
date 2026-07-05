@@ -55,6 +55,7 @@ class DashboardViewModel {
     let chatViewModel = ChatViewModel()
     
     // MARK: - Initialization
+    @MainActor
     init(
         pythonRunner: any PythonRunning = PythonRunner.shared,
         historyService: any AnalysisHistoryServiceProtocol = AnalysisHistoryService.shared,

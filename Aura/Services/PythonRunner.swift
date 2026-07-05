@@ -31,6 +31,37 @@ final class ServerProcessManager {
             activeProcess = nil
         }
     }
+    
+    func cleanOrphanedProcesses(port: Int) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
+        process.arguments = ["-t", "-i", ":\(port)"]
+        
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = Pipe()
+        
+        do {
+            try process.run()
+            process.waitUntilExit()
+            
+            let data = outputPipe.fileHandleForReading.readDataToEndOfFile()
+            if let output = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !output.isEmpty {
+                let pids = output.components(separatedBy: .newlines).compactMap { Int32($0) }
+                for pid in pids {
+                    if pid != ProcessInfo.processInfo.processIdentifier {
+                        // Terminate gracefully first, then kill -9 if still running
+                        kill(pid, SIGTERM)
+                        try? Thread.sleep(forTimeInterval: 0.05)
+                        kill(pid, SIGKILL)
+                    }
+                }
+            }
+        } catch {
+            // Ignore if lsof is not available or fails
+        }
+    }
 }
 
 actor PythonRunner: PythonRunning {
@@ -53,6 +84,9 @@ actor PythonRunner: PythonRunning {
         ) { _ in
             ServerProcessManager.shared.terminateProcess()
         }
+        
+        // Clean up any orphaned uvicorn server processes listening on port 11435
+        ServerProcessManager.shared.cleanOrphanedProcesses(port: serverPort)
     }
     
     // MARK: - Logging Helpers (Safely bounces to MainActor)

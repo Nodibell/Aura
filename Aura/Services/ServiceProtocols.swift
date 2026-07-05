@@ -63,6 +63,7 @@ protocol AIServiceProtocol: AnyObject, Sendable {
 }
 
 // MARK: - AnalysisHistoryServiceProtocol
+@MainActor
 protocol AnalysisHistoryServiceProtocol: AnyObject {
     var items: [HistoryItem] { get }
     func loadMetadata()

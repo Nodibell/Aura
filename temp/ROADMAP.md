@@ -73,10 +73,10 @@ gantt
     ResNet-18, YOLOv8 Training, U-Net & Universal Ingestion :done, p30, after p29, 20d
     section Phase 19: Advanced NLP & Time Series Deep Learning (Completed)
     Sentence-Transformers, Prophet/LSTM, Ollama Vision LLaVA :done, p31, after p30, 20d
-    section Phase 20: Polishing & Architectural Cleanup (Planned)
-    Refactor ContentView to MVVM, Service Protocols, Split Charts :p32, after p31, 15d
-    section Phase 21: System Stability (Planned)
-    FastAPI Zombie Process Cleanup on Startup :p33, after p32, 5d
+    section Phase 20: Polishing & Architectural Cleanup (Completed)
+    Refactor ContentView to MVVM, Service Protocols, Split Charts :done, p32, after p31, 15d
+    section Phase 21: System Stability (Completed)
+    FastAPI Zombie Process Cleanup on Startup :done, p33, after p32, 5d
     section Phase 22: Complete UI/UX Audit & Refinement (Planned)
     History Browser, Batch Predict, Main Undo, Selectable Leaderboard :p34, after p33, 15d
 ```
@@ -497,7 +497,7 @@ Introduce semantic textual models, modern time-series estimators, and vision-ass
   * Extended Ollama service integrations to support vision LLMs (like LLaVA) by sending base64 chart arrays to the `/api/generate` endpoint.
   * Enabled the local AI analyst to visually inspect and summarize generated SVD projection scatter plots, confusion matrices, and correlation heatmaps.
 
-### Phase 20: Polishing & Architectural Cleanup (Planned)
+### Phase 20: Polishing & Architectural Cleanup (Completed)
 
 Resolve key findings raised in the technical audit (`temp/Aura_Analysis.md`) to establish enterprise-grade structure, testability, and visual consistency.
 
@@ -512,7 +512,7 @@ Resolve key findings raised in the technical audit (`temp/Aura_Analysis.md`) to 
 * **Expanded Accessibility (a11y)**:
   * Complete screen reader and dynamic text audits to assign proper accessibility tags to SwiftUI views and interactive Swift Charts.
 
-### Phase 21: System Stability & Process Recovery (Planned)
+### Phase 21: System Stability & Process Recovery (Completed)
 
 Ensure high reliability of the background local service during runtime anomalies.
 
