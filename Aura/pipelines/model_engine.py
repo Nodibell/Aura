@@ -170,7 +170,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from lightgbm import LGBMClassifier
             publish_progress(0.78, "Training LightGBM Classifier...")
-            lgb = LGBMClassifier(random_state=42, n_jobs=2, verbose=-1)
+            lgb = LGBMClassifier(random_state=42, n_jobs=1, num_threads=1, verbose=-1)
             lgb.fit(X_train, y_train_encoded)
             lgb_preds_encoded = lgb.predict(X_test)
             lgb_preds = le.inverse_transform(lgb_preds_encoded)
@@ -332,7 +332,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from lightgbm import LGBMRegressor
             publish_progress(0.78, "Training LightGBM Regressor...")
-            lgb = LGBMRegressor(random_state=42, n_jobs=2, verbose=-1)
+            lgb = LGBMRegressor(random_state=42, n_jobs=1, num_threads=1, verbose=-1)
             lgb.fit(X_train, y_train)
             lgb_preds = lgb.predict(X_test)
             lgb_r2 = r2_score(y_test, lgb_preds)
@@ -527,3 +527,152 @@ class MLRegressorForecasting(ForecastingStrategy):
         if X_test is None:
             X_test = np.arange(steps).reshape(-1, 1)
         return self.model.predict(X_test)
+
+
+# ── Prophet & LSTM Forecasting Strategies ───────────────────────────
+
+class ProphetForecasting(ForecastingStrategy):
+    def fit(self, y_train, X_train=None):
+        try:
+            from prophet import Prophet
+            import logging
+            logging.getLogger('prophet').setLevel(logging.ERROR)
+
+            if X_train is not None:
+                try:
+                    dates = pd.to_datetime(X_train)
+                except Exception:
+                    dates = pd.date_range(start='2026-01-01', periods=len(y_train), freq='D')
+            else:
+                dates = pd.date_range(start='2026-01-01', periods=len(y_train), freq='D')
+
+            dates_clean = pd.Series(dates).reset_index(drop=True)
+            y_clean = pd.Series(y_train).reset_index(drop=True)
+            df_prophet = pd.DataFrame({
+                'ds': dates_clean,
+                'y': y_clean
+            })
+            self.model = Prophet(yearly_seasonality='auto', weekly_seasonality='auto', daily_seasonality='auto')
+            self.model.fit(df_prophet)
+            self.last_date = dates_clean.iloc[-1] if len(dates_clean) > 0 else pd.Timestamp('2026-01-01')
+        except Exception as e:
+            sys.stderr.write(f"Warning: Prophet fitting failed: {str(e)}\n")
+            self.model = None
+
+    def predict_or_forecast(self, steps, X_test=None):
+        if self.model is None:
+            return np.zeros(steps)
+        try:
+            if X_test is not None:
+                try:
+                    dates = pd.to_datetime(X_test)
+                except Exception:
+                    dates = pd.date_range(start=self.last_date + pd.Timedelta(days=1), periods=steps, freq='D')
+            else:
+                dates = pd.date_range(start=self.last_date + pd.Timedelta(days=1), periods=steps, freq='D')
+
+            dates_clean = pd.Series(dates).reset_index(drop=True)
+            df_future = pd.DataFrame({
+                'ds': dates_clean
+            })
+            forecast = self.model.predict(df_future)
+            return forecast['yhat'].to_numpy()
+        except Exception as e:
+            sys.stderr.write(f"Warning: Prophet forecasting failed: {str(e)}\n")
+            return np.zeros(steps)
+
+
+class LSTMForecasting(ForecastingStrategy):
+    def __init__(self, lookback=7, epochs=20, hidden_dim=32):
+        super().__init__()
+        self.lookback = lookback
+        self.epochs = epochs
+        self.hidden_dim = hidden_dim
+        self.scaler_mean = 0.0
+        self.scaler_std = 1.0
+        self.y_history = None
+
+    def fit(self, y_train, X_train=None):
+        self.y_history = np.asarray(y_train, dtype=np.float32)
+        if len(y_train) <= self.lookback + 2:
+            self.model = None
+            return
+
+        try:
+            import torch
+            import torch.nn as nn
+            import torch.optim as optim
+            from torch.utils.data import TensorDataset, DataLoader
+
+            # Normalize
+            self.scaler_mean = float(y_train.mean())
+            self.scaler_std = float(y_train.std()) if y_train.std() > 0 else 1.0
+            y_scaled = (y_train - self.scaler_mean) / self.scaler_std
+
+            # Generate sliding windows
+            X_seq, y_seq = [], []
+            for i in range(len(y_scaled) - self.lookback):
+                X_seq.append(y_scaled[i : i + self.lookback])
+                y_seq.append(y_scaled[i + self.lookback])
+            X_seq = np.array(X_seq, dtype=np.float32)
+            y_seq = np.array(y_seq, dtype=np.float32)
+
+            X_t = torch.tensor(X_seq, dtype=torch.float32).unsqueeze(-1)
+            y_t = torch.tensor(y_seq, dtype=torch.float32).unsqueeze(-1)
+
+            # Build model
+            class LSTMForecaster(nn.Module):
+                def __init__(self, input_dim=1, hidden_dim=32, output_dim=1):
+                    super().__init__()
+                    self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True)
+                    self.fc = nn.Linear(hidden_dim, output_dim)
+                def forward(self, x):
+                    out, _ = self.lstm(x)
+                    return self.fc(out[:, -1, :])
+
+            self.model = LSTMForecaster(input_dim=1, hidden_dim=self.hidden_dim, output_dim=1)
+            optimizer = optim.Adam(self.model.parameters(), lr=0.01)
+            criterion = nn.MSELoss()
+
+            dataset = TensorDataset(X_t, y_t)
+            loader = DataLoader(dataset, batch_size=16, shuffle=True)
+
+            self.model.train()
+            for epoch in range(self.epochs):
+                for bx, by in loader:
+                    optimizer.zero_grad()
+                    pred = self.model(bx)
+                    loss = criterion(pred, by)
+                    loss.backward()
+                    optimizer.step()
+        except Exception as e:
+            sys.stderr.write(f"Warning: LSTM model training failed: {str(e)}\n")
+            self.model = None
+
+    def predict_or_forecast(self, steps, X_test=None):
+        if self.model is None or self.y_history is None:
+            return np.zeros(steps)
+
+        try:
+            import torch
+            self.model.eval()
+
+            history = list((self.y_history[-self.lookback:] - self.scaler_mean) / self.scaler_std)
+            if len(history) < self.lookback:
+                history = [0.0] * (self.lookback - len(history)) + history
+
+            preds = []
+            with torch.no_grad():
+                for _ in range(steps):
+                    x_input = np.array(history[-self.lookback:], dtype=np.float32)
+                    x_tensor = torch.tensor(x_input, dtype=torch.float32).view(1, self.lookback, 1)
+                    pred_val = self.model(x_tensor).item()
+                    preds.append(pred_val)
+                    history.append(pred_val)
+
+            preds_denorm = np.array(preds) * self.scaler_std + self.scaler_mean
+            return preds_denorm
+        except Exception as e:
+            sys.stderr.write(f"Warning: LSTM forecasting failed: {str(e)}\n")
+            return np.zeros(steps)
+

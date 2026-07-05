@@ -8,6 +8,26 @@ from sklearn.dummy import DummyClassifier, DummyRegressor
 from utils.helpers import print_progress, _export_model_and_code
 from utils.profiler import profile_dataset
 
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class SentenceTransformerTransformer(BaseEstimator, TransformerMixin):
+    def __init__(self, model_name='all-MiniLM-L6-v2'):
+        self.model_name = model_name
+        
+    def fit(self, X, y=None):
+        return self
+        
+    def transform(self, X):
+        import os
+        os.environ.setdefault("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+        from sentence_transformers import SentenceTransformer
+        st_model = SentenceTransformer(self.model_name)
+        if hasattr(X, 'tolist'):
+            texts = X.tolist()
+        else:
+            texts = [str(x) for x in X]
+        return st_model.encode(texts, show_progress_bar=False)
+
 def analyze_nlp(df, target_col, task_type_override,
                 row_count, col_count, columns, full_preview, missing,
                 numeric_cols, categorical_cols,
@@ -103,6 +123,22 @@ def analyze_nlp(df, target_col, task_type_override,
         print_progress(0.45, "Running TF-IDF vectorization (max_features=200)...")
         from pipelines.cv_nlp_engine import extract_text_features, calculate_lexicon_sentiment_and_diversity
         X_processed, feature_names, vocab_size, vectorizer = extract_text_features(text_series, max_features=200)
+
+        # ── Dense Sentence-Transformers features (Phase 19) ─────────────────
+        X_model_features = X_processed
+        use_sentence_transformers = False
+        try:
+            print_progress(0.48, "Extracting dense semantic text embeddings (Sentence-Transformers)...")
+            import os
+            os.environ.setdefault("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
+            from sentence_transformers import SentenceTransformer
+            st_model = SentenceTransformer('all-MiniLM-L6-v2')
+            st_embeddings = st_model.encode(text_series.tolist(), show_progress_bar=False)
+            X_model_features = np.asarray(st_embeddings, dtype=np.float32)
+            use_sentence_transformers = True
+            sys.stderr.write("Successfully generated Sentence-Transformers dense embeddings.\n")
+        except Exception as st_err:
+            sys.stderr.write(f"Warning: SentenceTransformer failed ({str(st_err)}). Using TF-IDF features for training.\n")
         
         print_progress(0.52, "Calculating word importances...")
         tfidf_sums = X_processed.sum(axis=0)
@@ -387,13 +423,13 @@ def analyze_nlp(df, target_col, task_type_override,
             test_mask = (df["__is_test"] == 1).to_numpy()
             val_mask = (df["__is_test"] == 2).to_numpy()
             
-            X_train_full, y_train_full = X_processed[train_mask], y[train_mask]
+            X_train_full, y_train_full = X_model_features[train_mask], y[train_mask]
             
             if np.any(val_mask):
-                X_val, y_val = X_processed[val_mask], y[val_mask]
+                X_val, y_val = X_model_features[val_mask], y[val_mask]
                 
             if np.any(test_mask):
-                X_train, X_test = X_train_full, X_processed[test_mask]
+                X_train, X_test = X_train_full, X_model_features[test_mask]
                 y_train, y_test = y_train_full, y[test_mask]
             else:
                 use_stratify = y_train_full if is_classification and not is_multi_label else None
@@ -414,8 +450,20 @@ def analyze_nlp(df, target_col, task_type_override,
                     
             from sklearn.model_selection import train_test_split
             X_train, X_test, y_train, y_test = train_test_split(
-                X_processed, y, test_size=0.2, random_state=42, stratify=use_stratify
+                X_model_features, y, test_size=0.2, random_state=42, stratify=use_stratify
             )
+
+        # Naive Bayes cannot handle negative values (produced by Sentence-Transformers dense embeddings)
+        X_train_nb = X_train
+        X_test_nb = X_test
+        X_val_nb = X_val
+        if use_sentence_transformers:
+            from sklearn.preprocessing import MinMaxScaler
+            nb_scaler = MinMaxScaler()
+            X_train_nb = nb_scaler.fit_transform(X_train)
+            X_test_nb = nb_scaler.transform(X_test)
+            if X_val is not None:
+                X_val_nb = nb_scaler.transform(X_val)
             
         # Cap dataset size for model training to avoid slow execution/OOM
         if len(X_train) > 10000:
@@ -453,16 +501,16 @@ def analyze_nlp(df, target_col, task_type_override,
                 y_test_encoded = y_test
                 
                 nb = OneVsRestClassifier(MultinomialNB())
-                nb.fit(X_train, y_train)
-                nb_preds = nb.predict(X_test)
+                nb.fit(X_train_nb, y_train)
+                nb_preds = nb.predict(X_test_nb)
                 nb_acc = float(accuracy_score(y_test, nb_preds))
                 nb_f1 = float(f1_score(y_test, nb_preds, average='weighted', zero_division=0))
                 nb_prec = float(precision_score(y_test, nb_preds, average='weighted', zero_division=0))
                 nb_rec = float(recall_score(y_test, nb_preds, average='weighted', zero_division=0))
                 
                 cnb = OneVsRestClassifier(ComplementNB())
-                cnb.fit(X_train, y_train)
-                cnb_preds = cnb.predict(X_test)
+                cnb.fit(X_train_nb, y_train)
+                cnb_preds = cnb.predict(X_test_nb)
                 cnb_acc = float(accuracy_score(y_test, cnb_preds))
                 cnb_f1 = float(f1_score(y_test, cnb_preds, average='weighted', zero_division=0))
                 cnb_prec = float(precision_score(y_test, cnb_preds, average='weighted', zero_division=0))
@@ -507,16 +555,16 @@ def analyze_nlp(df, target_col, task_type_override,
                 y_test_encoded = le.transform(y_test)
                 
                 nb = MultinomialNB()
-                nb.fit(X_train, y_train)
-                nb_preds = nb.predict(X_test)
+                nb.fit(X_train_nb, y_train)
+                nb_preds = nb.predict(X_test_nb)
                 nb_acc = float(accuracy_score(y_test, nb_preds))
                 nb_f1 = float(f1_score(y_test, nb_preds, average='weighted', zero_division=0))
                 nb_prec = float(precision_score(y_test, nb_preds, average='weighted', zero_division=0))
                 nb_rec = float(recall_score(y_test, nb_preds, average='weighted', zero_division=0))
                 
                 cnb = ComplementNB()
-                cnb.fit(X_train, y_train)
-                cnb_preds = cnb.predict(X_test)
+                cnb.fit(X_train_nb, y_train)
+                cnb_preds = cnb.predict(X_test_nb)
                 cnb_acc = float(accuracy_score(y_test, cnb_preds))
                 cnb_f1 = float(f1_score(y_test, cnb_preds, average='weighted', zero_division=0))
                 cnb_prec = float(precision_score(y_test, cnb_preds, average='weighted', zero_division=0))
@@ -756,7 +804,8 @@ def analyze_nlp(df, target_col, task_type_override,
         if X_val is not None and len(X_val) > 0:
             try:
                 if is_classification:
-                    val_preds = best_clf.predict(X_val)
+                    val_x = X_val_nb if best_model in ["Multinomial Naive Bayes", "Complement Naive Bayes"] else X_val
+                    val_preds = best_clf.predict(val_x)
                     val_acc = accuracy_score(y_val, val_preds)
                     val_f1 = f1_score(y_val, val_preds, average='weighted', zero_division=0)
                     val_metrics = {
@@ -791,24 +840,21 @@ def analyze_nlp(df, target_col, task_type_override,
         # 8. Most Informative Features (Model Coefficients) Diverging Bar Chart (Post-Training)
         if is_classification:
             try:
-                # We extract coefficients if best_model is Logistic Regression or Linear SVC
                 if best_model in ["Logistic Regression", "Linear SVC"]:
                     coefs = best_clf.coef_
-                    # Take first class for multiclass, or the single vector for binary
                     if len(coefs.shape) > 1 and coefs.shape[0] > 0:
                         flat_coefs = coefs[0]
                     else:
                         flat_coefs = coefs
                     
-                    # Sort indices by absolute weight
                     sorted_indices = np.argsort(np.abs(flat_coefs))
-                    # Take top 15 highest weight features
                     top_indices = sorted_indices[-15:] if len(sorted_indices) >= 15 else sorted_indices
                     
                     coef_chart_data = []
                     for idx in top_indices:
+                        feat_lbl = f"Embedding Dim {idx}" if use_sentence_transformers else str(feature_names[idx])
                         coef_chart_data.append({
-                            "x_val": str(feature_names[idx]),
+                            "x_val": feat_lbl,
                             "x_num": None,
                             "y": float(flat_coefs[idx])
                         })
@@ -867,14 +913,22 @@ def analyze_nlp(df, target_col, task_type_override,
         # Phase 1: Model & Code Export
         if model_export_path or code_export_path:
             raw_clf = best_clf if is_classification else best_reg
-            # Build a full inference pipeline: TF-IDF vectorizer → classifier.
-            # This ensures run_predict can accept raw text without a separate
-            # vectorization step and the full chain is serialized together.
             from sklearn.pipeline import Pipeline as SKPipeline
-            model_to_save = SKPipeline([
-                ('tfidf', vectorizer),
-                ('clf', raw_clf)
-            ])
+            
+            if use_sentence_transformers:
+                steps = [
+                    ('embedder', SentenceTransformerTransformer('all-MiniLM-L6-v2'))
+                ]
+                if best_model in ["Multinomial Naive Bayes", "Complement Naive Bayes"]:
+                    from sklearn.preprocessing import MinMaxScaler
+                    steps.append(('scaler', MinMaxScaler()))
+                steps.append(('clf', raw_clf))
+                model_to_save = SKPipeline(steps)
+            else:
+                model_to_save = SKPipeline([
+                    ('tfidf', vectorizer),
+                    ('clf', raw_clf)
+                ])
             export_le = None
             if is_classification:
                 if is_multi_label:

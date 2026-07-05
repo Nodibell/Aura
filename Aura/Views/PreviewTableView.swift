@@ -349,6 +349,12 @@ struct PreviewTableView: View {
 
     private var dateRangeRangeHint: String? {
         guard let timeColumn = config.timeColumn else { return nil }
+        
+        // Use full dataset range if available from Python
+        if let datetimeRange = preview.datetimeRange, let bounds = datetimeRange[timeColumn] {
+            return "Dataset range: \(bounds.min) to \(bounds.max)"
+        }
+        
         guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return nil }
         
         let formatters = [
@@ -393,6 +399,14 @@ struct PreviewTableView: View {
 
     private func applyEstimatedDateRange() {
         guard let timeColumn = config.timeColumn else { return }
+        
+        // Use full dataset range if available from Python
+        if let datetimeRange = preview.datetimeRange, let bounds = datetimeRange[timeColumn] {
+            config.timeRangeStart = bounds.min
+            config.timeRangeEnd = bounds.max
+            return
+        }
+        
         guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return }
         
         let formatters = [
@@ -437,14 +451,22 @@ struct PreviewTableView: View {
     
     private var uniqueDatesInDataset: [String] {
         guard let timeColumn = config.timeColumn else { return [] }
-        guard let colIndex = preview.columns.firstIndex(of: timeColumn) else { return [] }
         
         var valuesSet = Set<String>()
-        for row in preview.previewRows {
-            guard colIndex < row.count else { continue }
-            let valStr = row[colIndex].displayString.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !valStr.isEmpty && valStr != "—" {
-                valuesSet.insert(valStr)
+        
+        // Inject min and max of entire dataset
+        if let datetimeRange = preview.datetimeRange, let bounds = datetimeRange[timeColumn] {
+            valuesSet.insert(bounds.min)
+            valuesSet.insert(bounds.max)
+        }
+        
+        if let colIndex = preview.columns.firstIndex(of: timeColumn) {
+            for row in preview.previewRows {
+                guard colIndex < row.count else { continue }
+                let valStr = row[colIndex].displayString.trimmingCharacters(in: .whitespacesAndNewlines)
+                if !valStr.isEmpty && valStr != "—" {
+                    valuesSet.insert(valStr)
+                }
             }
         }
         

@@ -93,6 +93,78 @@ struct AnalysisResult: Codable {
         case datasetContext = "dataset_context"
         case filePath = "file_path"
     }
+
+    init(
+        summary: String = "",
+        columns: [String] = [],
+        rowCount: Int = 0,
+        colCount: Int = 0,
+        taskType: String = "",
+        numericColCount: Int = 0,
+        categoricalColCount: Int = 0,
+        textColCount: Int = 0,
+        missingValues: [String: Int] = [:],
+        correlations: [CorrelationPair] = [],
+        charts: [ChartConfig] = [],
+        metrics: ModelMetrics = ModelMetrics(model: "Dummy", scoreType: "Accuracy", score: 0.0, additionalMetrics: nil),
+        modelsCompared: [ModelComparison] = [],
+        targetColumn: String = "",
+        error: String? = nil,
+        fullPreview: FullTablePreview? = nil,
+        testFullPreview: FullTablePreview? = nil,
+        valFullPreview: FullTablePreview? = nil,
+        originalRowCount: Int? = nil,
+        sampledRowCount: Int? = nil,
+        dummyBaselineScore: Double? = nil,
+        cvScores: [Double]? = nil,
+        cvMean: Double? = nil,
+        cvStd: Double? = nil,
+        confusionMatrix: ConfusionMatrixData? = nil,
+        profiling: DataProfiling? = nil,
+        dataLeakageWarnings: [String]? = nil,
+        cleaningRecommendations: [CleaningRecommendation]? = nil,
+        valMetrics: ModelMetrics? = nil,
+        valConfusionMatrix: ConfusionMatrixData? = nil,
+        targets: [String: TargetResult]? = nil,
+        warning: String? = nil,
+        datasetContext: String? = nil,
+        filePath: String? = nil
+    ) {
+        self.summary = summary
+        self.columns = columns
+        self.rowCount = rowCount
+        self.colCount = colCount
+        self.taskType = taskType
+        self.numericColCount = numericColCount
+        self.categoricalColCount = categoricalColCount
+        self.textColCount = textColCount
+        self.missingValues = missingValues
+        self.correlations = correlations
+        self.charts = charts
+        self.metrics = metrics
+        self.modelsCompared = modelsCompared
+        self.targetColumn = targetColumn
+        self.error = error
+        self.fullPreview = fullPreview
+        self.testFullPreview = testFullPreview
+        self.valFullPreview = valFullPreview
+        self.originalRowCount = originalRowCount
+        self.sampledRowCount = sampledRowCount
+        self.dummyBaselineScore = dummyBaselineScore
+        self.cvScores = cvScores
+        self.cvMean = cvMean
+        self.cvStd = cvStd
+        self.confusionMatrix = confusionMatrix
+        self.profiling = profiling
+        self.dataLeakageWarnings = dataLeakageWarnings
+        self.cleaningRecommendations = cleaningRecommendations
+        self.valMetrics = valMetrics
+        self.valConfusionMatrix = valConfusionMatrix
+        self.targets = targets
+        self.warning = warning
+        self.datasetContext = datasetContext
+        self.filePath = filePath
+    }
 }
 
 struct TargetResult: Codable {
@@ -344,6 +416,11 @@ struct ModelComparison: Codable, Identifiable {
 }
 
 
+struct DatetimeBounds: Codable, Sendable, Equatable {
+    let min: String
+    let max: String
+}
+
 struct DatasetPreview: Codable, Sendable {
     let columns: [String]
     let previewRows: [[PreviewValue]]
@@ -354,6 +431,7 @@ struct DatasetPreview: Codable, Sendable {
     let availableFiles: [String]?
     let totalRows: Int?
     let columnTypes: [String: String]?
+    let datetimeRange: [String: DatetimeBounds]?
 
     init(
         columns: [String],
@@ -363,7 +441,8 @@ struct DatasetPreview: Codable, Sendable {
         inferredDatasetType: String? = nil,
         availableFiles: [String]? = nil,
         totalRows: Int? = nil,
-        columnTypes: [String: String]? = nil
+        columnTypes: [String: String]? = nil,
+        datetimeRange: [String: DatetimeBounds]? = nil
     ) {
         self.columns = columns
         self.previewRows = previewRows
@@ -373,6 +452,7 @@ struct DatasetPreview: Codable, Sendable {
         self.availableFiles = availableFiles
         self.totalRows = totalRows
         self.columnTypes = columnTypes
+        self.datetimeRange = datetimeRange
     }
 
     enum CodingKeys: String, CodingKey {
@@ -384,6 +464,7 @@ struct DatasetPreview: Codable, Sendable {
         case availableFiles = "available_files"
         case totalRows = "total_rows"
         case columnTypes = "column_types"
+        case datetimeRange = "datetime_range"
     }
 }
 

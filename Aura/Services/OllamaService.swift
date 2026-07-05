@@ -24,6 +24,13 @@ struct OllamaChatRequest: Encodable, Sendable {
 struct OllamaChatMessage: Encodable, Sendable {
     let role: String
     let content: String
+    let images: [String]?
+    
+    init(role: String, content: String, images: [String]? = nil) {
+        self.role = role
+        self.content = content
+        self.images = images
+    }
 }
 
 struct OllamaOptions: Encodable, Sendable {
@@ -42,7 +49,7 @@ struct OllamaMessageChunk: Decodable, Sendable {
 
 // MARK: - Ollama Service
 
-final class OllamaService: Sendable {
+final class OllamaService: OllamaServiceProtocol, Sendable {
     static let shared = OllamaService()
     
     private var baseURL: String {

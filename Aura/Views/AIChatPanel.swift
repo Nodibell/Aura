@@ -718,21 +718,39 @@ struct MarkdownMessageView: View {
     
     @ViewBuilder
     private func renderFormulaBlock(_ formula: String) -> some View {
-        VStack(alignment: .center, spacing: 6) {
-            Text(parseMathString(formula))
-                .font(.system(size: 14, weight: .medium, design: .serif))
-                .foregroundColor(.purple)
+        let processed = translateMathSymbols(formatFractions(formula))
+        let lines = processed.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        VStack(alignment: .center, spacing: 0) {
+            ForEach(0..<lines.count, id: \.self) { idx in
+                let ln = lines[idx]
+                let isBar = ln.hasPrefix("─") || ln.hasPrefix("-")
+                Group {
+                    if isBar {
+                        Text(String(repeating: "─", count: max(ln.count, 8)))
+                            .font(.system(size: 12, weight: .medium, design: .default))
+                            .foregroundColor(.purple.opacity(0.6))
+                    } else {
+                        Text(parseMathString(ln))
+                            .font(.system(size: 14, weight: .medium, design: .serif))
+                            .foregroundColor(.purple)
+                    }
+                }
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 12)
-                .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, alignment: .center)
-                .background(Color.primary.opacity(0.02))
-                .cornerRadius(8)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(Color.purple.opacity(0.15), lineWidth: 1)
-                )
+                .padding(.vertical, isBar ? 1 : 4)
+            }
         }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 24)
+        .frame(maxWidth: .infinity, alignment: .center)
+        .background(Color.primary.opacity(0.02))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.purple.opacity(0.15), lineWidth: 1)
+        )
         .padding(.vertical, 4)
     }
     
@@ -815,20 +833,53 @@ struct MarkdownMessageView: View {
     
     private func formatFractions(_ text: String) -> String {
         var result = text
-        let pattern = "\\\\frac\\{([^}]+)\\}\\{([^}]+)\\}"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: []) {
-            let nsString = result as NSString
-            let matches = regex.matches(in: result, options: [], range: NSRange(location: 0, length: nsString.length))
-            for match in matches.reversed() {
-                let numRange = match.range(at: 1)
-                let denRange = match.range(at: 2)
-                let num = nsString.substring(with: numRange)
-                let den = nsString.substring(with: denRange)
-                let replacement = "(\(num)) / (\(den))"
-                result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
+        // Match \frac{numerator}{denominator} where contents can include spaces and words.
+        // Uses a greedy approach: find \frac then scan balanced braces manually.
+        var output = ""
+        var idx = result.startIndex
+        while idx < result.endIndex {
+            if result[idx...].hasPrefix("\\frac{") {
+                // Advance past \frac{
+                result.formIndex(&idx, offsetBy: 6) // skip \frac{
+                // Collect numerator (balanced braces, depth 1 already entered)
+                var depth = 1
+                var numerator = ""
+                while idx < result.endIndex && depth > 0 {
+                    let c = result[idx]
+                    if c == "{" { depth += 1; numerator.append(c) }
+                    else if c == "}" { depth -= 1; if depth > 0 { numerator.append(c) } }
+                    else { numerator.append(c) }
+                    result.formIndex(after: &idx)
+                }
+                // Expect {
+                guard idx < result.endIndex && result[idx] == "{" else {
+                    output += "\\frac{" + numerator + "}"
+                    continue
+                }
+                result.formIndex(after: &idx) // skip {
+                // Collect denominator
+                depth = 1
+                var denominator = ""
+                while idx < result.endIndex && depth > 0 {
+                    let c = result[idx]
+                    if c == "{" { depth += 1; denominator.append(c) }
+                    else if c == "}" { depth -= 1; if depth > 0 { denominator.append(c) } }
+                    else { denominator.append(c) }
+                    result.formIndex(after: &idx)
+                }
+                // Build a compact stacked representation:
+                // "(numerator) / (denominator)" — displayed in serif math font
+                let numStr = numerator.trimmingCharacters(in: .whitespaces)
+                let denStr = denominator.trimmingCharacters(in: .whitespaces)
+                let lineWidth = max(numStr.count, denStr.count)
+                let bar = String(repeating: "─", count: max(lineWidth + 2, 5))
+                output += "\n" + numStr + "\n" + bar + "\n" + denStr + "\n"
+            } else {
+                output.append(result[idx])
+                result.formIndex(after: &idx)
             }
         }
-        return result
+        return output
     }
     
     private func parseMathString(_ rawText: String) -> AttributedString {
@@ -966,6 +1017,14 @@ struct MarkdownMessageView: View {
         return blocks
     }
     
+    /// Returns true if a line looks like a standalone LaTeX formula
+    /// (contains a math command but no surrounding prose).
+    private func isFormulaLine(_ trimmed: String) -> Bool {
+        let mathCommands = ["\\frac", "\\sum", "\\int", "\\prod", "\\lim", "\\sqrt",
+                            "\\partial", "\\nabla", "\\infty", "\\begin{"]
+        return mathCommands.contains(where: { trimmed.contains($0) })
+    }
+
     private func parseTablesAndText(_ text: String) -> [Block] {
         let lines = text.components(separatedBy: .newlines)
         var resultBlocks: [Block] = []
@@ -975,6 +1034,17 @@ struct MarkdownMessageView: View {
         while i < lines.count {
             let line = lines[i]
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            // Auto-detect bare formula lines (no $$ wrapper needed)
+            if isFormulaLine(trimmed) {
+                if !currentTextLines.isEmpty {
+                    resultBlocks.append(Block(type: .text(currentTextLines.joined(separator: "\n"))))
+                    currentTextLines.removeAll()
+                }
+                resultBlocks.append(Block(type: .formula(trimmed)))
+                i += 1
+                continue
+            }
             
             let hasPipe = trimmed.contains("|")
             if hasPipe && i + 1 < lines.count {

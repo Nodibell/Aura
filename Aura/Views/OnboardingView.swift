@@ -295,10 +295,8 @@ struct OnboardingView: View {
                         .foregroundColor(.white)
                         .padding(.horizontal, 20)
                         .padding(.vertical, 8)
-                        .background(
-                            LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing)
-                        )
-                        .cornerRadius(8)
+                        .background(Theme.Color.brandGradient)
+                        .cornerRadius(Theme.Layout.cornerRadius)
                 }
                 .buttonStyle(.plain)
                 .shadow(color: .purple.opacity(0.25), radius: 6, x: 0, y: 3)

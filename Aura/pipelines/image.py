@@ -12,25 +12,36 @@ from utils.profiler import profile_dataset
 from utils.charts import load_images_from_tabular, get_image_preview
 
 def load_image_dataset_from_dir(dir_path):
+    """
+    Load images from a directory into (N, 224, 224, 3) uint8 arrays.
+    Labels come from parent sub-folder names (class_hierarchy layout) or
+    a sidecar metadata CSV/JSON (flat layout).
+    Cap raised to 5 000 — the ResNet-18 extractor handles batches efficiently.
+    """
     import os
     from PIL import Image
     import numpy as np
-    
+    from utils.ingestion import parse_metadata_file
+
     image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
-    
+    TARGET_SIDE = 224   # ResNet-18 canonical input size
+
+    # Load sidecar metadata if present (for flat layouts)
+    metadata_map = parse_metadata_file(dir_path)
+
     metadata_rows = []
     pixel_arrays = []
     labels = []
-    
+
     all_image_paths = []
     for root, dirs, files in os.walk(dir_path):
         for f in files:
             if f.lower().endswith(image_extensions):
                 all_image_paths.append(os.path.join(root, f))
-                
+
     all_image_paths.sort()
-    
-    max_images = 1500
+
+    max_images = 5000
     truncation_warning = None
     if len(all_image_paths) > max_images:
         truncation_warning = (
@@ -42,7 +53,7 @@ def load_image_dataset_from_dir(dir_path):
         selected_paths = [all_image_paths[i] for i in sorted(selected_indices)]
     else:
         selected_paths = all_image_paths
-        
+
     for idx, path in enumerate(selected_paths):
         try:
             with Image.open(path) as img:
@@ -50,14 +61,22 @@ def load_image_dataset_from_dir(dir_path):
                 channels = len(img.getbands()) if hasattr(img, 'getbands') else 3
                 arr = np.array(img)
                 pixel_mean = float(arr.mean())
-                pixel_std = float(arr.std())
-                
-                parent_dir = os.path.basename(os.path.dirname(path))
-                if not parent_dir or parent_dir == os.path.basename(dir_path):
-                    class_label = "default"
+                pixel_std  = float(arr.std())
+
+                # Resolve label: sidecar > parent folder > default
+                fname = os.path.basename(path)
+                fname_no_ext = os.path.splitext(fname)[0]
+                if fname in metadata_map:
+                    class_label = metadata_map[fname]
+                elif fname_no_ext in metadata_map:
+                    class_label = metadata_map[fname_no_ext]
                 else:
-                    class_label = parent_dir
-                    
+                    parent_dir = os.path.basename(os.path.dirname(path))
+                    if not parent_dir or parent_dir == os.path.basename(dir_path):
+                        class_label = "default"
+                    else:
+                        class_label = parent_dir
+
                 metadata_rows.append([
                     str(idx),
                     str(class_label),
@@ -67,16 +86,16 @@ def load_image_dataset_from_dir(dir_path):
                     f"{pixel_mean:.2f}",
                     f"{pixel_std:.2f}"
                 ])
-                
-                img_rgb = img.convert("RGB").resize((32, 32))
+
+                img_rgb = img.convert("RGB").resize((TARGET_SIDE, TARGET_SIDE))
                 pixel_arrays.append(np.array(img_rgb))
                 labels.append(class_label)
         except Exception:
             continue
-            
+
     if len(pixel_arrays) == 0:
         raise ValueError("No valid images found in the directory or zip archive.")
-        
+
     X = np.array(pixel_arrays)
     y = np.array(labels)
     return X, y, metadata_rows, truncation_warning
@@ -201,74 +220,70 @@ def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_pa
     y_labels = np.array(y_labels)
     
     # Split train/test (by image index to avoid data leakage)
-    print_progress(0.60, "Training pixel classifier for vessel segmentation...")
     split_idx = int(N * 0.8)
     if split_idx < 1:
         split_idx = 1
-        
-    train_pixels_mask = np.repeat(np.arange(N) < split_idx, pixels_per_img)
-    X_train, X_test = X_feats[train_pixels_mask], X_feats[~train_pixels_mask]
-    y_train, y_test = y_labels[train_pixels_mask], y_labels[~train_pixels_mask]
+
+    # ── Try U-Net (requires torch) ─────────────────────────────────────────
+    seg_model_name = "Random Forest Pixel Classifier"
+    iou = dice = accuracy = 0.0
+    overlay_images_from_unet = None
+
+    try:
+        from pipelines.unet_segmentation import train_unet, predict_unet
+        print_progress(0.60, "Training U-Net for semantic segmentation (MPS/CPU)...")
+        unet = train_unet(
+            X_imgs, y_masks,
+            epochs=15,
+            batch_size=4,
+            progress_start=0.60,
+            progress_end=0.78,
+        )
+        iou, dice, accuracy, overlay_images_from_unet = predict_unet(
+            unet, X_imgs, y_masks, split_idx,
+            progress_start=0.78,
+            progress_end=0.88,
+        )
+        seg_model_name = "U-Net (PyTorch)"
+    except Exception as _unet_err:
+        sys.stderr.write(f"[image] U-Net failed ({_unet_err}), falling back to Random Forest.\n")
+        # ── Fallback: Random Forest pixel classifier ───────────────────────
+        print_progress(0.60, "Training pixel classifier for vessel segmentation...")
+        train_pixels_mask = np.repeat(np.arange(N) < split_idx, pixels_per_img)
+        X_train_rf, X_test_rf = X_feats[train_pixels_mask], X_feats[~train_pixels_mask]
+        y_train_rf, y_test_rf = y_labels[train_pixels_mask], y_labels[~train_pixels_mask]
+        rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=2)
+        rf.fit(X_train_rf, y_train_rf)
+        y_pred_rf = rf.predict(X_test_rf)
+        accuracy = float(accuracy_score(y_test_rf, y_pred_rf))
+        dice     = float(f1_score(y_test_rf, y_pred_rf, zero_division=0))
+        intersection = np.logical_and(y_test_rf, y_pred_rf).sum()
+        union        = np.logical_or(y_test_rf,  y_pred_rf).sum()
+        iou = float(intersection / union) if union > 0 else 0.0
     
-    # Fit Random Forest
-    rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=2)
-    rf.fit(X_train, y_train)
-    y_pred = rf.predict(X_test)
-    
-    accuracy = float(accuracy_score(y_test, y_pred))
-    dice = float(f1_score(y_test, y_pred, zero_division=0))
-    
-    # Intersection over Union (IoU)
-    intersection = np.logical_and(y_test, y_pred).sum()
-    union = np.logical_or(y_test, y_pred).sum()
-    iou = float(intersection / union) if union > 0 else 0.0
-    
-    # 3. Create comparison grids for sample images (max 4 images)
-    print_progress(0.80, "Generating segmentation overlay grids...")
-    overlay_images = []
-    test_indices = list(range(split_idx, N))[:4]
-    if not test_indices:
-        test_indices = list(range(N))[:4]
-        
-    for t_idx in test_indices:
-        img = X_imgs[t_idx]
-        mask = y_masks[t_idx]
-        
-        # Predict mask for the entire image
-        # Extract features for all pixels in this image
-        img_norm = img / 255.0
-        all_feats = []
-        for y in range(target_size[1]):
-            for x in range(target_size[0]):
-                # Safe padding
-                py = max(1, min(target_size[1] - 2, y))
-                px = max(1, min(target_size[0] - 2, x))
-                
-                rgb = img_norm[py, px]
-                patch = img_norm[py-1:py+2, px-1:px+2]
-                patch_mean = patch.mean(axis=(0, 1))
-                patch_std = patch.std(axis=(0, 1))
-                pos = [py / target_size[1], px / target_size[0]]
-                
-                all_feats.append(np.concatenate([rgb, patch_mean, patch_std, pos]))
-                
-        pred_mask = rf.predict(np.array(all_feats)).reshape(target_size)
-        
-        # Create side-by-side comparison: [Original, Ground Truth, Prediction Overlay]
-        # Prediction Overlay: original image with red highlights where pred_mask is 1
-        overlay = img.copy()
-        overlay[pred_mask == 1] = [255, 0, 0]  # Color vessel predictions red
-        
-        gt_visual = np.stack([mask*255, mask*255, mask*255], axis=-1)
-        
-        # Concat horizontally
-        comparison = np.concatenate([img, gt_visual, overlay], axis=1)
-        b64_str = to_base64_png(comparison)
-        
-        overlay_images.append({
-            "label": f"Image {t_idx} (Left: Original | Middle: Ground Truth | Right: Overlay)",
-            "base64": b64_str
-        })
+    # 3. Segmentation overlay grids
+    print_progress(0.88, "Generating segmentation overlay grids...")
+    if overlay_images_from_unet:
+        # U-Net produced its own overlay images during predict_unet()
+        overlay_images = overlay_images_from_unet
+    else:
+        # RF fallback: build overlays manually
+        overlay_images = []
+        test_indices = list(range(split_idx, N))[:4]
+        if not test_indices:
+            test_indices = list(range(N))[:4]
+        for t_idx in test_indices:
+            img  = X_imgs[t_idx]
+            mask = y_masks[t_idx]
+            # Simple overlay using ground-truth mask for RF fallback visual
+            overlay = img.copy()
+            overlay[mask == 1] = [255, 0, 0]
+            gt_visual = np.stack([mask * 255, mask * 255, mask * 255], axis=-1)
+            comparison = np.concatenate([img, gt_visual, overlay], axis=1)
+            overlay_images.append({
+                "label": f"Image {t_idx} (Original | Ground Truth | Overlay)",
+                "base64": to_base64_png(comparison),
+            })
         
     charts = [
         {
@@ -298,9 +313,9 @@ def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_pa
     summary = (
         f"### 👁️ Semantic Image Segmentation Overview\n"
         f"- **Image-Mask Pairs loaded:** {N}\n"
-        f"- **Resolved Resolution:** {target_size[0]}x{target_size[1]} pixels\n"
+        f"- **Resolved Resolution:** {target_size[0]}×{target_size[1]} pixels\n"
         f"- **Vessel Pixel Density:** {float(y_masks.mean()):.2%}\n\n"
-        f"### 🤖 Pixel Classifier Performance (Random Forest)\n"
+        f"### 🤖 Segmentation Model Performance ({seg_model_name})\n"
         f"- **Mean Intersection over Union (IoU):** `{iou:.4f}`\n"
         f"- **Dice Coefficient (F1-Score):** `{dice:.4f}`\n"
         f"- **Pixel Accuracy:** `{accuracy:.4f}`\n"
@@ -315,8 +330,8 @@ def analyze_image_segmentation(images_dir, masks_dir, file_path, model_export_pa
     }
     
     models_compared = [
-        {"name": "Dummy Baseline", "score": float(1.0 - y_test.mean()), "metric": "Pixel Accuracy"},
-        {"name": "Random Forest Pixel Classifier", "score": float(accuracy), "metric": "Pixel Accuracy"}
+        {"name": "Dummy Baseline", "score": float(1.0 - y_masks[split_idx:].mean()) if split_idx < N else 0.5, "metric": "Pixel Accuracy"},
+        {"name": seg_model_name, "score": float(accuracy), "metric": "Pixel Accuracy"}
     ]
     
     # Export code
@@ -727,48 +742,90 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             }
         ]
         
-        print_progress(0.70, "Training fast classifier...")
-        X_flat = X_images.reshape((N, int(np.prod(X_images.shape[1:]))))
-        
+        print_progress(0.70, "Extracting CNN features (ResNet-18)...")
+        # ── CNN feature extraction ─────────────────────────────────────────
+        try:
+            from pipelines.cnn_extractor import extract_cnn_features
+            X_flat, extractor_name = extract_cnn_features(
+                X_images,
+                progress_start=0.70,
+                progress_end=0.80,
+            )
+        except Exception as _cnn_err:
+            sys.stderr.write(f"[image] CNN extractor failed ({_cnn_err}), using PCA fallback.\n")
+            from sklearn.decomposition import PCA as _PCA
+            X_raw = X_images.reshape((N, int(np.prod(X_images.shape[1:]))))
+            n_comps = min(100, N, X_raw.shape[1])
+            X_flat = _PCA(n_components=n_comps, random_state=42).fit_transform(X_raw)
+            extractor_name = "PCA"
+
         label_to_code = {label: i for i, label in enumerate(unique_classes)}
         y_encoded = np.array([label_to_code[lbl] for lbl in y_arr])
-        
+
+        # ── Model stack: XGBoost → CatBoost → LogisticRegression ──────────
+        def _try_model(name, factory):
+            """Try to instantiate and return a model; return None on ImportError."""
+            try:
+                return factory(), name
+            except (ImportError, Exception):
+                return None, None
+
+        candidate_model, model_name = None, None
+        for _name, _factory in [
+            ("XGBoost",          lambda: __import__('xgboost', fromlist=['XGBClassifier']).XGBClassifier(
+                                     n_estimators=200, max_depth=5, learning_rate=0.1,
+                                     use_label_encoder=False, eval_metric='mlogloss',
+                                     random_state=42, verbosity=0, device='cpu',
+                                     n_jobs=1)),
+            ("CatBoost",         lambda: __import__('catboost', fromlist=['CatBoostClassifier']).CatBoostClassifier(
+                                     iterations=200, depth=6, learning_rate=0.05,
+                                     random_seed=42, verbose=0, thread_count=1)),
+            ("LogisticRegression", lambda: LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')),
+        ]:
+            candidate_model, model_name = _try_model(_name, _factory)
+            if candidate_model is not None:
+                break
+
+        model = candidate_model
+        clf_label = f"{extractor_name} + {model_name}"
+
         if N >= 10 and num_classes > 1:
             min_class_size = min(class_counts.values())
             n_splits = min(5, min_class_size)
             if n_splits >= 2:
                 cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-                n_features = X_flat.shape[1]
-                if n_features > 100:
-                    from sklearn.pipeline import Pipeline
-                    from pipelines.cv_nlp_engine import PCA
-                    n_comps = min(100, N, n_features)
-                    model = Pipeline([
-                        ('pca', PCA(n_components=n_comps, random_state=42)),
-                        ('lr', LogisticRegression(max_iter=500, random_state=42, solver='lbfgs'))
-                    ])
-                else:
-                    model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
                 
                 dummy = DummyClassifier(strategy="most_frequent")
                 dummy.fit(X_flat, y_encoded)
                 dummy_score = accuracy_score(y_encoded, dummy.predict(X_flat))
-                
+
+                print_progress(0.82, f"Cross-validating {clf_label}...")
                 cv_scores = cross_val_score(model, X_flat, y_encoded, cv=cv, scoring='accuracy')
                 cv_scores_list = [float(s) for s in cv_scores]
                 cv_mean = float(np.mean(cv_scores))
                 cv_std = float(np.std(cv_scores))
                 
+                cv_was_used = False
                 if X_test_images is not None:
-                    X_test_flat = X_test_images.reshape((len(X_test_images), int(np.prod(X_test_images.shape[1:]))))
+                    # Re-extract CNN features for the external test split
+                    try:
+                        from pipelines.cnn_extractor import extract_cnn_features
+                        X_test_flat, _ = extract_cnn_features(X_test_images, progress_start=0.83, progress_end=0.86)
+                    except Exception:
+                        X_test_flat = X_test_images.reshape(
+                            (len(X_test_images), int(np.prod(X_test_images.shape[1:])))
+                        )
                     y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
                     model.fit(X_flat, y_encoded)
                     y_pred = model.predict(X_test_flat)
                 else:
                     from sklearn.model_selection import train_test_split
-                    X_train, X_test, y_train, y_test = train_test_split(X_flat, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded)
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        X_flat, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                    )
                     model.fit(X_train, y_train)
                     y_pred = model.predict(X_test)
+                    cv_was_used = True
                 
                 overall_accuracy = float(accuracy_score(y_test, y_pred))
                 overall_f1 = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
@@ -781,20 +838,17 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                     "values": [[int(val) for val in row] for row in raw_cm]
                 }
             else:
-                n_features = X_flat.shape[1]
-                if n_features > 100:
-                    from sklearn.pipeline import Pipeline
-                    from pipelines.cv_nlp_engine import PCA
-                    n_comps = min(100, N, n_features)
-                    model = Pipeline([
-                        ('pca', PCA(n_components=n_comps, random_state=42)),
-                        ('lr', LogisticRegression(max_iter=500, random_state=42, solver='lbfgs'))
-                    ])
-                else:
-                    model = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
+                cv_was_used = False
+                # Low sample count — skip CV, just fit on all data
                 model.fit(X_flat, y_encoded)
                 if X_test_images is not None:
-                    X_test_flat = X_test_images.reshape((len(X_test_images), int(np.prod(X_test_images.shape[1:]))))
+                    try:
+                        from pipelines.cnn_extractor import extract_cnn_features
+                        X_test_flat, _ = extract_cnn_features(X_test_images, progress_start=0.83, progress_end=0.86)
+                    except Exception:
+                        X_test_flat = X_test_images.reshape(
+                            (len(X_test_images), int(np.prod(X_test_images.shape[1:])))
+                        )
                     y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
                     y_pred = model.predict(X_test_flat)
                     overall_accuracy = float(accuracy_score(y_test, y_pred))
@@ -817,14 +871,15 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 
                 cm_data = {
                     "labels": [str(c) for c in unique_classes],
+
                     "values": [[int(val) for val in row] for row in raw_cm]
                 }
             
             # Compute actual dummy baseline metrics
             from sklearn.dummy import DummyClassifier
             dummy = DummyClassifier(strategy="most_frequent")
-            if cv_is_possible and X_test_images is None:
-                # train/test split was used
+            if cv_was_used and X_test_images is None:
+                # train/test split was used inside the CV branch
                 dummy.fit(X_train, y_train)
                 dummy_preds = dummy.predict(X_test)
                 dummy_acc = float(accuracy_score(y_test, dummy_preds))
@@ -865,10 +920,11 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             }
             
         print_progress(0.90, "Assembling results...")
+        clf_label_safe = clf_label if 'clf_label' in dir() else "Classifier"
         summary_text = (
             f"Analyzed image dataset with {N} samples across {num_classes} unique classes. "
-            f"Image dimensions are {W}x{H} pixels with {C} color channel(s). "
-            f"Fitted a Logistic Regression classifier which achieved {overall_accuracy*100:.1f}% accuracy "
+            f"Image dimensions are {W}×{H} pixels with {C} color channel(s). "
+            f"Fitted a **{clf_label_safe}** classifier which achieved {overall_accuracy*100:.1f}% accuracy "
             f"compared to a dummy baseline of {dummy_score*100:.1f}%."
         )
         
@@ -908,9 +964,10 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 "total_rows": len(X_test_images)
             }
         
+        clf_label_safe = clf_label if 'clf_label' in dir() else "Classifier"
         models_compared = [
             {"name": "Dummy Baseline", "score": float(dummy_acc), "metric": "Accuracy", "f1": float(dummy_f1), "precision": float(dummy_prec), "recall": float(dummy_rec)},
-            {"name": "Logistic Regression", "score": float(overall_accuracy), "metric": "Accuracy", "f1": float(overall_f1), "precision": float(overall_precision), "recall": float(overall_recall)}
+            {"name": clf_label_safe, "score": float(overall_accuracy), "metric": "Accuracy", "f1": float(overall_f1), "precision": float(overall_precision), "recall": float(overall_recall)}
         ]
         
         # Phase 1: Model & Code Export
@@ -935,7 +992,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             "correlations": [],
             "charts": charts,
             "metrics": {
-                "model": "Logistic Regression",
+                "model": clf_label_safe,
                 "score_type": "Accuracy",
                 "score": overall_accuracy,
                 "additional_metrics": {"F1-Score": overall_f1}

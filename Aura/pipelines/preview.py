@@ -5,6 +5,37 @@ from utils.loader import download_dataset, load_dataset, _infer_dataset_type
 from utils.charts import get_image_preview
 from utils.helpers import print_progress
 
+def _get_datetime_bounds(file_path, columns):
+    ts_keywords = {"date", "time", "timestamp", "datetime", "year", "month", "period", "week"}
+    candidate_cols = [c for c in columns if any(kw in c.lower() for kw in ts_keywords)]
+    
+    if not candidate_cols:
+        return {}
+        
+    try:
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext in [".csv", ".tsv"]:
+            sep = "\t" if ext == ".tsv" else ","
+            df_dates = pd.read_csv(file_path, usecols=candidate_cols, sep=sep)
+        elif ext == ".parquet":
+            df_dates = pd.read_parquet(file_path, columns=candidate_cols)
+        else:
+            df_dates = load_dataset(file_path)
+            
+        bounds = {}
+        for col in candidate_cols:
+            if col in df_dates.columns:
+                series = pd.to_datetime(df_dates[col], errors='coerce').dropna()
+                if not series.empty:
+                    bounds[col] = {
+                        "min": series.min().strftime("%Y-%m-%d"),
+                        "max": series.max().strftime("%Y-%m-%d")
+                    }
+        return bounds
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to compute datetime bounds: {str(e)}\n")
+        return {}
+
 def analyze_preview(file_path, dataset_type=None):
     try:
         print_progress(0.01, "Initializing dataset preview...")
@@ -147,7 +178,8 @@ def analyze_preview(file_path, dataset_type=None):
                 "inferred_dataset_type": inferred,
                 "local_path": file_path,
                 "total_rows": total_rows,
-                "column_types": column_types
+                "column_types": column_types,
+                "datetime_range": _get_datetime_bounds(file_path, columns)
             }
             print_progress(0.95, "Finalizing tabular preview...")
 

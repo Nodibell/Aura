@@ -33,7 +33,7 @@ final class ServerProcessManager {
     }
 }
 
-actor PythonRunner {
+actor PythonRunner: PythonRunning {
     static let shared = PythonRunner()
     
     private let defaultPythonPathKey = "Aura_PythonPath"

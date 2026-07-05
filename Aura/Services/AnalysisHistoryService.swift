@@ -4,7 +4,7 @@ import SwiftData
 
 @MainActor
 @Observable
-class AnalysisHistoryService {
+class AnalysisHistoryService: AnalysisHistoryServiceProtocol {
     static let shared = AnalysisHistoryService()
     
     private(set) var items: [HistoryItem] = []
@@ -263,5 +263,9 @@ class AnalysisHistoryService {
         items.removeAll()
         AppLogger.shared.info("Cleared all history items from SwiftData", category: "History")
         saveMetadata()
+    }
+    
+    func clearHistory() {
+        clearAll()
     }
 }

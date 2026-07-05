@@ -40,7 +40,7 @@ private struct ClaudeStreamResponse: Codable {
     let delta: Delta?
 }
 
-final class AIService: Sendable {
+final class AIService: AIServiceProtocol, Sendable {
     static let shared = AIService()
     
     private init() {}

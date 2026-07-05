@@ -1,6 +1,8 @@
 import sys
 import os
 os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import json
 import numpy as np
 import pandas as pd
@@ -10,6 +12,13 @@ from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier
 from sklearn.metrics import mean_squared_error, r2_score, accuracy_score, f1_score, confusion_matrix
 from sklearn.preprocessing import OneHotEncoder, LabelEncoder
 from sklearn.dummy import DummyClassifier, DummyRegressor
+
+import multiprocessing
+# Force macOS to spawn fresh processes instead of forking corrupted ones
+try:
+    multiprocessing.set_start_method('spawn', force=True)
+except RuntimeError:
+    pass
 
 # Import torch BEFORE XGBoost n_jobs=2 training ever runs.
 # On macOS both XGBoost and PyTorch ship their own libomp. Whichever library

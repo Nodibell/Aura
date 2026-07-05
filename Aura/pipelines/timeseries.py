@@ -352,6 +352,53 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
             arima_fit = arima_strategy.model
             best_order = arima_strategy.best_order
             arima_r2 = max(r2_score(y_test, arima_preds), -100.0) if arima_fit is not None else -100.0
+
+            # ── Prophet Strategy (Phase 19) ──────────────────────────────────
+            train_dates = None
+            test_dates = None
+            try:
+                if hasattr(y_train, 'index'):
+                    train_dates = df[time_col].loc[y_train.index]
+                else:
+                    train_dates = df[time_col].iloc[:len(y_train)]
+
+                if test_file_path and os.path.exists(test_file_path):
+                    last_date = pd.to_datetime(train_dates.iloc[-1])
+                    test_dates = pd.date_range(start=last_date + pd.Timedelta(days=1), periods=len(y_test), freq='D')
+                else:
+                    if hasattr(y_test, 'index'):
+                        test_dates = df[time_col].loc[y_test.index]
+                    else:
+                        test_dates = df[time_col].iloc[len(y_train):len(y_train)+len(y_test)]
+            except Exception:
+                pass
+
+            prophet_r2 = -100.0
+            prophet_fit = None
+            prophet_preds = np.zeros(len(y_test))
+            try:
+                from pipelines.model_engine import ProphetForecasting
+                prophet_strategy = ProphetForecasting()
+                prophet_strategy.fit(y_train, train_dates)
+                prophet_preds = prophet_strategy.predict_or_forecast(len(y_test), test_dates)
+                prophet_fit = prophet_strategy.model
+                prophet_r2 = max(r2_score(y_test, prophet_preds), -100.0) if prophet_fit is not None else -100.0
+            except Exception as pr_err:
+                sys.stderr.write(f"Warning: Prophet forecasting failed: {str(pr_err)}\n")
+
+            # ── LSTM Strategy (Phase 19) ─────────────────────────────────────
+            lstm_r2 = -100.0
+            lstm_fit = None
+            lstm_preds = np.zeros(len(y_test))
+            try:
+                from pipelines.model_engine import LSTMForecasting
+                lstm_strategy = LSTMForecasting(lookback=7, epochs=20, hidden_dim=32)
+                lstm_strategy.fit(y_train)
+                lstm_preds = lstm_strategy.predict_or_forecast(len(y_test))
+                lstm_fit = lstm_strategy.model
+                lstm_r2 = max(r2_score(y_test, lstm_preds), -100.0) if lstm_fit is not None else -100.0
+            except Exception as lstm_err:
+                sys.stderr.write(f"Warning: LSTM forecasting failed: {str(lstm_err)}\n")
             
             # Compare models
             best_model = "Linear Regression"
@@ -394,6 +441,18 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 best_score = arima_r2
                 best_preds = arima_preds
                 best_reg = arima_fit
+
+            if prophet_fit is not None and prophet_r2 >= best_score:
+                best_model = "Prophet"
+                best_score = prophet_r2
+                best_preds = prophet_preds
+                best_reg = prophet_fit
+
+            if lstm_fit is not None and lstm_r2 >= best_score:
+                best_model = "LSTM Network"
+                best_score = lstm_r2
+                best_preds = lstm_preds
+                best_reg = lstm_fit
                 
             test_rmse = np.sqrt(mean_squared_error(y_test, best_preds))
             models_compared = [
@@ -407,6 +466,10 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 models_compared.append({"name": "Holt-Winters ES", "score": float(es_r2), "metric": "R\u00b2 Score"})
             if arima_fit is not None:
                 models_compared.append({"name": f"ARIMA {best_order}", "score": float(arima_r2), "metric": "R\u00b2 Score"})
+            if prophet_fit is not None:
+                models_compared.append({"name": "Prophet", "score": float(prophet_r2), "metric": "R\u00b2 Score"})
+            if lstm_fit is not None:
+                models_compared.append({"name": "LSTM Network", "score": float(lstm_r2), "metric": "R\u00b2 Score"})
                 
             metrics = {
                 "model": best_model,

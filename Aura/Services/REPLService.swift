@@ -15,7 +15,7 @@ struct REPLResult: Decodable {
 ///
 /// The REPL holds a persistent Python namespace with `df` already loaded,
 /// so code executed here can immediately inspect and mutate the dataset.
-actor REPLService {
+actor REPLService: REPLServiceProtocol {
 
     static let shared = REPLService()
 

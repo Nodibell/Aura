@@ -692,6 +692,11 @@ def analyze_object_detection(file_path, task_type_override="auto",
         if root and os.path.isfile(root):
             root = os.path.dirname(root)
 
+        # ── 0. YOLO training mode ──────────────────────────────────────────
+        if task_type_override == "train":
+            from pipelines.yolo_trainer import train_yolo_and_evaluate
+            return train_yolo_and_evaluate(root, model_export_path=model_export_path)
+
         # ── 1. Parse YAML ──────────────────────────────────────────────────
         print_progress(0.05, "Parsing YOLO dataset.yaml…")
         yaml_path = _find_yaml(root)

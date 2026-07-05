@@ -69,12 +69,14 @@ gantt
     RAG, Plugins, Arrow IPC & Jupyter Export :done, p28, after p27_3, 30d
     section Phase 17: Standalone Production Release & Packaging (Completed)
     Standalone macOS Bundle (.dmg/.app) :done, p29, after p28, 15d
-    section Phase 18: Advanced Computer Vision & Deep Learning (Planned)
-    ResNet-18, YOLOv8 Training, U-Net & Universal Ingestion :p30, after p29, 20d
-    section Phase 19: Advanced NLP & Time Series Deep Learning (Planned)
-    Sentence-Transformers, Prophet/LSTM, Ollama Vision LLaVA :p31, after p30, 20d
-    section Phase 20: System Stability (Planned)
-    FastAPI Zombie Process Cleanup on Startup :p32, after p31, 5d
+    section Phase 18: Advanced Computer Vision & Deep Learning (Completed)
+    ResNet-18, YOLOv8 Training, U-Net & Universal Ingestion :done, p30, after p29, 20d
+    section Phase 19: Advanced NLP & Time Series Deep Learning (Completed)
+    Sentence-Transformers, Prophet/LSTM, Ollama Vision LLaVA :done, p31, after p30, 20d
+    section Phase 20: Polishing & Architectural Cleanup (Planned)
+    Refactor ContentView to MVVM, Service Protocols, Split Charts :p32, after p31, 15d
+    section Phase 21: System Stability (Planned)
+    FastAPI Zombie Process Cleanup on Startup :p33, after p32, 5d
 ```
 
 ---
@@ -465,35 +467,50 @@ Package the application and its dependencies into a standalone installer, elimin
   * Bundle a lightweight, pre-compiled Python interpreter (using tools like `python-build-standalone` or PyInstaller frameworks) inside the native macOS `.app` bundle.
   * Pack all pre-built C/C++ extensions (PyTorch, XGBoost, etc.) to ensure the application installs via a simple double-click/drag-and-drop `.dmg` installer, without requiring Xcode, Python setup, or terminal bootstrapping (`setup_env.sh`).
 
-### Phase 18: Advanced Computer Vision & Deep Learning (Planned)
+### Phase 18: Advanced Computer Vision & Deep Learning (Completed)
 
 Transition the image pipeline from classical PCA reduction to deep feature extraction and support localized object detection training.
 
 * **Pre-trained CNN Feature Extractor (ResNet-18)**:
-  * Replace the scikit-learn PCA dimensionality reduction for image classification in `image.py` with a PyTorch ResNet-18 model.
-  * Use the model as a feature extractor to yield 512-dimensional embeddings, preserving spatial relationships and object details before training classical ML models (XGBoost, CatBoost).
+  * Replaced the scikit-learn PCA dimensionality reduction for image classification in `image.py` with a PyTorch ResNet-18 model.
+  * Used the model as a feature extractor to yield 512-dimensional embeddings, preserving spatial relationships and object details before training classical ML models (XGBoost, CatBoost).
 * **YOLOv8/YOLOv11 Training Integration**:
-  * Add support for training and fine-tuning lightweight YOLO models (e.g. YOLOv8-nano via `ultralytics` package or custom `torch` bindings) directly within the app on local data.
-  * Render an interactive evaluation pane overlaying bounding box detections and confidence scores on validation image sets.
+  * Added support for training and fine-tuning lightweight YOLO models (e.g. YOLOv8-nano via `ultralytics` package) directly within the app on local data.
+  * Rendered an interactive evaluation pane overlaying bounding box detections and confidence scores on validation image sets.
 * **U-Net Semantic Segmentation**:
-  * Replace the pixel-level Random Forest classifier with a deep PyTorch U-Net neural network architecture.
-  * Boost inference speed and segmentation accuracy, while reducing memory footprint for high-resolution images.
+  * Replaced the pixel-level Random Forest classifier with a deep PyTorch U-Net neural network architecture.
+  * Boosted inference speed and segmentation accuracy, while reducing memory footprint for high-resolution images.
 * **Universal Directory Image Loader**:
-  * Implement an intelligent directory scanning adapter to automatically classify image-folder patterns (e.g. class name folder splits) and parse metadata spreadsheets without enforcing `.npz` file compilations.
+  * Implemented an intelligent directory scanning adapter to automatically classify image-folder patterns (e.g. class name folder splits) and parse metadata spreadsheets without enforcing `.npz` file compilations.
 
-### Phase 19: Advanced NLP & Time Series Deep Learning (Planned)
+### Phase 19: Advanced NLP & Time Series Deep Learning (Completed)
 
 Introduce semantic textual models, modern time-series estimators, and vision-assisted LLM reasoning.
 
 * **Sentence-Transformers Text Embeddings**:
-  * Replace statistical TF-IDF vectorization in `nlp.py` with local Sentence-Transformers models (using lightweight Hugging Face models) to generate dense semantic document embeddings.
+  * Replaced statistical TF-IDF vectorization in `nlp.py` with local Sentence-Transformers models (defaulting to `all-MiniLM-L6-v2`) to generate dense semantic document embeddings.
 * **Meta Prophet & LSTM Forecasting**:
-  * Support Meta's Prophet algorithm (to capture holidays, business events, and multiple seasonalities) and LSTM recurrent neural networks for forecasting complex time-series data.
+  * Supported Meta's Prophet algorithm (to capture holidays, business events, and multiple seasonalities) and LSTM recurrent neural networks (using local PyTorch) for forecasting complex time-series data.
 * **Multimodal AI Analyst (LLaVA Integration)**:
-  * Extend Ollama service integrations to support vision LLMs (like LLaVA).
-  * Enable the local AI analyst to visually inspect and summarize generated SVD projection scatter plots, confusion matrices, and correlation heatmaps.
+  * Extended Ollama service integrations to support vision LLMs (like LLaVA) by sending base64 chart arrays to the `/api/generate` endpoint.
+  * Enabled the local AI analyst to visually inspect and summarize generated SVD projection scatter plots, confusion matrices, and correlation heatmaps.
 
-### Phase 20: System Stability & Process Recovery (Planned)
+### Phase 20: Polishing & Architectural Cleanup (Planned)
+
+Resolve key findings raised in the technical audit (`temp/Aura_Analysis.md`) to establish enterprise-grade structure, testability, and visual consistency.
+
+* **Dashboard View Model (`DashboardViewModel`)**:
+  * Decouple `ContentView.swift` by extracting state variables (36 properties) and analytics orchestration logic (`runEDA`, `fetchPreview`, etc.) into a modern `@Observable` view model class.
+* **Service Dependency Inversion (Protocols)**:
+  * Define Swift `protocol` boundaries for all 11 core services (e.g., `PythonRunning`, `AIServicing`, `HistoryStoring`) to replace direct `.shared` Singleton references, allowing mock injections and unit testing.
+* **Modular Charts Decomposition**:
+  * Extract all 12 custom chart definitions (Beeswarm, PDP/ICE, Ridgeline, SectorMark, etc.) from `ChartsListView.swift` into individual SwiftUI view files.
+* **Unified Theme System (`Theme.swift`)**:
+  * Refactor hardcoded font size declarations and brand gradient colors into semantic design tokens to support robust Light/Dark mode consistency.
+* **Expanded Accessibility (a11y)**:
+  * Complete screen reader and dynamic text audits to assign proper accessibility tags to SwiftUI views and interactive Swift Charts.
+
+### Phase 21: System Stability & Process Recovery (Planned)
 
 Ensure high reliability of the background local service during runtime anomalies.
 

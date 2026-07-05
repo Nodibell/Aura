@@ -12,13 +12,15 @@ class AIAnalyst:
         self.base_url = base_url.rstrip("/")
         self.model = model
 
-    def query_ollama(self, prompt: str) -> str:
+    def query_ollama(self, prompt: str, images: list = None) -> str:
         url = f"{self.base_url}/api/generate"
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False
         }
+        if images:
+            payload["images"] = images
         data = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             url,
@@ -35,7 +37,7 @@ class AIAnalyst:
         except Exception as e:
             return f"Analysis generation error: {str(e)}"
 
-    def generate_tabular_summary(self, target_col, best_model, metrics_dict, leaderboard) -> str:
+    def generate_tabular_summary(self, target_col, best_model, metrics_dict, leaderboard, images: list = None) -> str:
         prompt = (
             f"You are Aura's AI Analyst. Summarize these machine learning training results:\n"
             f"Target Column: {target_col}\n"
@@ -44,7 +46,7 @@ class AIAnalyst:
             f"Leaderboard: {json.dumps(leaderboard, indent=2)}\n"
             f"Explain the performance of the best model, interpret metrics, and provide 2-3 specific recommendations."
         )
-        return self.query_ollama(prompt)
+        return self.query_ollama(prompt, images=images)
 
     def generate_dataset_context(self, df, target_col: str) -> str:
         """

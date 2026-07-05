@@ -267,18 +267,12 @@ def ingest_dataset(file_path, dataset_type="auto"):
             # Keep as is, it's object detection
             return working_path, "object_detection"
         elif detected == 'segmentation':
-            # Keep as is, but it's image classification/segmentation
+            # Keep as is, but it's image segmentation
             return working_path, "image"
         elif detected in ['class_hierarchy', 'flat']:
-            try:
-                npz_path = convert_to_npz(working_path, detected)
-                # Clean up extracted temp directory since we compiled it to NPZ
-                if temp_dir and os.path.exists(temp_dir):
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                return npz_path, "image"
-            except Exception as e:
-                sys.stderr.write(f"Warning: Standardization failed: {str(e)}. Falling back to directory loading.\n")
-                return working_path, "image"
+            # Return the raw directory — image.py loads natively at 224×224
+            # using the CNN extractor path, avoiding NPZ compilation overhead.
+            return working_path, "image"
         else:
             # Unknown directory, default to image classification directory loading
             return working_path, "image"
