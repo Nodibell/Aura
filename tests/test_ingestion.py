@@ -141,11 +141,11 @@ def test_ingest_dataset_zip_classification(temp_dir):
             zipf.write(os.path.join(src_dir, "cats", "c1.png"), "cats/c1.png")
             
         resolved_path, resolved_type = ingest_dataset(zip_path)
-        assert resolved_path.endswith(".npz")
+        assert os.path.isdir(resolved_path)
         assert resolved_type == "image"
         
-        data = np.load(resolved_path, allow_pickle=True)
-        assert list(data['y']) == ['cats']
-        os.remove(resolved_path)
+        # Check that it extracted the image
+        img_path = os.path.join(resolved_path, "cats", "c1.png")
+        assert os.path.exists(img_path)
     finally:
         shutil.rmtree(src_dir, ignore_errors=True)
