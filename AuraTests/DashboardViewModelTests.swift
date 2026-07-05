@@ -106,6 +106,10 @@ struct DashboardViewModelTests {
             throw NSError(domain: "Mock", code: -1)
         }
         
+        func runBatchInference(modelPath: String, inputFilePath: String, outputFilePath: String) async throws -> BatchPredictionResult {
+            return BatchPredictionResult(success: true, outputPath: outputFilePath, rowCount: 0)
+        }
+        
         func getCacheInfo() async throws -> PythonRunner.CacheInfo {
             return PythonRunner.CacheInfo(path: "/tmp", sizeBytes: 0, fileCount: 0)
         }
@@ -151,6 +155,11 @@ struct DashboardViewModelTests {
         
         func clearHistory() {
             clearHistoryCalled = true
+        }
+        
+        func togglePinItem(_ item: HistoryItem) {
+            let current = item.isPinned ?? false
+            item.isPinned = !current
         }
     }
     

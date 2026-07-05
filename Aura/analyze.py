@@ -2,6 +2,8 @@ import os
 import sys
 os.environ["OMP_NUM_THREADS"] = "1"
 import json
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 import numpy as np
 import pandas as pd
 
@@ -246,6 +248,36 @@ def compute_mixed_correlation(df, col1, col2):
         except Exception:
             return np.nan
 
+def _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                          exclude_cols, cleaning_actions, model_export_path):
+    """Generate the .ipynb reproduction notebook, if requested.
+
+    Previously this logic lived inline only after the tabular pipeline call
+    in analyze(), so the image/object_detection/timeseries/nlp/clustering
+    branches — which all `return` earlier — never reached it and the
+    notebook was silently never written. Every branch now calls this
+    helper right before returning, so notebook export works regardless of
+    dataset type.
+    """
+    if not notebook_export_path:
+        return
+    if isinstance(res, dict) and res.get("error"):
+        return
+    try:
+        from utils.notebook_exporter import generate_notebook
+        config_dict = {
+            "train_file_path": file_path,
+            "target_column": target_col or "",
+            "dataset_type": dataset_type,
+            "excluded_columns": list(exclude_cols) if exclude_cols else [],
+            "cleaning_actions": (json.loads(cleaning_actions) if isinstance(cleaning_actions, str) else cleaning_actions) if cleaning_actions else [],
+            "model_export_path": model_export_path,
+        }
+        generate_notebook(config_dict, res, notebook_export_path)
+        sys.stderr.write(f"Notebook exported to: {notebook_export_path}\n")
+    except Exception as nb_err:
+        sys.stderr.write(f"Warning: Notebook export failed: {nb_err}\n")
+
 def analyze(file_path, target_col=None, dataset_type="tabular",
             task_type_override="auto", time_col=None, exclude_cols=None, test_file_path=None, val_file_path=None,
             model_export_path=None, code_export_path=None, notebook_export_path=None, smart_sample=False, cleaning_actions=None,
@@ -278,12 +310,16 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             from pipelines.image import analyze_image
             res = analyze_image(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
             res["file_path"] = file_path
+            _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                                  exclude_cols, cleaning_actions, model_export_path)
             return res
 
         if dataset_type == "object_detection":
             from pipelines.object_detection import analyze_object_detection
             res = analyze_object_detection(file_path, task_type_override, target_col, test_file_path=test_file_path, model_export_path=model_export_path, code_export_path=code_export_path)
             res["file_path"] = file_path
+            _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                                  exclude_cols, cleaning_actions, model_export_path)
             return res
 
 
@@ -511,7 +547,26 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     target_col = col
                     break
             if not target_col:
-                target_col = columns[-1] # Default to last column
+                # Find all columns that do not look like free-form text columns
+                candidate_cols = []
+                for col in columns:
+                    col_series = df[col].dropna()
+                    if col_series.dtype == object:
+                        try:
+                            sample = col_series.head(100).astype(str)
+                            avg_len = sample.str.len().mean()
+                            avg_words = sample.str.count(r'\s+').mean() + 1
+                            if avg_len > 60 and avg_words > 4:
+                                # Skip free-form text columns as they make poor target targets
+                                continue
+                        except Exception:
+                            pass
+                    candidate_cols.append(col)
+                
+                if candidate_cols:
+                    target_col = candidate_cols[-1]
+                else:
+                    target_col = columns[-1]
             target_cols = [target_col]
 
         # Identify identifier columns to exclude them from modeling features, correlations, and analytics
@@ -722,6 +777,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             res.update(val_info)
             res["dataset_context"] = _dataset_context
             res["file_path"] = file_path
+            _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                                  exclude_cols, cleaning_actions, model_export_path)
             return res
 
 
@@ -737,6 +794,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             res.update(val_info)
             res["dataset_context"] = _dataset_context
             res["file_path"] = file_path
+            _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                                  exclude_cols, cleaning_actions, model_export_path)
             return res
 
 
@@ -754,6 +813,10 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             res.update(val_info)
             res["dataset_context"] = _dataset_context
             res["file_path"] = file_path
+            # Clustering never writes a model to model_export_path, so don't
+            # reference one in the generated notebook.
+            _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                                  exclude_cols, cleaning_actions, None)
             return res
 
 
@@ -805,21 +868,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             res["file_path"] = file_path
 
         # ── Optional: export as Jupyter Notebook ──
-        if notebook_export_path and ("error" not in res or res["error"] is None):
-            try:
-                from utils.notebook_exporter import generate_notebook
-                config_dict = {
-                    "train_file_path": file_path,
-                    "target_column": target_col or "",
-                    "dataset_type": dataset_type,
-                    "excluded_columns": list(exclude_cols) if exclude_cols else [],
-                    "cleaning_actions": json.loads(cleaning_actions) if cleaning_actions else [],
-                    "model_export_path": model_export_path,
-                }
-                generate_notebook(config_dict, res, notebook_export_path)
-                sys.stderr.write(f"Notebook exported to: {notebook_export_path}\n")
-            except Exception as nb_err:
-                sys.stderr.write(f"Warning: Notebook export failed: {nb_err}\n")
+        _try_export_notebook(notebook_export_path, res, file_path, target_col, dataset_type,
+                              exclude_cols, cleaning_actions, model_export_path)
 
         return res
 
@@ -1213,5 +1263,3 @@ if __name__ == "__main__":
     from utils.helpers import clean_nan
     analysis = clean_nan(analysis)
     print(json.dumps(analysis))
-
-

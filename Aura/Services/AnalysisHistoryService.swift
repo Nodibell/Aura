@@ -115,6 +115,15 @@ class AnalysisHistoryService: AnalysisHistoryServiceProtocol {
         }
     }
     
+    func togglePinItem(_ item: HistoryItem) {
+        if let index = items.firstIndex(where: { $0.id == item.id }) {
+            let current = items[index].isPinned ?? false
+            items[index].isPinned = !current
+            AppLogger.shared.info("Toggled pin on history item '\(item.datasetName)' to \(!current) in SwiftData.", category: "History")
+            saveMetadata()
+        }
+    }
+    
     private func triggerBackgroundTitleGeneration(for id: UUID, result: AnalysisResult) {
         Task {
             let ollamaChecker = OllamaStatusChecker.shared

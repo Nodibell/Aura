@@ -32,7 +32,7 @@ def test_train_tabular_models():
     X_test = pd.DataFrame({"feat1": [2.5, 7.5]})
     y_test = np.array(["A", "B"])
     
-    best_model, best_clf, models_compared, best_preds, rf, le = train_tabular_models(
+    best_model, best_clf, models_compared, best_preds, rf, le, trained_models = train_tabular_models(
         X_train, y_train, X_test, y_test, is_classification=True
     )
     assert best_model in ["Logistic Regression", "Tuned Random Forest", "Tuned XGBoost", "Tabular Deep Learning"]

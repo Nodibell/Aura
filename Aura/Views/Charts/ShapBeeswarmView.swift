@@ -12,33 +12,20 @@ struct ShapBeeswarmView: View {
         let yOffset: Double
         let featureIndex: Int
     }
-    
-    private var uniqueFeatures: [String] {
-        var list: [String] = []
-        for point in config.data {
-            if let feat = point.xVal, !list.contains(feat) {
-                list.append(feat)
-            }
-        }
-        return list
-    }
-    
-    private var stackedPoints: [StackingPoint] {
-        let features = uniqueFeatures
-        var allStacked: [StackingPoint] = []
-        for (idx, feature) in features.enumerated() {
-            let featurePoints = config.data.filter { $0.xVal == feature }
-            let stackedForFeature = computeStacking(points: featurePoints, featureIndex: idx, featuresCount: features.count)
-            allStacked.append(contentsOf: stackedForFeature)
-        }
-        return allStacked
-    }
-    
+
+    // NEW: the collision-avoidance stacking pass used to run as a live
+    // computed property (`stackedPoints`), meaning it re-ran in full on
+    // every single body re-evaluation. For dense SHAP data this pass is
+    // near-quadratic (each point scans back over nearby neighbors), so it
+    // is now computed once per chart via .task(id:) and cached here.
+    @State private var cachedFeatures: [String] = []
+    @State private var cachedStackedPoints: [StackingPoint] = []
+
     var body: some View {
-        let features = uniqueFeatures
-        
+        let features = cachedFeatures
+
         Chart {
-            ForEach(stackedPoints) { point in
+            ForEach(cachedStackedPoints) { point in
                 let reversedY = Double(features.count - 1 - point.featureIndex) + point.yOffset
                 PointMark(
                     x: .value(config.xLabel, point.x),
@@ -67,6 +54,28 @@ struct ShapBeeswarmView: View {
         .overlay(alignment: .bottomTrailing) {
             colorLegend
         }
+        .task(id: config.id) {
+            recomputeStacking()
+        }
+    }
+
+    private func recomputeStacking() {
+        var featureList: [String] = []
+        for point in config.data {
+            if let feat = point.xVal, !featureList.contains(feat) {
+                featureList.append(feat)
+            }
+        }
+
+        var allStacked: [StackingPoint] = []
+        for (idx, feature) in featureList.enumerated() {
+            let featurePoints = config.data.filter { $0.xVal == feature }
+            let stackedForFeature = computeStacking(points: featurePoints, featureIndex: idx, featuresCount: featureList.count)
+            allStacked.append(contentsOf: stackedForFeature)
+        }
+
+        self.cachedFeatures = featureList
+        self.cachedStackedPoints = allStacked
     }
     
     private func computeStacking(points: [ChartPoint], featureIndex: Int, featuresCount: Int) -> [StackingPoint] {

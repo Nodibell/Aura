@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DE3233989261CF467120A3CB /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */; };
+		DAF3CE34BDE7F686A010061E /* HistoryBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640C2E902D3D831956003633 /* HistoryBrowserView.swift */; };
 		632B0FE0CF3D1BBA24A53FE9 /* ServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997BC3C34FA059B7E4E496B6 /* ServiceProtocols.swift */; };
 		EAC524D7600F2A155C268EE9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF29298DFE05FE5732779C8E /* Theme.swift */; };
 		F4204B26D8C90D646F590354 /* ProtectedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08164E47D38C7F3CE04A5A8E /* ProtectedData.swift */; };
@@ -123,6 +125,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		640C2E902D3D831956003633 /* HistoryBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBrowserView.swift; sourceTree = "<group>"; };
 		997BC3C34FA059B7E4E496B6 /* ServiceProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProtocols.swift; sourceTree = "<group>"; };
 		DF29298DFE05FE5732779C8E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		08164E47D38C7F3CE04A5A8E /* ProtectedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectedData.swift; sourceTree = "<group>"; };
@@ -320,6 +324,8 @@
 				8E50BE537F1B040654FCA3D6 /* WordCloudView.swift */,
 				AE58F02EB9B6C9B3D9C75E9D /* PieDonutChartView.swift */,
 				5A678F6704BDAF5973CB863C /* RidgelineChartView.swift */,
+				08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */,
+				640C2E902D3D831956003633 /* HistoryBrowserView.swift */,
 );
 			path = Views;
 			sourceTree = "<group>";
@@ -611,6 +617,8 @@
 				B35F2BF42922E588AAA29EFC /* WordCloudView.swift in Sources */,
 				191E4488A84DA5027CA655CC /* PieDonutChartView.swift in Sources */,
 				57D575A331B9874FCA204F8A /* RidgelineChartView.swift in Sources */,
+				DE3233989261CF467120A3CB /* CommandPaletteView.swift in Sources */,
+				DAF3CE34BDE7F686A010061E /* HistoryBrowserView.swift in Sources */,
 );
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -654,7 +662,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 0.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -676,7 +684,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.5.0;
+				MARKETING_VERSION = 0.7.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;

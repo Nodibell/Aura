@@ -7,35 +7,184 @@ struct DrillDownItem: Identifiable {
     let preview: FullTablePreview
 }
 
+struct CategoryTabButton: View {
+    let title: String
+    let iconName: String?
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let icon = iconName {
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .bold))
+                }
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(isSelected || isHovered ? .white : .secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(isSelected || isHovered ? Color.accentColor : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(isSelected || isHovered ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
+    }
+}
+
 struct ChartsListView: View {
     let result: AnalysisResult
     let onAskAI: (String) -> Void
 
     @State private var drillDownPreview: FullTablePreview? = nil
     @State private var drillDownTitle: String = ""
+    @State private var selectedCategory: String = "All"
+    @State private var searchText: String = ""
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 24) {
-                if result.charts.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "chart.bar.doc.horizontal")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        Text("No charts available for this dataset.")
-                            .foregroundColor(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 300)
-                } else {
-                    ForEach(result.charts) { chartConfig in
-                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
-                            handleDrillDown(chartConfig: chartConfig, point: point)
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                // Category Filter Picker
+                HStack(spacing: 12) {
+                    Label("Jump to:", systemImage: "arrow.right.circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(.trailing, 4)
+                    
+                    CategoryTabButton(title: "All Plots", iconName: "circle.grid.2x2.fill", isSelected: selectedCategory == "All") {
+                        selectedCategory = "All"
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("top", anchor: .top)
                         }
                     }
+                    
+                    CategoryTabButton(title: "Model Quality", iconName: "bolt.badge.a.fill", isSelected: selectedCategory == "Model Quality") {
+                        selectedCategory = "Model Quality"
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("Model Quality", anchor: .top)
+                        }
+                    }
+                    
+                    CategoryTabButton(title: "Feature Importance", iconName: "sparkles", isSelected: selectedCategory == "Feature Importance") {
+                        selectedCategory = "Feature Importance"
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("Feature Importance", anchor: .top)
+                        }
+                    }
+                    
+                    CategoryTabButton(title: "Data Distributions", iconName: "chart.bar.fill", isSelected: selectedCategory == "Data Distributions") {
+                        selectedCategory = "Data Distributions"
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            proxy.scrollTo("Data Distributions", anchor: .top)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color(NSColor.controlBackgroundColor))
+                
+                Divider()
+                
+                ScrollView {
+                    VStack(spacing: 28) {
+                        Color.clear
+                            .frame(height: 1)
+                            .id("top")
+                        
+                        let modelCharts = result.charts.filter { self.category(for: $0) == "Model Quality" && self.matchesSearch($0) }
+                        let featureCharts = result.charts.filter { self.category(for: $0) == "Feature Importance" && self.matchesSearch($0) }
+                        let dataCharts = result.charts.filter { self.category(for: $0) == "Data Distributions" && self.matchesSearch($0) }
+                        
+                        if modelCharts.isEmpty && featureCharts.isEmpty && dataCharts.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "chart.bar.doc.horizontal")
+                                    .font(.system(size: 48))
+                                    .foregroundColor(.secondary)
+                                Text("No charts match your search.")
+                                    .foregroundColor(.secondary)
+                                    .font(.headline)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 300)
+                        } else {
+                            if !modelCharts.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Label("Model Quality", systemImage: "bolt.badge.a.fill")
+                                            .font(.title3.bold())
+                                            .foregroundColor(.purple)
+                                        Spacer()
+                                    }
+                                    .id("Model Quality")
+                                    .padding(.top, 8)
+                                    
+                                    ForEach(modelCharts) { chartConfig in
+                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if !featureCharts.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Label("Feature Importance", systemImage: "sparkles")
+                                            .font(.title3.bold())
+                                            .foregroundColor(.purple)
+                                        Spacer()
+                                    }
+                                    .id("Feature Importance")
+                                    .padding(.top, 8)
+                                    
+                                    ForEach(featureCharts) { chartConfig in
+                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if !dataCharts.isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
+                                    HStack {
+                                        Label("Data Distributions", systemImage: "chart.bar.fill")
+                                            .font(.title3.bold())
+                                            .foregroundColor(.purple)
+                                        Spacer()
+                                    }
+                                    .id("Data Distributions")
+                                    .padding(.top, 8)
+                                    
+                                    ForEach(dataCharts) { chartConfig in
+                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .padding()
                 }
             }
-            .padding()
         }
+        .searchable(text: $searchText, placement: .sidebar, prompt: "Search charts...")
         .sheet(item: Binding<DrillDownItem?>(
             get: {
                 if let preview = drillDownPreview {
@@ -179,17 +328,34 @@ struct ChartsListView: View {
         
         return FullTablePreview(columns: preview.columns, rows: filteredRows, totalRows: filteredRows.count)
     }
+
+    private func matchesSearch(_ chart: ChartConfig) -> Bool {
+        searchText.isEmpty ||
+            chart.title.localizedCaseInsensitiveContains(searchText) ||
+            chart.xLabel.localizedCaseInsensitiveContains(searchText) ||
+            chart.yLabel.localizedCaseInsensitiveContains(searchText)
+    }
+
+    private func category(for chart: ChartConfig) -> String {
+        let title = chart.title.lowercased()
+        
+        if title.contains("learning curve") || title.contains("roc") || title.contains("precision-recall") ||
+           title.contains("confusion") || title.contains("residual") || title.contains("forecast") ||
+           title.contains("actual vs") || title.contains("prediction") || title.contains("pdp") ||
+           title.contains("ice") || title.contains("calibration") || title.contains("quality") {
+            return "Model Quality"
+        }
+        
+        if title.contains("importance") || title.contains("shap") || title.contains("beeswarm") ||
+           title.contains("coefficient") || title.contains("weight") || title.contains("tf-idf") {
+            return "Feature Importance"
+        }
+        
+        return "Data Distributions"
+    }
 }
 
 // MARK: - Chart AI Prompt Builder
-
-#if canImport(AppKit)
-import AppKit
-typealias PlatformImage = NSImage
-#else
-import UIKit
-typealias PlatformImage = UIImage
-#endif
 
 /// Builds a rich AI prompt that includes the actual data points from the chart.
 func buildChartPrompt(_ config: ChartConfig) -> String {

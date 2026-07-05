@@ -5,12 +5,15 @@ import Charts
 
 struct ExportReportSheet: View {
     let result: AnalysisResult
+    let csvPath: String
+    let config: AnalysisConfig
     @Binding var isPresented: Bool
 
     enum ExportFormat: String, CaseIterable, Identifiable {
         case markdown = "Markdown"
         case html = "HTML"
         case pdf = "PDF"
+        case zip = "ZIP Bundle"
         
         var id: String { self.rawValue }
         var rawValue: String {
@@ -18,11 +21,12 @@ struct ExportReportSheet: View {
             case .markdown: return "Markdown (.md)"
             case .html: return "Interactive HTML (.html)"
             case .pdf: return "Styled PDF (.pdf)"
+            case .zip: return "Unified Export Bundle (.zip)"
             }
         }
     }
     
-    @State private var exportFormat: ExportFormat = .pdf
+    @State private var exportFormat: ExportFormat = .zip
     @State private var includeCharts: Bool = true
     @State private var includeAINarrative: Bool = true
     @State private var includeStats: Bool = true
@@ -261,6 +265,91 @@ struct ExportReportSheet: View {
             } catch {
                 errorMessage = "PDF Rendering failed: \(error.localizedDescription)"
             }
+            
+        case .zip:
+            generationStatus = "Compiling reports for Zip bundle..."
+            let mdReport = buildMarkdownReport(narrative: narrativeText)
+            let htmlReport = buildHTMLReport(narrative: narrativeText, isForPDF: false)
+            
+            let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            
+            let mdURL = tempDir.appendingPathComponent("report.md")
+            let htmlURL = tempDir.appendingPathComponent("report.html")
+            try? mdReport.write(to: mdURL, atomically: true, encoding: .utf8)
+            try? htmlReport.write(to: htmlURL, atomically: true, encoding: .utf8)
+            
+            let htmlPDF = buildHTMLReport(narrative: narrativeText, isForPDF: true)
+            if let pdfData = try? await HTMLToPDFConverter.shared.convert(html: htmlPDF) {
+                let pdfURL = tempDir.appendingPathComponent("report.pdf")
+                try? pdfData.write(to: pdfURL)
+            }
+            
+            var modelPath: String? = nil
+            var codePath: String? = nil
+            
+            let csvURL = URL(fileURLWithPath: csvPath)
+            let folder = csvURL.deletingLastPathComponent()
+            let baseName = csvURL.deletingPathExtension().lastPathComponent
+            
+            if let configuredModel = config.modelExportPath, FileManager.default.fileExists(atPath: configuredModel) {
+                modelPath = configuredModel
+            } else {
+                let defaultModel = folder.appendingPathComponent("\(baseName)_model.joblib").path
+                if FileManager.default.fileExists(atPath: defaultModel) {
+                    modelPath = defaultModel
+                }
+            }
+            
+            if let configuredCode = config.codeExportPath, FileManager.default.fileExists(atPath: configuredCode) {
+                codePath = configuredCode
+            } else {
+                let defaultCode = folder.appendingPathComponent("\(baseName)_reproduce.py").path
+                if FileManager.default.fileExists(atPath: defaultCode) {
+                    codePath = defaultCode
+                }
+            }
+            
+            if let model = modelPath {
+                let dest = tempDir.appendingPathComponent(URL(fileURLWithPath: model).lastPathComponent)
+                try? FileManager.default.copyItem(atPath: model, toPath: dest.path)
+            }
+            if let code = codePath {
+                let dest = tempDir.appendingPathComponent(URL(fileURLWithPath: code).lastPathComponent)
+                try? FileManager.default.copyItem(atPath: code, toPath: dest.path)
+            }
+            
+            generationStatus = "Packaging ZIP archive..."
+            let zipTempURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".zip")
+            
+            let process = Process()
+            process.executableURL = URL(fileURLWithPath: "/usr/bin/zip")
+            
+            let fileList = (try? FileManager.default.contentsOfDirectory(at: tempDir, includingPropertiesForKeys: nil)) ?? []
+            if fileList.isEmpty {
+                errorMessage = "No files found to bundle."
+            } else {
+                process.arguments = ["-j", zipTempURL.path] + fileList.map { $0.path }
+                do {
+                    try process.run()
+                    process.waitUntilExit()
+                    
+                    if process.terminationStatus == 0 {
+                        generationStatus = "Opening save dialog..."
+                        await saveFile(filenameExtension: "zip", defaultName: "Aura_Export_\(result.targetColumn).zip") { url in
+                            let zippedData = try Data(contentsOf: zipTempURL)
+                            try zippedData.write(to: url)
+                        }
+                    } else {
+                        errorMessage = "ZIP creation failed with status: \(process.terminationStatus)"
+                    }
+                } catch {
+                    errorMessage = "Failed to bundle ZIP: \(error.localizedDescription)"
+                }
+            }
+            
+            try? FileManager.default.removeItem(at: tempDir)
+            try? FileManager.default.removeItem(at: zipTempURL)
         }
         
         isGenerating = false

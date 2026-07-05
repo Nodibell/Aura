@@ -4,6 +4,7 @@ struct OnboardingView: View {
     @Binding var isPresented: Bool
     @State private var currentPage = 0
     @State private var animateAurora = false
+    @AppStorage("Aura_Appearance") private var appearanceMode = "System"
     
     private let totalPages = 4
     
@@ -71,7 +72,7 @@ struct OnboardingView: View {
             }
         }
         .frame(width: 580, height: 480)
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
     }
     
     // MARK: - Slides

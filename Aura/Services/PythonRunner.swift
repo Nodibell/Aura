@@ -871,6 +871,41 @@ actor PythonRunner: PythonRunning {
         let result = try decoder.decode(PredictionResult.self, from: data)
         return result
     }
+    
+    func runBatchInference(modelPath: String, inputFilePath: String, outputFilePath: String) async throws -> BatchPredictionResult {
+        logInfo("Starting runBatchInference via FastAPI. Model: \(modelPath), Input: \(inputFilePath)")
+        
+        self.isCancelled = false
+        
+        let bodyDict: [String: Any] = [
+            "model_path": modelPath,
+            "input_file_path": inputFilePath,
+            "output_csv_path": outputFilePath
+        ]
+        
+        let baseURL = try await self.ensureServerRunning()
+        
+        guard let url = URL(string: "\(baseURL)/predict") else {
+            throw NSError(domain: "PythonRunner", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid API URL."])
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: bodyDict)
+        request.timeoutInterval = 120
+        
+        let (data, response) = try await URLSession.shared.data(for: request)
+        
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            let errStr = String(data: data, encoding: .utf8) ?? "Unknown server error"
+            throw NSError(domain: "PythonRunner", code: 500, userInfo: [NSLocalizedDescriptionKey: "Server returned error: \(errStr)"])
+        }
+        
+        let decoder = JSONDecoder()
+        let result = try decoder.decode(BatchPredictionResult.self, from: data)
+        return result
+    }
 
     private func runArrowConversion(csvPath: String, tempArrowPath: String) async throws {
         let pythonExecutable = self.resolvePythonPath()

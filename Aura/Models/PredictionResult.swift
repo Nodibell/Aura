@@ -3,6 +3,7 @@ import Foundation
 struct PredictionResult: Codable {
     let prediction: PredictionValue
     let probabilities: [String: Double]?
+    var timeElapsed: Double? = nil
 }
 
 enum PredictionValue: Codable {

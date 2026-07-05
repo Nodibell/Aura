@@ -83,17 +83,26 @@ def generate_notebook(config: dict[str, Any],
     # ─── 0. Title ───────────────────────────────────────────────────────────
     file_path   = config.get("train_file_path") or config.get("trainFilePath") or "dataset.csv"
     target_col  = config.get("target_column")   or config.get("targetColumn")  or "target"
-    task_type   = result.get("task_type", "classification")
+    task_type   = result.get("task_type") or "classification"
     dataset_type = config.get("dataset_type") or config.get("datasetType") or "tabular"
-    best_model  = result.get("metrics", {}).get("model", "Best Model")
-    score_type  = result.get("metrics", {}).get("score_type", "score")
-    score_val   = result.get("metrics", {}).get("score", 0.0)
+    
+    metrics = result.get("metrics") or {}
+    if not isinstance(metrics, dict):
+        metrics = {}
+    best_model  = metrics.get("model") or "Best Model"
+    score_type  = metrics.get("score_type") or "score"
+    score_val   = metrics.get("score")
+
+    if isinstance(score_val, (int, float)):
+        score_str = f"{score_val:.4f}"
+    else:
+        score_str = "N/A"
 
     cells.append(_md_cell(
         f"# Aura — Reproducible Pipeline\n\n"
         f"**Task**: `{task_type}` · **Dataset type**: `{dataset_type}`  \n"
         f"**Target column**: `{target_col}`  \n"
-        f"**Best model**: `{best_model}` ({score_type}: {score_val:.4f})  \n\n"
+        f"**Best model**: `{best_model}` ({score_type}: {score_str})  \n\n"
         f"> Generated automatically by **Aura**. Run each cell in order."
     ))
 

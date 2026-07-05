@@ -32,6 +32,7 @@ class DashboardViewModel {
     var showDatabaseSheet = false
     var showSchedulerSheet = false
     var currentHistoryItemId: UUID? = nil
+    var activeModelName: String? = nil
     var showMergeSheet = false
     var mergeFile1Path = ""
     var mergeFile2Path = ""
@@ -57,13 +58,13 @@ class DashboardViewModel {
     // MARK: - Initialization
     @MainActor
     init(
-        pythonRunner: any PythonRunning = PythonRunner.shared,
-        historyService: any AnalysisHistoryServiceProtocol = AnalysisHistoryService.shared,
-        ollamaStatus: OllamaStatusChecker = OllamaStatusChecker.shared
+        pythonRunner: (any PythonRunning)? = nil,
+        historyService: (any AnalysisHistoryServiceProtocol)? = nil,
+        ollamaStatus: OllamaStatusChecker? = nil
     ) {
-        self.pythonRunner = pythonRunner
-        self.historyService = historyService
-        self.ollamaStatus = ollamaStatus
+        self.pythonRunner = pythonRunner ?? PythonRunner.shared
+        self.historyService = historyService ?? AnalysisHistoryService.shared
+        self.ollamaStatus = ollamaStatus ?? OllamaStatusChecker.shared
     }
     
     // MARK: - Navigation Helpers
@@ -356,6 +357,7 @@ class DashboardViewModel {
                         switch response {
                         case .success(let data):
                             self.result = data
+                            self.activeModelName = data.metrics.model
                             if let targetsMap = data.targets, !targetsMap.isEmpty {
                                 self.selectedTargetName = targetsMap.keys.sorted().first ?? data.targetColumn
                                 self.analysisConfig.targetColumns = Array(targetsMap.keys).sorted()
@@ -419,6 +421,7 @@ class DashboardViewModel {
             }
             if let loadedResult {
                 self.result = loadedResult
+                self.activeModelName = item.bestModel ?? loadedResult.metrics.model
                 self.currentHistoryItemId = item.id
                 self.trainColumns = loadedResult.columns
                 self.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL)

@@ -455,6 +455,23 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 best_reg = lstm_fit
                 
             test_rmse = np.sqrt(mean_squared_error(y_test, best_preds))
+            
+            trained_models = {
+                "Linear Regression": lr,
+                "Ridge Regression": ridge,
+                "Lasso Regression": lasso,
+                f"Random Forest Regressor (n={rf_best_n}, d={rf_best_d})": rf,
+                f"Tuned XGBoost Regressor (n={xgb_best_n}, d={xgb_best_d}, lr={xgb_best_lr:.4f})": xgb
+            }
+            if es_fit is not None:
+                trained_models["Holt-Winters ES"] = es_fit
+            if arima_fit is not None:
+                trained_models[f"ARIMA {best_order}"] = arima_fit
+            if prophet_fit is not None:
+                trained_models["Prophet"] = prophet_fit
+            if lstm_fit is not None:
+                trained_models["LSTM Network"] = lstm_fit
+
             models_compared = [
                 {"name": "Linear Regression", "score": float(lr_r2), "metric": "R\u00b2 Score"},
                 {"name": "Ridge Regression", "score": float(ridge_r2), "metric": "R\u00b2 Score"},
@@ -775,6 +792,23 @@ def analyze_timeseries(df, target_col, time_col, task_type_override,
                 "classification" if is_classification else "regression",
                 feature_names, best_model, numeric_cols, categorical_cols, None, time_col=time_col
             )
+            
+            if model_export_path and 'trained_models' in locals():
+                import os
+                base_dir = os.path.dirname(model_export_path)
+                base_name = os.path.basename(model_export_path)
+                name_without_ext, ext = os.path.splitext(base_name)
+                
+                for m_name, m_obj in trained_models.items():
+                    if m_obj is not None:
+                        m_name_safe = m_name.replace(" ", "_").replace("²", "2").replace("(", "").replace(")", "").replace("=", "").replace(",", "")
+                        sub_model_path = os.path.join(base_dir, f"{name_without_ext}_{m_name_safe}{ext}")
+                        _export_model_and_code(
+                            m_obj, sub_model_path, None,
+                            file_path, "timeseries", target_col, None,
+                            "classification" if is_classification else "regression",
+                            feature_names, m_name, numeric_cols, categorical_cols, None, time_col=time_col
+                        )
 
         return {
             "summary": summary,

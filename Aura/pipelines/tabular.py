@@ -881,7 +881,7 @@ def analyze_tabular(df, target_col, task_type_override,
                 sys.stderr.write(f"RFE selected {len(selected_cols)} features out of {n_features}: {list(selected_cols)}\n")
         
         # Fit models
-        best_model_name, best_model_obj, models_compared, best_preds, rf_classical_model, le = train_models(
+        best_model_name, best_model_obj, models_compared, best_preds, rf_classical_model, le, trained_models = train_models(
             X_train_proc, y_train, X_test_proc, y_test, is_classification
         )
         
@@ -1080,6 +1080,24 @@ def analyze_tabular(df, target_col, task_type_override,
                 feature_names, best_model_name, numeric_cols, categorical_cols, text_cols,
                 cleaner=cleaner, preprocessor=preprocessor, label_encoder=le
             )
+            
+            if model_export_path and 'trained_models' in locals():
+                import os
+                base_dir = os.path.dirname(model_export_path)
+                base_name = os.path.basename(model_export_path)
+                name_without_ext, ext = os.path.splitext(base_name)
+                
+                for m_name, m_obj in trained_models.items():
+                    if m_obj is not None:
+                        m_name_safe = m_name.replace(" ", "_").replace("²", "2").replace("(", "").replace(")", "").replace("=", "").replace(",", "")
+                        sub_model_path = os.path.join(base_dir, f"{name_without_ext}_{m_name_safe}{ext}")
+                        _export_model_and_code(
+                            m_obj, sub_model_path, None,
+                            file_path, "tabular", target_col, None,
+                            "classification" if is_classification else "regression",
+                            feature_names, m_name, numeric_cols, categorical_cols, text_cols,
+                            cleaner=cleaner, preprocessor=preprocessor, label_encoder=le
+                        )
             
         result = {
             "summary": summary,

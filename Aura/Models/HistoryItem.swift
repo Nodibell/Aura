@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import SwiftUI
 
 @Model
 class HistoryItem: Identifiable, Equatable {
@@ -18,6 +19,7 @@ class HistoryItem: Identifiable, Equatable {
     var rowCount: Int?
     var colCount: Int?
     var datasetURL: String?
+    var isPinned: Bool? = false
 
     init(
         id: UUID = UUID(),
@@ -32,7 +34,8 @@ class HistoryItem: Identifiable, Equatable {
         scoreType: String? = nil,
         rowCount: Int? = nil,
         colCount: Int? = nil,
-        datasetURL: String? = nil
+        datasetURL: String? = nil,
+        isPinned: Bool? = false
     ) {
         self.id = id
         self.datasetName = datasetName
@@ -47,9 +50,52 @@ class HistoryItem: Identifiable, Equatable {
         self.rowCount = rowCount
         self.colCount = colCount
         self.datasetURL = datasetURL
+        self.isPinned = isPinned
     }
     
     static func == (lhs: HistoryItem, rhs: HistoryItem) -> Bool {
         lhs.id == rhs.id
+    }
+}
+
+extension HistoryItem {
+    var uiColor: Color {
+        guard let task = taskType?.lowercased() else { return .secondary }
+        if task.contains("regress") {
+            return .purple
+        } else if task.contains("class") {
+            return .indigo
+        } else if task.contains("time") || task.contains("forecast") {
+            return .blue
+        } else if task.contains("nlp") {
+            return .green
+        } else if task.contains("image") {
+            return .orange
+        } else if task.contains("object") || task.contains("vision") {
+            return .red
+        } else if task.contains("cluster") {
+            return .yellow
+        }
+        return .secondary
+    }
+    
+    var shortLabel: String {
+        guard let task = taskType?.lowercased() else { return "EDA" }
+        if task.contains("regress") {
+            return "REG"
+        } else if task.contains("class") {
+            return "CLS"
+        } else if task.contains("time") || task.contains("forecast") {
+            return "TS"
+        } else if task.contains("nlp") {
+            return "NLP"
+        } else if task.contains("image") {
+            return "IMG"
+        } else if task.contains("object") || task.contains("vision") {
+            return "CV"
+        } else if task.contains("cluster") {
+            return "CLST"
+        }
+        return "EDA"
     }
 }

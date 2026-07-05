@@ -261,7 +261,19 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         except Exception as dl_err:
             sys.stderr.write(f"Warning: Tabular Deep Learning training failed: {str(dl_err)}\n")
             
-        return best_model, best_clf, models_compared, best_preds, rf, le
+        trained_models = {
+            "Logistic Regression": lr,
+            "Tuned Random Forest": rf,
+            "Tuned XGBoost": xgb
+        }
+        if lgb_clf is not None:
+            trained_models["LightGBM"] = lgb_clf
+        if cat_clf is not None:
+            trained_models["CatBoost"] = cat_clf
+        if 'dl_model' in locals():
+            trained_models["Tabular Deep Learning (CPU)"] = dl_model
+            
+        return best_model, best_clf, models_compared, best_preds, rf, le, trained_models
         
     else:
         publish_progress(0.62, "Training Linear Regression baseline...")
@@ -419,7 +431,19 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         except Exception as dl_err:
             sys.stderr.write(f"Warning: Tabular Deep Learning training failed: {str(dl_err)}\n")
             
-        return best_model, best_reg, models_compared, best_preds, rf, None
+        trained_models = {
+            "Linear Regression": lr,
+            "Tuned Random Forest": rf,
+            "Tuned XGBoost": xgb
+        }
+        if lgb_reg is not None:
+            trained_models["LightGBM"] = lgb_reg
+        if cat_reg is not None:
+            trained_models["CatBoost"] = cat_reg
+        if 'dl_model' in locals():
+            trained_models["Tabular Deep Learning (CPU)"] = dl_model
+            
+        return best_model, best_reg, models_compared, best_preds, rf, None, trained_models
 
 
 # -------------------------------------------------------------------------

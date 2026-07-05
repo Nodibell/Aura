@@ -46,8 +46,21 @@ protocol PythonRunning: Sendable {
     ) async throws -> (rowCount: Int, columns: [String])
     
     func runInference(modelPath: String, inputData: [String: Any]) async throws -> PredictionResult
+    func runBatchInference(modelPath: String, inputFilePath: String, outputFilePath: String) async throws -> BatchPredictionResult
     func getCacheInfo() async throws -> PythonRunner.CacheInfo
     func cleanCache() async throws
+}
+
+struct BatchPredictionResult: Codable, Sendable {
+    let success: Bool
+    let outputPath: String
+    let rowCount: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case success
+        case outputPath = "output_path"
+        case rowCount = "row_count"
+    }
 }
 
 // MARK: - AIServiceProtocol
@@ -68,6 +81,7 @@ protocol AnalysisHistoryServiceProtocol: AnyObject {
     var items: [HistoryItem] { get }
     func loadMetadata()
     func renameItem(_ item: HistoryItem, to newName: String)
+    func togglePinItem(_ item: HistoryItem)
     func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String?) -> HistoryItem?
     func loadAnalysisResult(item: HistoryItem) async -> AnalysisResult?
     func deleteItem(_ item: HistoryItem)

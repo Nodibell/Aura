@@ -181,6 +181,7 @@ struct ScatterChartView: View {
                 // Categorical X-Axis
                 baseChart
                     .chartYScale(domain: .automatic(includesZero: false))
+                    .frame(height: 180)
             } else {
                 // Numeric X-Axis: Calculate exact bounds with a 10% visual padding
                 let minX = xValues.min() ?? 0
@@ -194,6 +195,7 @@ struct ScatterChartView: View {
                 baseChart
                     .chartXScale(domain: (minX - xPad)...(maxX + xPad))
                     .chartYScale(domain: (minY - yPad)...(maxY + yPad))
+                    .frame(height: 180)
             }
             
             // Drill down button for ScatterChartView

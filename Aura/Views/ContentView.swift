@@ -3,6 +3,8 @@ import UniformTypeIdentifiers
 
 struct ContentView: View {
     @State private var viewModel = DashboardViewModel()
+    @State private var showHistoryBrowser = false
+    @State private var showCommandPalette = false
     @AppStorage("Aura_hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("Aura_Appearance") private var appearanceMode = "System"
     
@@ -13,69 +15,95 @@ struct ContentView: View {
     }
 
     var body: some View {
-        // 1. Native macOS Sidebar Architecture
-        NavigationSplitView {
-            sidebarContent
-                .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
-        } detail: {
-            // 2. Main Content Canvas & AI Panel
-            HStack(spacing: 0) {
-                mainContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color(nsColor: .windowBackgroundColor))
-                
-                // Custom Right-Side Panel
-                if viewModel.showAIPanel && viewModel.result != nil {
-                    Divider()
-                    AIChatPanel(
-                        viewModel: viewModel.chatViewModel,
-                        ollamaStatus: viewModel.ollamaStatus,
-                        analysisResult: viewModel.result?.resultForTarget(viewModel.selectedTargetName)
-                    )
-                    .frame(width: 325)
-                    .background(Color(nsColor: .windowBackgroundColor))
-                    .transition(.move(edge: .trailing))
+        ZStack {
+            // 1. Native macOS Sidebar Architecture
+            NavigationSplitView {
+                sidebarContent
+                    .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
+            } detail: {
+                // 2. Main Content Canvas & AI Panel
+                HStack(spacing: 0) {
+                    mainContent
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                    
+                    // Custom Right-Side Panel
+                    if viewModel.showAIPanel && viewModel.result != nil {
+                        Divider()
+                        AIChatPanel(
+                            viewModel: viewModel.chatViewModel,
+                            ollamaStatus: viewModel.ollamaStatus,
+                            analysisResult: viewModel.result?.resultForTarget(viewModel.selectedTargetName)
+                        )
+                        .frame(width: 325)
+                        .background(Color(nsColor: .windowBackgroundColor))
+                        .transition(.move(edge: .trailing))
+                    }
+                }
+                // 4. Native macOS Toolbar & Titles
+                .navigationTitle(navigationTitleText)
+                .navigationSubtitle(viewModel.result != nil ? "Analysis Complete" : (viewModel.previewResult != nil ? "Dataset Preview" : ""))
+                .toolbar {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        
+                        // Close Dataset Button
+                        if viewModel.result != nil || viewModel.previewResult != nil {
+                            Button(action: viewModel.clearSelection) {
+                                Image(systemName: "xmark.circle")
+                                    .foregroundColor(.secondary)
+                            }
+                            .help("Close current dataset")
+                        }
+                        
+                        // Export Button
+                        if viewModel.result != nil {
+                            Divider()
+                            Button {
+                                viewModel.showExportSheet = true
+                            } label: {
+                                Image(systemName: "square.and.arrow.up")
+                            }
+                            .help("Export analysis report as Markdown")
+                            .keyboardShortcut("e", modifiers: [.command, .shift])
+                            
+                            // AI Panel Toggle
+                            let aiIconName = viewModel.showAIPanel ? "sidebar.right" : "sparkles"
+                            let aiIconColor = viewModel.showAIPanel ? Color.purple : Color.primary
+                            Button {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    viewModel.showAIPanel.toggle()
+                                }
+                            } label: {
+                                Image(systemName: aiIconName)
+                                    .foregroundColor(aiIconColor)
+                            }
+                            .help(viewModel.showAIPanel ? "Hide AI panel" : "Show AI Analyst panel")
+                            .keyboardShortcut("a", modifiers: [.command, .shift])
+                        }
+                    }
                 }
             }
-            // 4. Native macOS Toolbar & Titles
-            .navigationTitle(navigationTitleText)
-            .navigationSubtitle(viewModel.result != nil ? "Analysis Complete" : (viewModel.previewResult != nil ? "Dataset Preview" : ""))
-            .toolbar {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    
-                    // Close Dataset Button
-                    if viewModel.result != nil || viewModel.previewResult != nil {
-                        Button(action: viewModel.clearSelection) {
-                            Image(systemName: "xmark.circle")
-                                .foregroundColor(.secondary)
-                        }
-                        .help("Close current dataset")
+            
+            if showCommandPalette {
+                Color.black.opacity(0.15)
+                    .edgesIgnoringSafeArea(.all)
+                    .onTapGesture {
+                        showCommandPalette = false
                     }
-                    
-                    // Export Button
-                    if viewModel.result != nil {
-                        Divider()
-                        Button {
-                            viewModel.showExportSheet = true
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                        .help("Export analysis report as Markdown")
-                        .keyboardShortcut("e", modifiers: [.command, .shift])
-                        
-                        // AI Panel Toggle
-                        Button {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                                viewModel.showAIPanel.toggle()
-                            }
-                        } label: {
-                            Image(systemName: viewModel.showAIPanel ? "sidebar.right" : "sparkles")
-                                .foregroundColor(viewModel.showAIPanel ? .purple : .primary)
-                        }
-                        .help(viewModel.showAIPanel ? "Hide AI panel" : "Show AI Analyst panel")
-                        .keyboardShortcut("a", modifiers: [.command, .shift])
+                    .transition(.opacity)
+                
+                CommandPaletteView(
+                    isPresented: $showCommandPalette,
+                    viewModel: viewModel,
+                    onNavigateTab: { tabName in
+                        viewModel.selectedTab = tabName
+                    },
+                    onShowHistory: {
+                        showHistoryBrowser = true
                     }
-                }
+                )
+                .transition(.scale(scale: 0.95).combined(with: .opacity))
+                .zIndex(100)
             }
         }
         .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
@@ -93,6 +121,16 @@ struct ContentView: View {
                     }
                 }
                 .keyboardShortcut(.return, modifiers: .command)
+                
+                Button("") {
+                    showHistoryBrowser = true
+                }
+                .keyboardShortcut("y", modifiers: .command)
+                
+                Button("") {
+                    showCommandPalette.toggle()
+                }
+                .keyboardShortcut("k", modifiers: .command)
             }
             .opacity(0)
             .frame(width: 0, height: 0)
@@ -132,8 +170,30 @@ struct ContentView: View {
         }
         .sheet(isPresented: $viewModel.showExportSheet) {
             if let analysisResult = viewModel.result {
-                ExportReportSheet(result: analysisResult.resultForTarget(viewModel.selectedTargetName), isPresented: $viewModel.showExportSheet)
+                ExportReportSheet(
+                    result: analysisResult.resultForTarget(viewModel.selectedTargetName),
+                    csvPath: viewModel.analysisConfig.trainFilePath ?? viewModel.previewResult?.localPath ?? viewModel.selectedFileURL?.path ?? "",
+                    config: viewModel.analysisConfig,
+                    isPresented: $viewModel.showExportSheet
+                )
             }
+        }
+        .sheet(isPresented: $showHistoryBrowser) {
+            HistoryBrowserView(
+                isPresented: $showHistoryBrowser,
+                historyService: viewModel.historyService,
+                onSelect: { item in
+                    viewModel.loadHistoryItem(item)
+                },
+                onRename: { item in
+                    viewModel.renameText = item.datasetName
+                    viewModel.itemToRename = item
+                    viewModel.showRenameAlert = true
+                },
+                onDelete: { item in
+                    viewModel.historyService.deleteItem(item)
+                }
+            )
         }
         .sheet(isPresented: $viewModel.showModelExportSheet) {
             ModelExportSheet(
@@ -277,6 +337,7 @@ struct ContentView: View {
                             }
                             .menuStyle(.borderlessButton)
                             .buttonStyle(.plain)
+                            .padding(1)
                         }
                     }
 
@@ -576,25 +637,37 @@ struct ContentView: View {
                     if !viewModel.historyService.items.isEmpty {
                         SidebarCard(title: "Recent Analyses") {
                             VStack(spacing: 0) {
-                                ForEach(viewModel.historyService.items.prefix(4)) { item in
+                                let displayedItems = Array(viewModel.historyService.items.sorted(by: { a, b in
+                                    let aPinned = a.isPinned ?? false
+                                    let bPinned = b.isPinned ?? false
+                                    if aPinned != bPinned { return aPinned }
+                                    return a.timestamp > b.timestamp
+                                }).prefix(4))
+                                
+                                ForEach(displayedItems) { item in
                                     Button { viewModel.loadHistoryItem(item) } label: {
                                         HStack(spacing: 10) {
                                             RoundedRectangle(cornerRadius: 1.5)
-                                                .fill(item.taskType.map { getTaskColor($0) } ?? .secondary.opacity(0.4))
+                                                .fill(item.uiColor)
                                                 .frame(width: 3, height: 28)
                                             
                                             VStack(alignment: .leading, spacing: 2) {
-                                                Text(item.datasetName)
-                                                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                                    .foregroundColor(.primary)
-                                                    .lineLimit(1)
+                                                HStack(spacing: 4) {
+                                                    if item.isPinned ?? false {
+                                                        Image(systemName: "star.fill")
+                                                            .font(.system(size: 8))
+                                                            .foregroundColor(.yellow)
+                                                    }
+                                                    Text(item.datasetName)
+                                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                                        .foregroundColor(.primary)
+                                                        .lineLimit(1)
+                                                }
                                                 
                                                 HStack(spacing: 4) {
-                                                    if let task = item.taskType {
-                                                        Text(getTaskShortLabel(task))
-                                                            .font(.system(size: 8, weight: .bold))
-                                                            .foregroundColor(getTaskColor(task))
-                                                    }
+                                                    Text(item.shortLabel)
+                                                        .font(.system(size: 8, weight: .bold))
+                                                        .foregroundColor(item.uiColor)
                                                     Text("•")
                                                         .font(.system(size: 8))
                                                         .foregroundColor(.secondary.opacity(0.5))
@@ -632,6 +705,11 @@ struct ContentView: View {
                                         } label: {
                                             Label("Rename Analysis...", systemImage: "pencil")
                                         }
+                                        Button {
+                                            viewModel.historyService.togglePinItem(item)
+                                        } label: {
+                                            Label((item.isPinned ?? false) ? "Unpin Analysis" : "Pin Analysis", systemImage: "star")
+                                        }
                                         Button(role: .destructive) {
                                             viewModel.historyService.deleteItem(item)
                                         } label: {
@@ -639,10 +717,26 @@ struct ContentView: View {
                                         }
                                     }
                                     
-                                    if item.id != viewModel.historyService.items.prefix(4).last?.id {
+                                    if item.id != displayedItems.last?.id {
                                         Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
                                     }
                                 }
+                                
+                                Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
+                                
+                                Button {
+                                    showHistoryBrowser = true
+                                } label: {
+                                    HStack {
+                                        Spacer()
+                                        Label("See All History...", systemImage: "clock.arrow.circlepath")
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundColor(.accentColor)
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 6)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -790,6 +884,7 @@ struct ContentView: View {
                             SummaryView(
                                 result: analysisResult.resultForTarget(viewModel.selectedTargetName),
                                 config: $viewModel.analysisConfig,
+                                activeModelName: $viewModel.activeModelName,
                                 onRunAnalysis: { viewModel.runEDA() },
                                 onExportModelAndCode: { viewModel.showModelExportSheet = true },
                                 onAskAI: { prompt in
@@ -878,7 +973,8 @@ struct ContentView: View {
                             PredictionTabView(
                                 result: analysisResult.resultForTarget(viewModel.selectedTargetName),
                                 csvPath: viewModel.analysisConfig.trainFilePath ?? viewModel.previewResult?.localPath ?? viewModel.selectedFileURL?.path ?? viewModel.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
-                                config: viewModel.analysisConfig
+                                config: viewModel.analysisConfig,
+                                activeModelName: viewModel.activeModelName
                             )
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                         default:

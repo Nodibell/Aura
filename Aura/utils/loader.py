@@ -420,6 +420,43 @@ def load_dataset(file_path, nrows=None):
                 except Exception:
                     raise e
         df.columns = df.columns.str.strip()
+        
+        # Check if the first row was mistakenly treated as header (i.e. headerless file)
+        if not df.empty:
+            has_suspicious_header = False
+            for col in df.columns:
+                col_str = str(col)
+                if len(col_str) > 60 or col_str.count(' ') > 3 or '\n' in col_str:
+                    has_suspicious_header = True
+                    break
+            
+            if has_suspicious_header:
+                try:
+                    if nrows:
+                        df_no_header = pd.read_csv(file_path, sep=sep, header=None, nrows=nrows, on_bad_lines='skip', encoding='utf-8')
+                    else:
+                        df_no_header = pd.read_csv(file_path, sep=sep, header=None, on_bad_lines='skip', encoding='utf-8')
+                except UnicodeDecodeError:
+                    try:
+                        if nrows:
+                            df_no_header = pd.read_csv(file_path, sep=sep, header=None, nrows=nrows, on_bad_lines='skip', encoding='latin-1')
+                        else:
+                            df_no_header = pd.read_csv(file_path, sep=sep, header=None, on_bad_lines='skip', encoding='latin-1')
+                    except Exception:
+                        try:
+                            if nrows:
+                                df_no_header = pd.read_csv(file_path, sep=sep, header=None, nrows=nrows, on_bad_lines='skip', encoding='utf-8-sig')
+                            else:
+                                df_no_header = pd.read_csv(file_path, sep=sep, header=None, on_bad_lines='skip', encoding='utf-8-sig')
+                        except Exception:
+                            df_no_header = None
+                except Exception:
+                    df_no_header = None
+                
+                if df_no_header is not None and not df_no_header.empty:
+                    df = df_no_header
+                    df.columns = [f"col_{i}" for i in range(len(df.columns))]
+        
         return df.replace([np.inf, -np.inf], np.nan)
 
 def _infer_dataset_type(df, file_path=""):

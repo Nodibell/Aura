@@ -63,13 +63,28 @@ struct BarChartView: View {
                     }
                 }
                 .chartXSelection(value: $selectedXVal)
-                .chartXAxis { AxisMarks() }
+                .chartXAxis {
+                    AxisMarks(values: .automatic) { value in
+                        AxisGridLine()
+                        AxisTick()
+                        AxisValueLabel(anchor: .topTrailing) {
+                            if let val = value.as(String.self) {
+                                Text(val)
+                                    .rotationEffect(Angle(degrees: -45))
+                                    .font(.system(size: 9))
+                            }
+                        }
+                    }
+                }
                 .chartYAxis { AxisMarks(position: .leading) }
                 .chartLegend(hasMultipleSeries ? .visible : .hidden)
                 .chartXScale(domain: .automatic(includesZero: false))
                 .chartScrollableAxes(needsScrolling ? .horizontal : [])
                 .chartXVisibleDomain(length: needsScrolling ? visibleCount : config.data.count)
-                .padding(.all, 8)
+                .frame(height: 200)
+                .padding(.horizontal, 8)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
                 
             } else {
                 Chart {
@@ -105,6 +120,7 @@ struct BarChartView: View {
                 .chartYAxis { AxisMarks(position: .leading) }
                 .chartLegend(hasMultipleSeries ? .visible : .hidden)
                 .chartXScale(domain: .automatic(includesZero: false))
+                .frame(height: 180)
                 .padding(.all, 8)
             }
             

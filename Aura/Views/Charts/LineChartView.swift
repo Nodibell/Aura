@@ -464,6 +464,7 @@ struct LineChartView: View {
                     }
                 }
             }
+            .frame(height: 180)
             
             // Drill down button for LineChartView
             if let selectedPoint = selectedPoint, onTapPoint != nil {

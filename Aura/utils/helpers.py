@@ -60,6 +60,13 @@ def _generate_reproduction_code(dataset_path, dataset_type, target_col, exclude_
     cat_list = categorical_cols if categorical_cols else []
     txt_list = text_cols if text_cols else []
     model_file_name = os.path.basename(model_path) if model_path else "model.joblib"
+    # Shared snippet: resolve MODEL_PATH next to this script, regardless of the
+    # working directory the script happens to be launched from (previously a
+    # bare relative filename, which only worked if CWD == script folder).
+    model_path_resolver = (
+        "SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))\n"
+        f'MODEL_PATH = os.path.join(SCRIPT_DIR, r"{model_file_name}")'
+    )
     
     if cleaner is not None or preprocessor is not None:
         code = f'''# Aura - Tabular Reproduction Pipeline
@@ -83,7 +90,7 @@ exclude_cols = {exclude_list}
 df = df.drop(columns=exclude_cols, errors='ignore')
 
 # 2. Load Pipeline and Predict
-MODEL_PATH = r"{model_file_name}"
+{model_path_resolver}
 if os.path.exists(MODEL_PATH):
     pipeline = joblib.load(MODEL_PATH)
     print("Successfully loaded pipeline from:", MODEL_PATH)
@@ -210,9 +217,12 @@ X_df = X_df.bfill().ffill().fillna(0)
 X_processed = X_df.to_numpy()
 
 # 3. Load Trained Model and Predict
-MODEL_PATH = r"{model_file_name}"
+{model_path_resolver}
 if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
+    loaded = joblib.load(MODEL_PATH)
+    # Aura always saves models wrapped as {{'model': ..., 'cleaner': ..., ...}};
+    # unwrap it, but also accept a raw estimator for backward compatibility.
+    model = loaded.get('model') if isinstance(loaded, dict) else loaded
     print("Successfully loaded model from:", MODEL_PATH)
     preds = model.predict(X_processed)
     print("First 10 predictions:", preds[:10])
@@ -295,9 +305,12 @@ for col in expected_features:
 X_processed = X_processed[expected_features]
 
 # 3. Load Trained Model and Predict
-MODEL_PATH = r"{model_file_name}"
+{model_path_resolver}
 if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
+    loaded = joblib.load(MODEL_PATH)
+    # Aura always saves models wrapped as {{'model': ..., 'cleaner': ..., ...}};
+    # unwrap it, but also accept a raw estimator for backward compatibility.
+    model = loaded.get('model') if isinstance(loaded, dict) else loaded
     print("Successfully loaded model from:", MODEL_PATH)
     preds = model.predict(X_processed)
     print("First 10 predictions:", preds[:10])
@@ -360,9 +373,12 @@ for col in expected_features:
 X_processed = X_processed[expected_features]
 
 # Load Trained Model and Predict
-MODEL_PATH = r"{model_file_name}"
+{model_path_resolver}
 if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
+    loaded = joblib.load(MODEL_PATH)
+    # Aura always saves models wrapped as {{'model': ..., 'cleaner': ..., ...}};
+    # unwrap it, but also accept a raw estimator for backward compatibility.
+    model = loaded.get('model') if isinstance(loaded, dict) else loaded
     preds = model.predict(X_processed)
     print("First 10 predictions:", preds[:10])
     if y is not None:
@@ -460,9 +476,12 @@ for col in expected_features:
 X_processed = X_processed[expected_features]
 
 # 3. Load Trained Model and Predict
-MODEL_PATH = r"{model_file_name}"
+{model_path_resolver}
 if os.path.exists(MODEL_PATH):
-    model = joblib.load(MODEL_PATH)
+    loaded = joblib.load(MODEL_PATH)
+    # Aura always saves models wrapped as {{'model': ..., 'cleaner': ..., ...}};
+    # unwrap it, but also accept a raw estimator for backward compatibility.
+    model = loaded.get('model') if isinstance(loaded, dict) else loaded
     print("Successfully loaded model from:", MODEL_PATH)
     
     preds = model.predict(X_processed)
@@ -516,4 +535,3 @@ def _export_model_and_code(model_obj, model_path, code_path, dataset_path, datas
             sys.stderr.write(f"Reproduction code exported successfully to {code_path}\n")
     except Exception as e:
         sys.stderr.write(f"Warning: Failed to export model/code: {str(e)}\n")
-

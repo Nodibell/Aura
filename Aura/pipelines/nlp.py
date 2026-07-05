@@ -346,44 +346,90 @@ def analyze_nlp(df, target_col, task_type_override,
         if is_classification:
             try:
                 # We calculate stats of word counts grouped by target class
-                for cls in np.unique(y):
-                    mask = (y == cls)
-                    cls_wcs = word_counts[mask].values
-                    if len(cls_wcs) >= 5:
-                        sorted_wcs = np.sort(cls_wcs)
-                        q1 = float(np.percentile(sorted_wcs, 25))
-                        median = float(np.percentile(sorted_wcs, 50))
-                        q3 = float(np.percentile(sorted_wcs, 75))
-                        iqr = q3 - q1
-                        
-                        if iqr <= 0.0:
-                            lower_whisker = float(sorted_wcs.min())
-                            upper_whisker = float(sorted_wcs.max())
-                            outliers_list = []
-                        else:
-                            lower_fence = q1 - 1.5 * iqr
-                            upper_fence = q3 + 1.5 * iqr
-                            non_outliers = sorted_wcs[(sorted_wcs >= lower_fence) & (sorted_wcs <= upper_fence)]
-                            lower_whisker = float(non_outliers.min()) if len(non_outliers) > 0 else q1
-                            upper_whisker = float(non_outliers.max()) if len(non_outliers) > 0 else q3
-                            outliers = sorted_wcs[(sorted_wcs < lower_whisker) | (sorted_wcs > upper_whisker)]
-                            outliers_list = [float(x) for x in outliers[:100]]
+                if is_multi_label and mlb is not None:
+                    # Multi-label case
+                    for c_idx, cls in enumerate(mlb.classes_):
+                        mask = (y[:, c_idx] == 1)
+                        if len(mask.shape) > 1:
+                            mask = mask.any(axis=1)
+                        cls_wcs = word_counts[mask].values
+                        if len(cls_wcs) >= 5:
+                            sorted_wcs = np.sort(cls_wcs)
+                            q1 = float(np.percentile(sorted_wcs, 25))
+                            median = float(np.percentile(sorted_wcs, 50))
+                            q3 = float(np.percentile(sorted_wcs, 75))
+                            iqr = q3 - q1
                             
-                        charts.append({
-                            "type": "boxplot",
-                            "title": f"Lexical Complexity Boxplot: Class {cls}",
-                            "x_label": "",
-                            "y_label": "Word Count",
-                            "data": [],
-                            "box_stats": {
-                                "min": lower_whisker,
-                                "q1": q1,
-                                "median": median,
-                                "q3": q3,
-                                "max": upper_whisker,
-                                "outliers": outliers_list
-                            }
-                        })
+                            if iqr <= 0.0:
+                                lower_whisker = float(sorted_wcs.min())
+                                upper_whisker = float(sorted_wcs.max())
+                                outliers_list = []
+                            else:
+                                lower_fence = q1 - 1.5 * iqr
+                                upper_fence = q3 + 1.5 * iqr
+                                non_outliers = sorted_wcs[(sorted_wcs >= lower_fence) & (sorted_wcs <= upper_fence)]
+                                lower_whisker = float(non_outliers.min()) if len(non_outliers) > 0 else q1
+                                upper_whisker = float(non_outliers.max()) if len(non_outliers) > 0 else q3
+                                outliers = sorted_wcs[(sorted_wcs < lower_whisker) | (sorted_wcs > upper_whisker)]
+                                outliers_list = [float(x) for x in outliers[:100]]
+                                
+                            charts.append({
+                                "type": "boxplot",
+                                "title": f"Lexical Complexity Boxplot: Class {cls}",
+                                "x_label": "",
+                                "y_label": "Word Count",
+                                "data": [],
+                                "box_stats": {
+                                    "min": lower_whisker,
+                                    "q1": q1,
+                                    "median": median,
+                                    "q3": q3,
+                                    "max": upper_whisker,
+                                    "outliers": outliers_list
+                                }
+                            })
+                else:
+                    # Single-label case
+                    for cls in np.unique(y):
+                        mask = (y == cls)
+                        if len(mask.shape) > 1:
+                            mask = mask.any(axis=1)
+                        cls_wcs = word_counts[mask].values
+                        if len(cls_wcs) >= 5:
+                            sorted_wcs = np.sort(cls_wcs)
+                            q1 = float(np.percentile(sorted_wcs, 25))
+                            median = float(np.percentile(sorted_wcs, 50))
+                            q3 = float(np.percentile(sorted_wcs, 75))
+                            iqr = q3 - q1
+                            
+                            if iqr <= 0.0:
+                                lower_whisker = float(sorted_wcs.min())
+                                upper_whisker = float(sorted_wcs.max())
+                                outliers_list = []
+                            else:
+                                lower_fence = q1 - 1.5 * iqr
+                                upper_fence = q3 + 1.5 * iqr
+                                non_outliers = sorted_wcs[(sorted_wcs >= lower_fence) & (sorted_wcs <= upper_fence)]
+                                lower_whisker = float(non_outliers.min()) if len(non_outliers) > 0 else q1
+                                upper_whisker = float(non_outliers.max()) if len(non_outliers) > 0 else q3
+                                outliers = sorted_wcs[(sorted_wcs < lower_whisker) | (sorted_wcs > upper_whisker)]
+                                outliers_list = [float(x) for x in outliers[:100]]
+                                
+                            charts.append({
+                                "type": "boxplot",
+                                "title": f"Lexical Complexity Boxplot: Class {cls}",
+                                "x_label": "",
+                                "y_label": "Word Count",
+                                "data": [],
+                                "box_stats": {
+                                    "min": lower_whisker,
+                                    "q1": q1,
+                                    "median": median,
+                                    "q3": q3,
+                                    "max": upper_whisker,
+                                    "outliers": outliers_list
+                                }
+                            })
             except Exception as box_err:
                 sys.stderr.write(f"Warning: Failed to generate lexical diversity boxplots: {str(box_err)}\n")
 
@@ -391,19 +437,44 @@ def analyze_nlp(df, target_col, task_type_override,
         if is_classification:
             try:
                 class_words_data = []
-                for cls in np.unique(y):
-                    class_mask = (y == cls)
-                    class_tfidf_sum = X_processed[class_mask].sum(axis=0)
-                    
-                    # Sort words for this class
-                    top_word_indices = np.argsort(class_tfidf_sum)[-5:]
-                    for idx in top_word_indices:
-                        class_words_data.append({
-                            "x_val": str(feature_names[idx]),
-                            "x_num": None,
-                            "y": float(class_tfidf_sum[idx]),
-                            "series": f"Class {cls}"
-                        })
+                if is_multi_label and mlb is not None:
+                    # Multi-label case
+                    for c_idx, cls in enumerate(mlb.classes_):
+                        class_mask = (y[:, c_idx] == 1)
+                        if len(class_mask.shape) > 1:
+                            class_mask = class_mask.any(axis=1)
+                        if not np.any(class_mask):
+                            continue
+                        class_tfidf_sum = X_processed[class_mask].sum(axis=0)
+                        
+                        # Sort words for this class
+                        top_word_indices = np.argsort(class_tfidf_sum)[-5:]
+                        for idx in top_word_indices:
+                            class_words_data.append({
+                                "x_val": str(feature_names[idx]),
+                                "x_num": None,
+                                "y": float(class_tfidf_sum[idx]),
+                                "series": f"Class {cls}"
+                            })
+                else:
+                    # Single-label case
+                    for cls in np.unique(y):
+                        class_mask = (y == cls)
+                        if len(class_mask.shape) > 1:
+                            class_mask = class_mask.any(axis=1)
+                        if not np.any(class_mask):
+                            continue
+                        class_tfidf_sum = X_processed[class_mask].sum(axis=0)
+                        
+                        # Sort words for this class
+                        top_word_indices = np.argsort(class_tfidf_sum)[-5:]
+                        for idx in top_word_indices:
+                            class_words_data.append({
+                                "x_val": str(feature_names[idx]),
+                                "x_num": None,
+                                "y": float(class_tfidf_sum[idx]),
+                                "series": f"Class {cls}"
+                            })
                 charts.append({
                     "type": "bar",
                     "title": "Class-Specific Top TF-IDF Words",
@@ -729,6 +800,16 @@ def analyze_nlp(df, target_col, task_type_override,
                 {"name": "SGD Classifier", "score": float(sgd_acc), "metric": "Accuracy", "f1": float(sgd_f1), "precision": float(sgd_prec), "recall": float(sgd_rec)},
                 {"name": f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})", "score": float(xgb_acc), "metric": "Accuracy", "f1": float(xgb_f1), "precision": float(xgb_prec), "recall": float(xgb_rec)}
             ]
+            
+            trained_models = {
+                "Dummy Baseline": dummy if 'dummy' in locals() else None,
+                "Multinomial Naive Bayes": nb,
+                "Complement Naive Bayes": cnb,
+                "Logistic Regression": lr,
+                "Linear SVC": svc,
+                "SGD Classifier": sgd,
+                f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})": xgb
+            }
             metrics = {
                 "model": best_model,
                 "score_type": "Accuracy",
@@ -776,6 +857,12 @@ def analyze_nlp(df, target_col, task_type_override,
                 {"name": "Linear Regression", "score": float(lr_r2), "metric": "R\u00b2 Score"},
                 {"name": "Ridge Regression", "score": float(ridge_r2), "metric": "R\u00b2 Score"}
             ]
+            
+            trained_models = {
+                "Linear Regression": lr,
+                "Ridge Regression": ridge,
+                "Dummy Baseline": dummy if 'dummy' in locals() else None
+            }
             metrics = {
                 "model": best_model,
                 "score_type": "R\u00b2 Score",
@@ -943,6 +1030,37 @@ def analyze_nlp(df, target_col, task_type_override,
                 [text_col] if 'text_col' in locals() else [],
                 cleaner=None, preprocessor=None, label_encoder=export_le
             )
+            
+            if model_export_path and 'trained_models' in locals():
+                import os
+                base_dir = os.path.dirname(model_export_path)
+                base_name = os.path.basename(model_export_path)
+                name_without_ext, ext = os.path.splitext(base_name)
+                
+                for m_name, m_obj in trained_models.items():
+                    if m_obj is not None:
+                        sub_pipeline = SKPipeline([
+                            ('tfidf', vectorizer),
+                            ('clf', m_obj)
+                        ])
+                        m_name_safe = m_name.replace(" ", "_").replace("²", "2").replace("(", "").replace(")", "").replace("=", "").replace(",", "")
+                        sub_model_path = os.path.join(base_dir, f"{name_without_ext}_{m_name_safe}{ext}")
+                        
+                        sub_export_le = None
+                        if is_classification:
+                            if is_multi_label:
+                                sub_export_le = mlb
+                            elif m_name.startswith("Tuned XGBoost"):
+                                sub_export_le = le
+                                
+                        _export_model_and_code(
+                            sub_pipeline, sub_model_path, None,
+                            file_path, "nlp", target_col, None,
+                            "classification" if is_classification else "regression",
+                            None, m_name, numeric_cols, categorical_cols,
+                            [text_col] if 'text_col' in locals() else [],
+                            cleaner=None, preprocessor=None, label_encoder=sub_export_le
+                        )
         
         return {
             "summary": summary,

@@ -4,6 +4,7 @@ import Charts
 struct SummaryView: View {
     let result: AnalysisResult
     @Binding var config: AnalysisConfig
+    @Binding var activeModelName: String?
     let onRunAnalysis: () -> Void
     let onExportModelAndCode: () -> Void
     let onAskAI: (String) -> Void
@@ -92,65 +93,111 @@ struct SummaryView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-
-                // MARK: — Hero Banner
-                heroBanner
-
-                // MARK: - Data Leakage Warnings (D7)
-                dataLeakageBanner
-
-                // MARK: - Auto-Cleaning Recommendations (D8)
-                cleaningRecommendationsSection
-
-                // MARK: — Stat Cards
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 14) {
-                    let rowSubtitle: String? = {
-                        if let orig = result.originalRowCount, let sampled = result.sampledRowCount, orig > sampled {
-                            return "Sampled from \(formatNumber(orig)) (Smart)"
-                        }
-                        return nil
-                    }()
-                    StatCard(title: "Rows", value: formatNumber(result.rowCount),
-                             subtitle: rowSubtitle, iconName: "tablecells", color: .blue)
-                    StatCard(title: "Columns", value: "\(result.colCount)",
-                             subtitle: "\(result.numericColCount) numeric · \(result.categoricalColCount) categorical\(result.textColCount > 0 ? " · \(result.textColCount) text" : "")",
-                             iconName: "square.split.2x2", color: .purple)
-                    StatCard(title: "Missing Cells", value: "\(totalMissingCells())",
-                             subtitle: totalMissingCells() == 0 ? "Clean dataset ✓" : "across \(columnsMissingCount()) columns",
-                             iconName: "questionmark.folder.fill", color: .orange)
-                    StatCard(title: "Best Score", value: String(format: "%.3f", result.metrics.score),
-                             subtitle: "\(result.metrics.scoreType)",
-                             iconName: "bolt.fill", color: .green)
-                    if let valMetrics = result.valMetrics {
-                        StatCard(title: "Validation Score", value: String(format: "%.3f", valMetrics.score),
-                                 subtitle: "\(valMetrics.scoreType)",
-                                 iconName: "checkmark.seal.fill", color: .blue)
+        ScrollViewReader { proxy in
+            VStack(spacing: 0) {
+                // Sticky Anchor Header Bar
+                HStack(spacing: 12) {
+                    Label("Jump to:", systemImage: "arrow.right.circle.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.secondary)
+                        .padding(.trailing, 4)
+                    
+                    AnchorButton(title: "Overview", iconName: "doc.text") {
+                        withAnimation { proxy.scrollTo("overview", anchor: .top) }
                     }
+                    
+                    if let warnings = result.dataLeakageWarnings, !warnings.isEmpty {
+                        AnchorButton(title: "Warnings", iconName: "exclamationmark.triangle") {
+                            withAnimation { proxy.scrollTo("warnings", anchor: .top) }
+                        }
+                    }
+                    
+                    AnchorButton(title: "Model Leaderboard", iconName: "trophy") {
+                        withAnimation { proxy.scrollTo("leaderboard", anchor: .top) }
+                    }
+                    
+                    if result.profiling != nil {
+                        AnchorButton(title: "Data Profiling", iconName: "chart.bar") {
+                            withAnimation { proxy.scrollTo("profiling", anchor: .top) }
+                        }
+                    }
+                    
+                    AnchorButton(title: "Missing Values", iconName: "questionmark.circle") {
+                        withAnimation { proxy.scrollTo("missing", anchor: .top) }
+                    }
+                    
+                    Spacer()
                 }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .background(Color(NSColor.controlBackgroundColor))
+                
+                Divider()
+                
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // MARK: — Hero Banner
+                        heroBanner
+                            .id("overview")
 
-                // MARK: — Model Leaderboard
-                modelLeaderboard
+                        // MARK: - Data Leakage Warnings (D7)
+                        dataLeakageBanner
+                            .id("warnings")
 
-                // MARK: - Validation Heatmap (Confusion Matrix)
-                if let cm = result.confusionMatrix {
-                    ConfusionMatrixView(matrix: cm, title: "Confusion Matrix (Test Set)")
+                        // MARK: - Auto-Cleaning Recommendations (D8)
+                        cleaningRecommendationsSection
+
+                        // MARK: — Stat Cards
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 14) {
+                            let rowSubtitle: String? = {
+                                if let orig = result.originalRowCount, let sampled = result.sampledRowCount, orig > sampled {
+                                    return "Sampled from \(formatNumber(orig)) (Smart)"
+                                }
+                                return nil
+                            }()
+                            StatCard(title: "Rows", value: formatNumber(result.rowCount),
+                                     subtitle: rowSubtitle, iconName: "tablecells", color: .blue)
+                            StatCard(title: "Columns", value: "\(result.colCount)",
+                                     subtitle: "\(result.numericColCount) numeric · \(result.categoricalColCount) categorical\(result.textColCount > 0 ? " · \(result.textColCount) text" : "")",
+                                     iconName: "square.split.2x2", color: .purple)
+                            StatCard(title: "Missing Cells", value: "\(totalMissingCells())",
+                                     subtitle: totalMissingCells() == 0 ? "Clean dataset ✓" : "across \(columnsMissingCount()) columns",
+                                     iconName: "questionmark.folder.fill", color: .orange)
+                            StatCard(title: "Best Score", value: String(format: "%.3f", result.metrics.score),
+                                     subtitle: "\(result.metrics.scoreType)",
+                                     iconName: "bolt.fill", color: .green)
+                            if let valMetrics = result.valMetrics {
+                                StatCard(title: "Validation Score", value: String(format: "%.3f", valMetrics.score),
+                                         subtitle: "\(valMetrics.scoreType)",
+                                         iconName: "checkmark.seal.fill", color: .blue)
+                            }
+                        }
+
+                        // MARK: — Model Leaderboard
+                        modelLeaderboard
+                            .id("leaderboard")
+
+                        // MARK: - Validation Heatmap (Confusion Matrix)
+                        if let cm = result.confusionMatrix {
+                            ConfusionMatrixView(matrix: cm, title: "Confusion Matrix (Test Set)")
+                        }
+                        if let valCm = result.valConfusionMatrix {
+                            ConfusionMatrixView(matrix: valCm, title: "Confusion Matrix (Validation Set)")
+                        }
+
+                        // MARK: - Data Profiling
+                        if let profiling = result.profiling {
+                            DataProfilingSection(profiling: profiling)
+                                .id("profiling")
+                        }
+
+                        // MARK: — Missing Values
+                        missingValuesSection
+                            .id("missing")
+                    }
+                    .padding(12)
                 }
-                if let valCm = result.valConfusionMatrix {
-                    ConfusionMatrixView(matrix: valCm, title: "Confusion Matrix (Validation Set)")
-                }
-
-                // MARK: - Data Profiling
-                if let profiling = result.profiling {
-                    DataProfilingSection(profiling: profiling)
-                }
-
-                // MARK: — Missing Values
-                missingValuesSection
-
             }
-            .padding(20)
         }
     }
 
@@ -455,7 +502,7 @@ struct SummaryView: View {
                 .labelsHidden()
                 .frame(maxWidth: 320)
             }
-            .padding(.vertical, 4)
+            .padding(4)
 
             VStack(spacing: 10) {
                 let sortedList = sortedModels(result.modelsCompared, isRegression: isRegression)
@@ -467,6 +514,7 @@ struct SummaryView: View {
 
                 ForEach(sortedList) { model in
                     let isWinner = model.name == result.metrics.model
+                    let isActive = (activeModelName == model.name) || (activeModelName == nil && isWinner)
                     let displayInfo = displayScore(for: model)
                     
                     let pct: Double = {
@@ -480,61 +528,79 @@ struct SummaryView: View {
                         return 1.0
                     }()
                     
-                    let scoreColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .primary
-                    let barColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .blue.opacity(0.4)
-                    let strokeColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green.opacity(0.2) : .orange.opacity(0.2)) : Color.primary.opacity(0.08)
-                    let bgColor: Color = isWinner ? (displayInfo.value >= 0 || isLowerBetter ? .green.opacity(0.05) : .orange.opacity(0.05)) : Color(nsColor: .controlBackgroundColor)
+                    let scoreColor: Color = isActive ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .primary
+                    let barColor: Color = isActive ? (displayInfo.value >= 0 || isLowerBetter ? .green : .orange) : .blue.opacity(0.4)
+                    let strokeColor: Color = isActive ? Color.purple : Color.primary.opacity(0.08)
+                    let bgColor: Color = isActive ? Color.purple.opacity(0.06) : Color(nsColor: .controlBackgroundColor)
                     
-                    HStack(spacing: 12) {
-                        // Medal
-                        ZStack {
-                            Circle()
-                                .fill(isWinner ? Color.yellow.opacity(0.2) : Color.primary.opacity(0.04))
-                                .frame(width: 32, height: 32)
-                            Image(systemName: isWinner ? "trophy.fill" : "medal")
-                                .font(.system(size: 14))
-                                .foregroundColor(isWinner ? .yellow : .secondary)
+                    Button {
+                        activeModelName = model.name
+                    } label: {
+                        HStack(spacing: 12) {
+                            // Medal
+                            ZStack {
+                                Circle()
+                                    .fill(isWinner ? Color.yellow.opacity(0.2) : Color.primary.opacity(0.04))
+                                    .frame(width: 32, height: 32)
+                                Image(systemName: isWinner ? "trophy.fill" : "medal")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isWinner ? .yellow : .secondary)
+                            }
+
+                            // Name
+                            VStack(alignment: .leading, spacing: 2) {
+                                HStack(spacing: 6) {
+                                    Text(model.name)
+                                        .font(.subheadline)
+                                        .fontWeight(isActive ? .bold : .regular)
+                                        .foregroundColor(isActive ? .purple : .primary)
+                                    
+                                    if isActive {
+                                        Text("Active")
+                                            .font(.system(size: 8, weight: .bold))
+                                            .foregroundColor(.white)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(Color.purple)
+                                            .cornerRadius(4)
+                                    }
+                                }
+                                Text(displayInfo.label)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Spacer()
+
+                            // Score bar
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(Color.primary.opacity(0.06))
+                                    .frame(width: 100, height: 6)
+                                RoundedRectangle(cornerRadius: 4)
+                                    .fill(barColor)
+                                    .frame(width: max(4, 100 * pct), height: 6)
+                            }
+
+                            Text(formatMetricValue(displayInfo.value))
+                                .font(.system(.body, design: .monospaced))
+                                .fontWeight(isActive ? .bold : .regular)
+                                .foregroundColor(scoreColor)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(width: 90, alignment: .trailing)
                         }
-
-                        // Name
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(model.name)
-                                .font(.subheadline)
-                                .fontWeight(isWinner ? .bold : .regular)
-                            Text(displayInfo.label)
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
-
-                        // Score bar
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(Color.primary.opacity(0.06))
-                                .frame(width: 100, height: 6)
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(barColor)
-                                .frame(width: max(4, 100 * pct), height: 6)
-                        }
-
-                        Text(formatMetricValue(displayInfo.value))
-                            .font(.system(.body, design: .monospaced))
-                            .fontWeight(isWinner ? .bold : .regular)
-                            .foregroundColor(scoreColor)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.7)
-                            .frame(width: 90, alignment: .trailing)
+                        .padding(12)
+                        .background(bgColor)
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(strokeColor, lineWidth: isActive ? 2.0 : 1.0)
+                        )
                     }
-                    .padding(12)
-                    .background(bgColor)
-                    .cornerRadius(10)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(strokeColor, lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
                 }
-            }
+            }.padding(4)
             
             // Phase B: Cross-Validation & Baseline details
             if let cvMean = result.cvMean {
@@ -1082,5 +1148,43 @@ struct StatMiniBox: View {
         .background(Color.primary.opacity(0.02))
         .cornerRadius(6)
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.04), lineWidth: 0.5))
+    }
+}
+
+struct AnchorButton: View {
+    let title: String
+    let iconName: String?
+    let action: () -> Void
+    
+    @State private var isHovered = false
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if let icon = iconName {
+                    Image(systemName: icon)
+                        .font(.system(size: 10, weight: .bold))
+                }
+                Text(title)
+                    .font(.system(size: 11, weight: .semibold))
+            }
+            .foregroundColor(isHovered ? .white : .secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule()
+                    .fill(isHovered ? Color.accentColor : Color.primary.opacity(0.04))
+            )
+            .overlay(
+                Capsule()
+                    .stroke(isHovered ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovered = hovering
+            }
+        }
     }
 }

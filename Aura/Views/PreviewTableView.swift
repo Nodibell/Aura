@@ -75,6 +75,26 @@ struct PreviewTableView: View {
         )
     }
 
+    private var dateRangeLimit: ClosedRange<Date> {
+        let defaultMin = Calendar.current.date(byAdding: .year, value: -100, to: Date()) ?? Date.distantPast
+        let defaultMax = Calendar.current.date(byAdding: .year, value: 100, to: Date()) ?? Date.distantFuture
+        
+        guard let timeColumn = config.timeColumn,
+              let datetimeRange = preview.datetimeRange,
+              let bounds = datetimeRange[timeColumn] else {
+            return defaultMin...defaultMax
+        }
+        
+        let minDate = parseDateString(bounds.min) ?? defaultMin
+        let maxDate = parseDateString(bounds.max) ?? defaultMax
+        
+        if minDate <= maxDate {
+            return minDate...maxDate
+        } else {
+            return defaultMin...defaultMax
+        }
+    }
+
     private func formatNumber(_ value: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -330,6 +350,7 @@ struct PreviewTableView: View {
                                 DatePicker(
                                     "",
                                     selection: timeRangeStartDateBinding,
+                                    in: dateRangeLimit,
                                     displayedComponents: .date
                                 )
                                 .datePickerStyle(.graphical)
@@ -382,6 +403,7 @@ struct PreviewTableView: View {
                                 DatePicker(
                                     "",
                                     selection: timeRangeEndDateBinding,
+                                    in: dateRangeLimit,
                                     displayedComponents: .date
                                 )
                                 .datePickerStyle(.graphical)

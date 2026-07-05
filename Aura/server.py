@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="Aura Local API Server", version="0.5.0")
+app = FastAPI(title="Aura Local API Server", version="0.7.0")
 
 # Resolve paths relative to this script's directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,7 +59,9 @@ class PreviewRequest(BaseModel):
 
 class PredictRequest(BaseModel):
     model_path: str
-    input_data: Dict[str, Any]
+    input_data: Optional[Dict[str, Any]] = None
+    input_file_path: Optional[str] = None
+    output_csv_path: Optional[str] = None
 
 class MergeRequest(BaseModel):
     file1: str
@@ -89,7 +91,7 @@ class REPLRollbackRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.5.0"}
+    return {"status": "ok", "version": "0.7.0"}
 
 
 async def run_subprocess_stream(args):
@@ -316,9 +318,17 @@ async def predict_endpoint(req: PredictRequest):
     args = [
         python_exe, ANALYZE_PY,
         "--predict",
-        "--model-path", req.model_path,
-        "--input-data", json.dumps(req.input_data)
+        "--model-path", req.model_path
     ]
+    if req.input_file_path:
+        args += ["--input-file-path", req.input_file_path]
+        if req.output_csv_path:
+            args += ["--output-csv-path", req.output_csv_path]
+    elif req.input_data:
+        args += ["--input-data", json.dumps(req.input_data)]
+    else:
+        raise HTTPException(status_code=400, detail="Either input_data or input_file_path must be provided.")
+        
     return await run_subprocess_simple(args)
 
 @app.post("/merge")

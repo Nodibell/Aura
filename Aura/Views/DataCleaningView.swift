@@ -7,6 +7,11 @@ struct DataCleaningView: View {
     
     @State private var hoverColumn: String? = nil
     @State private var activeCleaningTab = 0
+    
+    @State private var lineageNodes: [REPLService.LineageNode] = []
+    @State private var activeStateId: Int = 0
+    @State private var isRollingBack = false
+    @State private var lineageError: String? = nil
 
 
     var body: some View {
@@ -20,6 +25,23 @@ struct DataCleaningView: View {
                     Text("Interactive Data Cleaning")
                         .font(.title2)
                         .fontWeight(.bold)
+                    
+                    Spacer()
+                    
+                    if let activeIndex = lineageNodes.firstIndex(where: { $0.id == activeStateId }), activeIndex > 0 {
+                        let previousStateId = lineageNodes[activeIndex - 1].id
+                        Button {
+                            rollbackToState(previousStateId)
+                        } label: {
+                            Label("Undo last change", systemImage: "arrow.uturn.backward")
+                                .font(.subheadline)
+                                .fontWeight(.semibold)
+                        }
+                        .disabled(isRollingBack)
+                        .buttonStyle(.bordered)
+                        .tint(.orange)
+                        .help("Roll back the last applied cleaning mutation")
+                    }
                 }
                 Text("Select custom imputation, outlier treatment, and encoding actions per column. The target column '\(result.targetColumn)' cannot be modified.")
                     .font(.caption)
@@ -329,6 +351,9 @@ struct DataCleaningView: View {
             .padding()
             .background(Color.primary.opacity(0.015))
         }
+        .onAppear {
+            loadLineage()
+        }
     }
     
     // MARK: - Helpers
@@ -432,11 +457,6 @@ struct DataCleaningView: View {
     }
 
     // MARK: - Lineage Time-Travel tab view
-    
-    @State private var lineageNodes: [REPLService.LineageNode] = []
-    @State private var activeStateId: Int = 0
-    @State private var isRollingBack = false
-    @State private var lineageError: String? = nil
     
     private var lineageTab: some View {
         ScrollView {
@@ -599,6 +619,16 @@ struct DataCleaningView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
+                    
+                    Button {
+                        let home = FileManager.default.homeDirectoryForCurrentUser
+                        let pluginsDir = home.appendingPathComponent("Documents/Aura/Plugins")
+                        try? FileManager.default.createDirectory(at: pluginsDir, withIntermediateDirectories: true)
+                        NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pluginsDir.path)
+                    } label: {
+                        Label("Open Folder", systemImage: "folder")
+                    }
+                    
                     Button(action: loadPlugins) {
                         Label("Scan Folder", systemImage: "arrow.clockwise")
                     }
@@ -616,8 +646,17 @@ struct DataCleaningView: View {
                         Text("Add Python files with docstring schemas to ~/Documents/Aura/Plugins")
                             .font(.caption2)
                             .foregroundColor(.secondary)
+                        
+                        Button("Open Plugins Folder") {
+                            let home = FileManager.default.homeDirectoryForCurrentUser
+                            let pluginsDir = home.appendingPathComponent("Documents/Aura/Plugins")
+                            try? FileManager.default.createDirectory(at: pluginsDir, withIntermediateDirectories: true)
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: pluginsDir.path)
+                        }
+                        .buttonStyle(.bordered)
+                        .padding(.top, 6)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 180)
+                    .frame(maxWidth: .infinity, minHeight: 190)
                     .background(Color.primary.opacity(0.02))
                     .cornerRadius(8)
                 } else {

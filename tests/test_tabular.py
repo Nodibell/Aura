@@ -48,7 +48,7 @@ def test_preprocess_and_tabular_pipeline():
     assert X_test_proc.isna().sum().sum() == 0
     
     # 2. Test train_models
-    best_model_name, best_model_obj, models_compared, best_preds, rf_classical_model, le = train_models(
+    best_model_name, best_model_obj, models_compared, best_preds, rf_classical_model, le, trained_models = train_models(
         X_train_proc, y_train, X_test_proc, y_train, is_classification=True
     )
     
