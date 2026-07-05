@@ -863,10 +863,30 @@ def run_predict(model_path, input_data_json):
 
     _log(f"Parsing input JSON: {input_data_json[:300]}")
     input_dict = json.loads(input_data_json)
-    _log(f"Input columns: {list(input_dict.keys())}")
-
-    # Build DataFrame
-    df = pd.DataFrame({k: [v] for k, v in input_dict.items()})
+    
+    if isinstance(input_dict, list):
+        _log("Input data is a list of records.")
+        df = pd.DataFrame(input_dict)
+    elif isinstance(input_dict, dict):
+        _log(f"Input columns: {list(input_dict.keys())}")
+        # Detect if it's a dictionary of lists (batch format)
+        val_lengths = []
+        is_batch = True
+        for v in input_dict.values():
+            if isinstance(v, list) and not isinstance(v, str):
+                val_lengths.append(len(v))
+            else:
+                is_batch = False
+                break
+        if is_batch and len(val_lengths) > 0 and len(set(val_lengths)) == 1:
+            _log("Input data is a dictionary of lists (batch format).")
+            df = pd.DataFrame(input_dict)
+        else:
+            _log("Input data is a dictionary of scalars (single row).")
+            df = pd.DataFrame({k: [v] for k, v in input_dict.items()})
+    else:
+        df = pd.DataFrame(input_dict)
+        
     _log(f"Input DataFrame shape: {df.shape}, dtypes: {df.dtypes.to_dict()}")
 
     # Apply cleaner
@@ -950,7 +970,10 @@ def run_predict(model_path, input_data_json):
                 
             # Safely handle both pandas Series and raw numpy arrays
             preds_array = np.asarray(preds)
-            res["prediction"] = preds_array[0]
+            if len(df) > 1:
+                res["prediction"] = preds_array.tolist()
+            else:
+                res["prediction"] = preds_array[0]
             _log(f"forecast() -> {res['prediction']}")
             
         except Exception as e:
@@ -975,62 +998,93 @@ def run_predict(model_path, input_data_json):
             X_input = X_proc.to_numpy() if hasattr(X_proc, "to_numpy") else X_proc
             _log(f"X_input shape: {X_input.shape if hasattr(X_input, 'shape') else 'unknown'}")
 
+        try:
+            preds = model.predict(X_input)
+            preds_array = np.asarray(preds)
+            if len(df) > 1:
+                res["prediction"] = preds_array.tolist()
+            else:
+                res["prediction"] = preds_array[0]
+            _log(f"predict() -> {res['prediction']}")
+        except Exception as e:
+            _log(f"ERROR in model.predict: {e}")
+            import traceback; _log(traceback.format_exc())
+            raise
+
         if hasattr(model, "predict_proba"):
-            _log("Running predict() + predict_proba() ...")
-            try:
-                preds = model.predict(X_input)
-                res["prediction"] = preds[0]
-                _log(f"predict() -> {preds[0]}")
-            except Exception as e:
-                _log(f"ERROR in model.predict: {e}")
-                import traceback; _log(traceback.format_exc())
-                raise
+            _log("Running predict_proba() ...")
             try:
                 probs = model.predict_proba(X_input)
-                if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
-                    le = pipeline['label_encoder']
-                    res["probabilities"] = {str(c): float(p) for c, p in zip(le.classes_, probs[0])}
-                elif hasattr(model, "classes_"):
-                    res["probabilities"] = {str(c): float(p) for c, p in zip(model.classes_, probs[0])}
+                
+                # Check if it is a classification problem
+                if len(df) > 1:
+                    # Batch mode
+                    batch_probs = []
+                    for i in range(len(df)):
+                        if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
+                            le = pipeline['label_encoder']
+                            batch_probs.append({str(c): float(p) for c, p in zip(le.classes_, probs[i])})
+                        elif hasattr(model, "classes_"):
+                            batch_probs.append({str(c): float(p) for c, p in zip(model.classes_, probs[i])})
+                        else:
+                            batch_probs.append([float(p) for p in probs[i]])
+                    res["probabilities"] = batch_probs
+                    _log(f"predict_proba() batch -> size: {len(batch_probs)}")
                 else:
-                    res["probabilities"] = [float(p) for p in probs[0]]
-                _log(f"predict_proba() -> {list(res['probabilities'].keys())[:5]}")
+                    # Single row mode
+                    if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
+                        le = pipeline['label_encoder']
+                        res["probabilities"] = {str(c): float(p) for c, p in zip(le.classes_, probs[0])}
+                    elif hasattr(model, "classes_"):
+                        res["probabilities"] = {str(c): float(p) for c, p in zip(model.classes_, probs[0])}
+                    else:
+                        res["probabilities"] = [float(p) for p in probs[0]]
+                    _log(f"predict_proba() -> {list(res['probabilities'].keys())[:5]}")
             except Exception as e:
                 _log(f"WARNING in predict_proba (non-fatal): {e}")
-        else:
-            _log("Running predict() (no predict_proba) ...")
-            try:
-                preds = model.predict(X_input)
-                res["prediction"] = preds[0]
-                _log(f"predict() -> {preds[0]}")
-            except Exception as e:
-                _log(f"ERROR in model.predict: {e}")
-                import traceback; _log(traceback.format_exc())
-                raise
 
     # Apply LabelEncoder / MultiLabelBinarizer inverse transform
     if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
         try:
             le = pipeline['label_encoder']
             from sklearn.preprocessing import MultiLabelBinarizer
-            if isinstance(le, MultiLabelBinarizer):
-                # inverse_transform takes 2D binarized array, e.g. [res["prediction"]]
-                pred_label_tuple = le.inverse_transform([res["prediction"]])[0]
-                pred_label = ", ".join(str(lbl) for lbl in pred_label_tuple)
-                _log(f"MultiLabelBinarizer inverse_transform: {res['prediction']} -> {pred_label}")
-                res["prediction"] = pred_label
+            is_mlb = isinstance(le, MultiLabelBinarizer)
+            
+            if isinstance(res["prediction"], list):
+                # Batch mode
+                if is_mlb:
+                    pred_tuples = le.inverse_transform(res["prediction"])
+                    res["prediction"] = [", ".join(map(str, t)) for t in pred_tuples]
+                else:
+                    res["prediction"] = list(le.inverse_transform(res["prediction"]))
             else:
-                pred_label = le.inverse_transform([res["prediction"]])[0]
-                _log(f"LabelEncoder inverse_transform: {res['prediction']} -> {pred_label}")
-                res["prediction"] = pred_label
+                # Single value mode
+                if is_mlb:
+                    pred_label_tuple = le.inverse_transform([res["prediction"]])[0]
+                    res["prediction"] = ", ".join(map(str, pred_label_tuple))
+                else:
+                    res["prediction"] = le.inverse_transform([res["prediction"]])[0]
+            _log(f"LabelEncoder inverse transform completed: {res['prediction']}")
         except Exception as e:
             _log(f"WARNING: LabelEncoder/MultiLabelBinarizer inverse_transform failed: {e}")
 
-    # Convert numpy types for JSON serialization
-    if hasattr(res["prediction"], "ndim") and res["prediction"].ndim > 0:
-        res["prediction"] = res["prediction"].tolist()
-    elif hasattr(res["prediction"], "item"):
-        res["prediction"] = res["prediction"].item()
+    # Recursively convert numpy types to native Python types for JSON serialization
+    def serialize_val(v):
+        if hasattr(v, "tolist"):
+            return v.tolist()
+        elif hasattr(v, "item"):
+            return v.item()
+        elif isinstance(v, list):
+            return [serialize_val(x) for x in v]
+        elif isinstance(v, dict):
+            return {k: serialize_val(val) for k, val in v.items()}
+        elif isinstance(v, np.generic):
+            return v.item()
+        return v
+
+    res["prediction"] = serialize_val(res["prediction"])
+    if "probabilities" in res:
+        res["probabilities"] = serialize_val(res["probabilities"])
 
     _log(f"Final prediction: {res['prediction']}")
     return res
