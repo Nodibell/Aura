@@ -70,7 +70,6 @@ struct BarChartView: View {
                         AxisValueLabel(anchor: .topTrailing) {
                             if let val = value.as(String.self) {
                                 Text(val)
-                                    .rotationEffect(Angle(degrees: -45))
                                     .font(.system(size: 9))
                             }
                         }

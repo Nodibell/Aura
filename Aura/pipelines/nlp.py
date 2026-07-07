@@ -1,4 +1,13 @@
 import sys
+import os
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+try:
+    import torch as _torch_preload  # noqa: F401 – side-effect import only
+except ImportError:
+    pass
+
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import train_test_split, StratifiedKFold, cross_val_score
@@ -524,18 +533,6 @@ def analyze_nlp(df, target_col, task_type_override,
                 X_model_features, y, test_size=0.2, random_state=42, stratify=use_stratify
             )
 
-        # Naive Bayes cannot handle negative values (produced by Sentence-Transformers dense embeddings)
-        X_train_nb = X_train
-        X_test_nb = X_test
-        X_val_nb = X_val
-        if use_sentence_transformers:
-            from sklearn.preprocessing import MinMaxScaler
-            nb_scaler = MinMaxScaler()
-            X_train_nb = nb_scaler.fit_transform(X_train)
-            X_test_nb = nb_scaler.transform(X_test)
-            if X_val is not None:
-                X_val_nb = nb_scaler.transform(X_val)
-            
         # Cap dataset size for model training to avoid slow execution/OOM
         if len(X_train) > 10000:
             np.random.seed(42)
@@ -552,6 +549,18 @@ def analyze_nlp(df, target_col, task_type_override,
             indices = np.random.choice(len(X_val), 5000, replace=False)
             X_val = X_val[indices]
             y_val = y_val[indices]
+
+        # Naive Bayes cannot handle negative values (produced by Sentence-Transformers dense embeddings)
+        X_train_nb = X_train
+        X_test_nb = X_test
+        X_val_nb = X_val
+        if use_sentence_transformers:
+            from sklearn.preprocessing import MinMaxScaler
+            nb_scaler = MinMaxScaler()
+            X_train_nb = nb_scaler.fit_transform(X_train)
+            X_test_nb = nb_scaler.transform(X_test)
+            if X_val is not None:
+                X_val_nb = nb_scaler.transform(X_val)
         
         models_compared = []
         metrics = {}

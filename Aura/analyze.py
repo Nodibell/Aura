@@ -59,6 +59,11 @@ if not os.path.isdir(os.path.join(script_dir, "utils")) and os.path.exists(os.pa
         import ai_analyst
         sys.modules["utils.ai_analyst"] = ai_analyst
         utils_mod.ai_analyst = ai_analyst
+    
+    if os.path.exists(os.path.join(script_dir, "ingestion.py")):
+        import ingestion
+        sys.modules["utils.ingestion"] = ingestion
+        utils_mod.ingestion = ingestion
 
 if not os.path.isdir(os.path.join(script_dir, "pipelines")) and os.path.exists(os.path.join(script_dir, "timeseries.py")):
     import types

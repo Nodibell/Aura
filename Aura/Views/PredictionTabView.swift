@@ -43,8 +43,8 @@ struct PredictionTabView: View {
                     Text("Single Prediction").tag(0)
                     Text("Batch CSV Inference").tag(1)
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 320)
+                .pickerStyle(.palette)
+                .frame(width: 400)
                 
                 Spacer()
                 
@@ -210,6 +210,20 @@ struct PredictionTabView: View {
                                     .padding()
                                     .background(Color.primary.opacity(0.02))
                                     .cornerRadius(12)
+                                    
+                                    HStack(alignment: .center) {
+                                        Spacer()
+                                        Button {
+                                            runPrediction()
+                                        } label: {
+                                            Text("Run Inference")
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        .tint(.purple)
+                                        .padding(.top, 8)
+                                        Spacer()
+                                    }
+                                    
                                 }
                                 .padding()
                             }

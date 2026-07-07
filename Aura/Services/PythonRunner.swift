@@ -53,7 +53,7 @@ final class ServerProcessManager {
                     if pid != ProcessInfo.processInfo.processIdentifier {
                         // Terminate gracefully first, then kill -9 if still running
                         kill(pid, SIGTERM)
-                        try? Thread.sleep(forTimeInterval: 0.05)
+                        Thread.sleep(forTimeInterval: 0.05)
                         kill(pid, SIGKILL)
                     }
                 }

@@ -1,3 +1,8 @@
+try:
+    import torch  # noqa: F401
+except ImportError:
+    pass
+
 import pytest
 import numpy as np
 import pandas as pd

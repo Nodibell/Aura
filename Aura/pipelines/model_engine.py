@@ -190,7 +190,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from catboost import CatBoostClassifier
             publish_progress(0.80, "Training CatBoost Classifier...")
-            cat = CatBoostClassifier(random_state=42, thread_count=1, verbose=0)
+            cat = CatBoostClassifier(random_state=42, thread_count=1, verbose=0, allow_writing_files=False)
             cat.fit(X_train, y_train_encoded)
             cat_preds_encoded = cat.predict(X_test)
             if len(cat_preds_encoded.shape) > 1 and cat_preds_encoded.shape[1] == 1:
@@ -363,7 +363,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
         try:
             from catboost import CatBoostRegressor
             publish_progress(0.80, "Training CatBoost Regressor...")
-            cat = CatBoostRegressor(random_state=42, thread_count=1, verbose=0)
+            cat = CatBoostRegressor(random_state=42, thread_count=1, verbose=0, allow_writing_files=False)
             cat.fit(X_train, y_train)
             cat_preds = cat.predict(X_test)
             cat_r2 = r2_score(y_test, cat_preds)

@@ -779,7 +779,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                                      n_jobs=1)),
             ("CatBoost",         lambda: __import__('catboost', fromlist=['CatBoostClassifier']).CatBoostClassifier(
                                      iterations=200, depth=6, learning_rate=0.05,
-                                     random_seed=42, verbose=0, thread_count=1)),
+                                     random_seed=42, verbose=0, thread_count=1, allow_writing_files=False)),
             ("LogisticRegression", lambda: LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')),
         ]:
             candidate_model, model_name = _try_model(_name, _factory)

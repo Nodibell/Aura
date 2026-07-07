@@ -38,6 +38,20 @@ struct LineChartView: View {
     @State private var persistentSelectedXVal: String? = nil
     @State private var persistentSelectedXNum: Double? = nil
 
+    // Re-applied fix (was lost in a later merge): parseDate() tries up to 11
+    // DateFormatters per string. It must run ONCE per chart, not on every
+    // body re-evaluation. Cached here, populated by .task(id:) below.
+    @State private var parsedCache: [(point: ChartPoint, date: Date?)] = []
+    @State private var tsInfo: (isTS: Bool, years: [String]) = (false, [])
+
+    // NEW: hard cap on how many points we actually hand to Swift Charts for
+    // a single line/series. Swift Charts lays out a real mark per data
+    // point, so tens of thousands of marks are slow to draw regardless of
+    // how fast our own data prep is. 1500 keeps the visual shape intact
+    // (evenly-spaced sampling, same technique already used in
+    // buildChartPrompt below) while staying smooth to render and scroll.
+    private let maxRenderPoints = 1500
+
     private var selectedPoint: ChartPoint? {
         if let selDate = persistentSelectedDate {
             let processed = getProcessedPoints()
@@ -97,18 +111,31 @@ struct LineChartView: View {
         return nil
     }
     
-    private var timeSeriesInfo: (isTS: Bool, years: [String]) {
+    /// Runs the (up to 11-formatter) date-parsing pass over `config.data`
+    /// exactly once, and caches both the per-point parse result and the
+    /// derived time-series summary. Call this from `.task(id: config.id)`,
+    /// never from `body` directly.
+    private func recomputeCache() {
         var parsedCount = 0
         var yearsSet = Set<String>()
+        var newCache: [(point: ChartPoint, date: Date?)] = []
+        newCache.reserveCapacity(config.data.count)
+
         for pt in config.data {
-            if let xVal = pt.xVal, let date = parseDate(xVal) {
-                parsedCount += 1
-                let year = Calendar.current.component(.year, from: date)
-                yearsSet.insert(String(year))
+            var date: Date? = nil
+            if let xVal = pt.xVal {
+                date = parseDate(xVal)
+                if let date {
+                    parsedCount += 1
+                    yearsSet.insert(String(Calendar.current.component(.year, from: date)))
+                }
             }
+            newCache.append((pt, date))
         }
+
         let isTS = !config.data.isEmpty && parsedCount >= Int(Double(config.data.count) * 0.7)
-        return (isTS, yearsSet.sorted())
+        self.parsedCache = newCache
+        self.tsInfo = (isTS, yearsSet.sorted())
     }
     
     struct ProcessedPoint: Identifiable {
@@ -119,25 +146,42 @@ struct LineChartView: View {
         let y: Double
         let series: String
     }
+
+    /// Evenly-spaced downsample so Swift Charts never has to lay out more
+    /// than `maxRenderPoints` marks for one series. Keeps first/last points
+    /// and the overall shape; same stride technique buildChartPrompt below
+    /// already uses for the AI-summary sample.
+    private func decimatedForRender(_ points: [ProcessedPoint]) -> [ProcessedPoint] {
+        guard points.count > maxRenderPoints else { return points }
+        var sampled: [ProcessedPoint] = []
+        sampled.reserveCapacity(maxRenderPoints)
+        for i in 0..<maxRenderPoints {
+            let idx = i * (points.count - 1) / (maxRenderPoints - 1)
+            sampled.append(points[idx])
+        }
+        return sampled
+    }
     
     private func getProcessedPoints() -> [ProcessedPoint] {
-        let filtered = config.data.compactMap { pt -> (point: ChartPoint, date: Date?)? in
-            if let xVal = pt.xVal, let date = parseDate(xVal) {
+        // Reads pre-parsed dates from `parsedCache` (populated once by
+        // recomputeCache()) instead of calling parseDate() again here.
+        let filtered = parsedCache.compactMap { item -> (point: ChartPoint, date: Date?)? in
+            if let date = item.date {
                 let yearStr = String(Calendar.current.component(.year, from: date))
                 if selectedYear == "All" || selectedYear == yearStr {
-                    return (pt, date)
+                    return item
                 }
                 return nil
             }
             if selectedYear == "All" {
-                return (pt, nil)
+                return item
             }
             return nil
         }
         
         switch viewMode {
         case .raw:
-            return filtered.map { item in
+            let all = filtered.map { item in
                 ProcessedPoint(
                     id: item.point.id.uuidString,
                     xVal: item.point.xVal,
@@ -147,6 +191,7 @@ struct LineChartView: View {
                     series: item.point.series ?? "Value"
                 )
             }
+            return decimatedForRender(all)
             
         case .monthly:
             var monthGroups: [Int: [Double]] = [:]
@@ -202,7 +247,6 @@ struct LineChartView: View {
     }
     
     var body: some View {
-        let tsInfo = timeSeriesInfo
         let processed = getProcessedPoints()
         let hasMultipleSeries = config.data.contains(where: { $0.series != nil }) && viewMode == .raw
         
@@ -499,6 +543,9 @@ struct LineChartView: View {
                 persistentSelectedDate = nil
                 persistentSelectedXVal = nil
             }
+        }
+        .task(id: config.id) {
+            recomputeCache()
         }
     }
 

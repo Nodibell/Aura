@@ -12,6 +12,25 @@ struct ScatterChartView: View {
     @State private var persistentSelectedXVal: String? = nil
     @State private var persistentSelectedXNum: Double? = nil
 
+    // Swift Charts draws one real mark per point with no built-in
+    // decimation, so a large test set (e.g. a Predicted vs Actual or
+    // Residual plot on tens of thousands of rows) can make this view slow
+    // to render regardless of how cheap our own filtering is. Cap what
+    // actually reaches the Chart; the full `config.data` is still used for
+    // axis bounds so scaling doesn't shift.
+    private let maxRenderPoints = 1500
+
+    private func decimated(_ points: [ChartPoint]) -> [ChartPoint] {
+        guard points.count > maxRenderPoints else { return points }
+        var sampled: [ChartPoint] = []
+        sampled.reserveCapacity(maxRenderPoints)
+        for i in 0..<maxRenderPoints {
+            let idx = i * (points.count - 1) / (maxRenderPoints - 1)
+            sampled.append(points[idx])
+        }
+        return sampled
+    }
+
     private func getSelectedPoint(filteredData: [ChartPoint]) -> ChartPoint? {
         if let xVal = persistentSelectedXVal {
             return filteredData.first { $0.xVal == xVal }
@@ -134,7 +153,7 @@ struct ScatterChartView: View {
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
                 }
 
-                ForEach(filteredData) { point in
+                ForEach(decimated(filteredData)) { point in
                     if let xVal = point.xVal {
                         PointMark(x: .value(config.xLabel, xVal), y: .value(config.yLabel, point.y))
                             .foregroundStyle(by: .value("Series", point.series ?? "Value"))

@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="Aura Local API Server", version="0.7.0")
+app = FastAPI(title="Aura Local API Server", version="0.7.1")
 
 # Resolve paths relative to this script's directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -91,7 +91,7 @@ class REPLRollbackRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.7.0"}
+    return {"status": "ok", "version": "0.7.1"}
 
 
 async def run_subprocess_stream(args):

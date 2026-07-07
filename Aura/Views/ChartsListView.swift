@@ -102,7 +102,7 @@ struct ChartsListView: View {
                 Divider()
                 
                 ScrollView {
-                    VStack(spacing: 28) {
+                    LazyVStack(spacing: 28) {
                         Color.clear
                             .frame(height: 1)
                             .id("top")
@@ -133,9 +133,11 @@ struct ChartsListView: View {
                                     .id("Model Quality")
                                     .padding(.top, 8)
                                     
-                                    ForEach(modelCharts) { chartConfig in
-                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
-                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                    LazyVStack(spacing: 12) {
+                                        ForEach(modelCharts) { chartConfig in
+                                            ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                                handleDrillDown(chartConfig: chartConfig, point: point)
+                                            }
                                         }
                                     }
                                 }
@@ -152,9 +154,11 @@ struct ChartsListView: View {
                                     .id("Feature Importance")
                                     .padding(.top, 8)
                                     
-                                    ForEach(featureCharts) { chartConfig in
-                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
-                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                    LazyVStack(spacing: 12) {
+                                        ForEach(featureCharts) { chartConfig in
+                                            ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                                handleDrillDown(chartConfig: chartConfig, point: point)
+                                            }
                                         }
                                     }
                                 }
@@ -171,9 +175,11 @@ struct ChartsListView: View {
                                     .id("Data Distributions")
                                     .padding(.top, 8)
                                     
-                                    ForEach(dataCharts) { chartConfig in
-                                        ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
-                                            handleDrillDown(chartConfig: chartConfig, point: point)
+                                    LazyVStack(spacing: 12) {
+                                        ForEach(dataCharts) { chartConfig in
+                                            ChartCard(config: chartConfig, onAskAI: onAskAI) { point in
+                                                handleDrillDown(chartConfig: chartConfig, point: point)
+                                            }
                                         }
                                     }
                                 }
@@ -544,7 +550,7 @@ func buildChartPrompt(_ config: ChartConfig) -> String {
     }.joined(separator: "\n")
     
     let isSampled = totalPoints > maxPoints
-    let samplingNote = isSampled 
+    let samplingNote = isSampled
         ? "Showing a representative sample of \(maxPoints) data points spaced evenly across the range of X (sorted ascending) out of \(totalPoints) total points."
         : "Showing all \(totalPoints) data points (sorted by X ascending)."
 
@@ -602,4 +608,3 @@ func buildChartPrompt(_ config: ChartConfig) -> String {
     Reference both the global statistics and the sample data points in your answer.
     """
 }
-

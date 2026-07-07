@@ -830,7 +830,7 @@ struct MarkdownMessageView: View {
     }
     
     private func formatFractions(_ text: String) -> String {
-        var result = text
+        let result = text
         // Match \frac{numerator}{denominator} where contents can include spaces and words.
         // Uses a greedy approach: find \frac then scan balanced braces manually.
         var output = ""
