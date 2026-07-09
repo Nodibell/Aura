@@ -43,10 +43,14 @@ def download_dataset(url):
         if has_yolo:
             return url_folder
             
+        candidates = []
         for root, _, filenames in os.walk(url_folder):
             for f in filenames:
                 if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl")):
-                    return os.path.join(root, f)
+                    candidates.append(os.path.join(root, f))
+        if candidates:
+            candidates.sort(key=lambda p: (0 if "train" in os.path.basename(p).lower() else 1, os.path.basename(p).lower()))
+            return candidates[0]
         
         # If no tabular/NPZ files, check if there are images
         image_extensions = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp", ".webp", ".gif")
@@ -202,11 +206,12 @@ def download_dataset(url):
                     if any(os.path.basename(f).lower() in ("dataset.yaml", "data.yaml", "yolo.yaml") for f in downloaded_files):
                         return url_folder
                         
-                    target_file = None
-                    for f in downloaded_files:
-                        if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl")):
-                            target_file = f
-                            break
+                    tabular_files = [f for f in downloaded_files if f.lower().endswith((".csv", ".parquet", ".xlsx", ".xls", ".tsv", ".npz", ".json", ".jsonl"))]
+                    if tabular_files:
+                        tabular_files.sort(key=lambda p: (0 if "train" in os.path.basename(p).lower() else 1, os.path.basename(p).lower()))
+                        target_file = tabular_files[0]
+                    else:
+                        target_file = None
                             
                     if not target_file:
                         # Check if we have image files

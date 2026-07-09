@@ -202,9 +202,17 @@ def analyze_preview(file_path, dataset_type=None):
                         available_files.append(file_path)
                         break
                     current = parent
-            else:
-                available_files.append(file_path)
-            res["available_files"] = sorted(list(set(available_files)))
+            def _sort_key(path):
+                name = os.path.basename(path).lower()
+                if "train" in name:
+                    return (0, name)
+                elif "val" in name or "valid" in name:
+                    return (2, name)
+                elif "test" in name:
+                    return (3, name)
+                else:
+                    return (1, name)
+            res["available_files"] = sorted(list(set(available_files)), key=_sort_key)
         else:
             if res is None:
                 res = {"error": "Preview generation returned None"}

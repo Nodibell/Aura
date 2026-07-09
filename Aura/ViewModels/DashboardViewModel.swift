@@ -352,7 +352,12 @@ class DashboardViewModel {
                         case .success(let previewData):
                            page.previewResult = previewData
                            if page.analysisConfig.trainFilePath == nil {
-                               page.analysisConfig.trainFilePath = previewData.localPath
+                               if let available = previewData.availableFiles,
+                                  let trainFile = available.first(where: { $0.lowercased().contains("train") }) {
+                                   page.analysisConfig.trainFilePath = trainFile
+                               } else {
+                                   page.analysisConfig.trainFilePath = previewData.localPath
+                               }
                            }
                            if previewData.localPath == page.analysisConfig.trainFilePath {
                                page.trainColumns = previewData.columns
