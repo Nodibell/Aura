@@ -28,19 +28,40 @@ struct DataCleaningView: View {
                     
                     Spacer()
                     
-                    if let activeIndex = lineageNodes.firstIndex(where: { $0.id == activeStateId }), activeIndex > 0 {
-                        let previousStateId = lineageNodes[activeIndex - 1].id
-                        Button {
-                            rollbackToState(previousStateId)
-                        } label: {
-                            Label("Undo last change", systemImage: "arrow.uturn.backward")
-                                .font(.subheadline)
-                                .fontWeight(.semibold)
+                    if let activeIndex = lineageNodes.firstIndex(where: { $0.id == activeStateId }) {
+                        HStack(spacing: 8) {
+                            if activeIndex > 0 {
+                                let previousStateId = lineageNodes[activeIndex - 1].id
+                                Button {
+                                    rollbackToState(previousStateId)
+                                } label: {
+                                    Label("Undo", systemImage: "arrow.uturn.backward")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                }
+                                .disabled(isRollingBack)
+                                .buttonStyle(.bordered)
+                                .tint(.orange)
+                                .keyboardShortcut("z", modifiers: [.command])
+                                .help("Roll back to the previous cleaning state (⌘Z)")
+                            }
+                            
+                            if activeIndex < lineageNodes.count - 1 {
+                                let nextStateId = lineageNodes[activeIndex + 1].id
+                                Button {
+                                    rollbackToState(nextStateId)
+                                } label: {
+                                    Label("Redo", systemImage: "arrow.uturn.forward")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                }
+                                .disabled(isRollingBack)
+                                .buttonStyle(.bordered)
+                                .tint(.green)
+                                .keyboardShortcut("z", modifiers: [.command, .shift])
+                                .help("Restore the next cleaning state (⇧⌘Z)")
+                            }
                         }
-                        .disabled(isRollingBack)
-                        .buttonStyle(.bordered)
-                        .tint(.orange)
-                        .help("Roll back the last applied cleaning mutation")
                     }
                 }
                 Text("Select custom imputation, outlier treatment, and encoding actions per column. The target column '\(result.targetColumn)' cannot be modified.")

@@ -26,6 +26,7 @@ actor REPLService: REPLServiceProtocol {
     private var activeFilePath: String?
     private var activeOllamaBaseURL: String = "http://localhost:11434"
     private var activeOllamaModel: String = "llama3.2"
+    private var activeCleaningActions: String? = nil
 
     private init(port: Int = 11435) {
         self.port = port
@@ -36,10 +37,12 @@ actor REPLService: REPLServiceProtocol {
     /// Call this whenever a new file is loaded.  Sets `df` in the Python REPL.
     func reset(filePath: String,
                ollamaBaseURL: String = "http://localhost:11434",
-               ollamaModel: String = "llama3.2") async throws {
+               ollamaModel: String = "llama3.2",
+               cleaningActions: String? = nil) async throws {
         self.activeFilePath = filePath
         self.activeOllamaBaseURL = ollamaBaseURL
         self.activeOllamaModel = ollamaModel
+        self.activeCleaningActions = cleaningActions
 
         let url = baseURL.appendingPathComponent("repl/reset")
         var request = URLRequest(url: url)
@@ -47,12 +50,15 @@ actor REPLService: REPLServiceProtocol {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 15
 
-        let body: [String: String] = [
+        var body: [String: Any] = [
             "file_path": filePath,
             "ollama_base_url": ollamaBaseURL,
             "ollama_model": ollamaModel
         ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        if let cleaningActions = cleaningActions {
+            body["cleaning_actions"] = cleaningActions
+        }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
@@ -71,7 +77,7 @@ actor REPLService: REPLServiceProtocol {
         
         // Self-healing: if server restarted or namespace cleared, reload dataset and retry
         if let err = result.error, err.contains("name 'df' is not defined"), let filePath = activeFilePath {
-            try? await reset(filePath: filePath, ollamaBaseURL: activeOllamaBaseURL, ollamaModel: activeOllamaModel)
+            try? await reset(filePath: filePath, ollamaBaseURL: activeOllamaBaseURL, ollamaModel: activeOllamaModel, cleaningActions: activeCleaningActions)
             return try await performExecute(code)
         }
         

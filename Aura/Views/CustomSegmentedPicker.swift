@@ -25,6 +25,7 @@ struct CustomSegmentedPicker<SelectionValue: Hashable>: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("tab_\(item.0)")
                 .background {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 6)

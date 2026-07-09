@@ -7,6 +7,7 @@ struct PreviewTableView: View {
 
     @Binding var config: AnalysisConfig
     var onPreviewFileRequested: ((String) -> Void)? = nil
+    var isSidebar: Bool = false
 
     @State private var isShowingStartCalendar = false
     @State private var isShowingEndCalendar = false
@@ -109,30 +110,30 @@ struct PreviewTableView: View {
             VStack(alignment: .leading, spacing: 0) {
                 // ── Header ─────────────────────────────────────────────────────
                 headerSection
-                    .padding(.horizontal, 20)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, isSidebar ? 12 : 20)
+                    .padding(.top, isSidebar ? 10 : 16)
+                    .padding(.bottom, isSidebar ? 8 : 12)
 
                 Divider().background(Color.primary.opacity(0.06))
 
                 // ── Dataset Type Selector ──────────────────────────────────────
                 datasetTypeSelector
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, isSidebar ? 12 : 20)
+                    .padding(.vertical, isSidebar ? 8 : 12)
 
                 Divider().background(Color.primary.opacity(0.06))
 
                 // ── Smart Sampling Toggle ──────────────────────────────────────
                 smartSamplingSection
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, isSidebar ? 12 : 20)
+                    .padding(.vertical, isSidebar ? 8 : 12)
 
                 if let available = preview.availableFiles, available.count > 1 {
                     Divider().background(Color.primary.opacity(0.06))
                     
                     availableFilesPicker(available)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, isSidebar ? 12 : 20)
+                        .padding(.vertical, isSidebar ? 8 : 12)
                 }
 
                 // Optional: time-column picker for Time Series
@@ -140,14 +141,14 @@ struct PreviewTableView: View {
                     Divider().background(Color.primary.opacity(0.06))
                     
                     timeColumnPicker
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, isSidebar ? 12 : 20)
+                        .padding(.vertical, isSidebar ? 8 : 12)
                     
                     Divider().background(Color.primary.opacity(0.06))
                     
                     dateRangePickerSection
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, isSidebar ? 12 : 20)
+                        .padding(.vertical, isSidebar ? 8 : 12)
                 }
 
                 // ── Exclusion Banner ────────────────────────────────────────────
@@ -155,8 +156,8 @@ struct PreviewTableView: View {
                     Divider().background(Color.primary.opacity(0.06))
                     
                     exclusionBanner
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, isSidebar ? 12 : 20)
+                        .padding(.vertical, isSidebar ? 8 : 12)
                 }
 
                 Divider().background(Color.primary.opacity(0.06))
@@ -165,14 +166,14 @@ struct PreviewTableView: View {
                 ScrollView(.horizontal, showsIndicators: true) {
                     VStack(alignment: .leading, spacing: 0) {
                         tableHeader
-                            .padding(.horizontal, 20)
+                            .padding(.horizontal, isSidebar ? 12 : 20)
                         
                         // FIX: Removed the nested vertical ScrollView.
                         // The table now flows perfectly with the master page scroll.
                         LazyVStack(alignment: .leading, spacing: 0) {
                             tableRows
                         }
-                        .padding(.horizontal, 20)
+                        .padding(.horizontal, isSidebar ? 12 : 20)
                     }
                 }
                 .padding(.top, 16)
@@ -186,14 +187,14 @@ struct PreviewTableView: View {
     private var headerSection: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
-                Text("Dataset Preview")
-                    .font(.title3.bold())
+                Text(isSidebar ? "Dataset Schema & Preview" : "Dataset Preview")
+                    .font(isSidebar ? .system(size: 13, weight: .bold) : .title3.bold())
                 if let total = preview.totalRows {
-                    Text("First \(preview.previewRows.count) rows of \(formatNumber(total)) total • \(preview.columns.count) columns")
+                    Text(isSidebar ? "\(preview.columns.count) cols • \(formatNumber(total)) rows" : "First \(preview.previewRows.count) rows of \(formatNumber(total)) total • \(preview.columns.count) columns")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 } else {
-                    Text("First \(preview.previewRows.count) rows • \(preview.columns.count) columns")
+                    Text(isSidebar ? "\(preview.columns.count) cols • \(preview.previewRows.count)+ rows" : "First \(preview.previewRows.count) rows • \(preview.columns.count) columns")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -201,7 +202,7 @@ struct PreviewTableView: View {
 
             Spacer()
 
-            if !preview.localPath.isEmpty {
+            if !isSidebar && !preview.localPath.isEmpty {
                 Label("Cached Locally", systemImage: "checkmark.circle.fill")
                     .font(.caption2.bold())
                     .foregroundColor(.green)

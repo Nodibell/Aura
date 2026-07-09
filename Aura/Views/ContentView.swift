@@ -22,22 +22,28 @@ struct ContentView: View {
                     .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
             } detail: {
                 // 2. Main Content Canvas & AI Panel
-                HStack(spacing: 0) {
-                    mainContent
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color(nsColor: .windowBackgroundColor))
+                VStack(spacing: 0) {
+                    if !viewModel.openPages.isEmpty {
+                        TabsHeaderView(viewModel: viewModel)
+                    }
                     
-                    // Custom Right-Side Panel
-                    if viewModel.showAIPanel && viewModel.result != nil {
-                        Divider()
-                        AIChatPanel(
-                            viewModel: viewModel.chatViewModel,
-                            ollamaStatus: viewModel.ollamaStatus,
-                            analysisResult: viewModel.result?.resultForTarget(viewModel.selectedTargetName)
-                        )
-                        .frame(width: 325)
-                        .background(Color(nsColor: .windowBackgroundColor))
-                        .transition(.move(edge: .trailing))
+                    HStack(spacing: 0) {
+                        mainContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                        
+                        // Custom Right-Side Panel
+                        if viewModel.showAIPanel && viewModel.result != nil {
+                            Divider()
+                            AIChatPanel(
+                                viewModel: viewModel.chatViewModel,
+                                ollamaStatus: viewModel.ollamaStatus,
+                                analysisResult: viewModel.result?.resultForTarget(viewModel.selectedTargetName)
+                            )
+                            .frame(width: 325)
+                            .background(Color(nsColor: .windowBackgroundColor))
+                            .transition(.move(edge: .trailing))
+                        }
                     }
                 }
                 // 4. Native macOS Toolbar & Titles
@@ -199,7 +205,7 @@ struct ContentView: View {
             ModelExportSheet(
                 config: $viewModel.analysisConfig,
                 isPresented: $viewModel.showModelExportSheet,
-                onRunExport: { viewModel.runEDA() }
+                onRunExport: { _ in viewModel.runEDA() }
             )
         }
         .sheet(isPresented: $viewModel.showOnboarding) {
@@ -239,6 +245,12 @@ struct ContentView: View {
             )
         }
         .onAppear {
+            // Check for the explicit launch argument we set in the test
+            if ProcessInfo.processInfo.arguments.contains("-UITesting") {
+                hasSeenOnboarding = true
+                return
+            }
+            
             if !hasSeenOnboarding {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     viewModel.showOnboarding = true
@@ -246,12 +258,12 @@ struct ContentView: View {
                 }
             }
         }
+        .frame(minWidth: 1000, idealWidth: 1000, minHeight: 700, idealHeight: 700)
     }
 
     // MARK: - Sidebar
 
     private var sidebarContent: some View {
-        // FIX: Ensuring the outer VStack wraps BOTH the ScrollView and the Footer correctly
         VStack(spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
@@ -280,382 +292,152 @@ struct ContentView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
 
-                    // 1. Dataset Source Card
-                    SidebarCard(title: "Dataset Source") {
-                        VStack(spacing: 0) {
-                            if let fileURL = viewModel.selectedFileURL {
-                                datasetChip(
-                                    icon: "doc.text.fill", color: .purple,
-                                    title: fileURL.lastPathComponent,
-                                    subtitle: viewModel.fileDetails
-                                )
-                                Divider()
-                            } else if !viewModel.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                datasetChip(
-                                    icon: "link.circle.fill", color: .orange,
-                                    title: viewModel.datasetURLInput,
-                                    subtitle: viewModel.getURLProviderName(viewModel.datasetURLInput)
-                                )
-                                Divider()
-                            } else {
-                                Text("No active dataset")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
-                                    .padding(.vertical, 16)
-                                    .frame(maxWidth: .infinity, alignment: .center)
-                                Divider()
-                            }
+                    // ── Active Page Preview & Settings ──────────────────────────────
+                    if let activePage = viewModel.activePage, let preview = activePage.previewResult {
+                        VStack(alignment: .leading, spacing: 12) {
+                            PreviewTableView(
+                                preview: preview,
+                                config: Binding(
+                                    get: { activePage.analysisConfig },
+                                    set: { activePage.analysisConfig = $0 }
+                                ),
+                                onPreviewFileRequested: { path in
+                                    viewModel.fetchPreview(for: path, page: activePage)
+                                },
+                                isSidebar: true
+                            )
+                            .frame(height: 380)
+                            .cornerRadius(8)
+                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                            .padding(.horizontal, 16)
                             
-                            Menu {
-                                Button(action: viewModel.selectFileManually) {
-                                    Label("Load Local File...", systemImage: "doc.badge.plus")
-                                }
-                                Button {
-                                    viewModel.urlInputText = viewModel.datasetURLInput
-                                    viewModel.showURLInputAlert = true
-                                } label: {
-                                    Label("Paste Dataset URL...", systemImage: "link.badge.plus")
-                                }
-                                Button {
-                                    viewModel.showDatabaseSheet = true
-                                } label: {
-                                    Label("Import from Database...", systemImage: "server.rack")
-                                }
-                            } label: {
+                            // CTA Button
+                            Button(action: viewModel.runEDA) {
                                 HStack(spacing: 6) {
-                                    Image(systemName: "square.and.arrow.down.on.square")
-                                    Text("Import Dataset...")
-                                    Spacer()
-                                    Image(systemName: "chevron.down")
-                                        .font(.system(size: 8))
+                                    if viewModel.isAnalyzing {
+                                        NativeProgressView(controlSize: .small).padding(.trailing, 2)
+                                    } else {
+                                        Image(systemName: "play.fill")
+                                            .font(.system(size: 11))
+                                    }
+                                    Text(viewModel.isAnalyzing ? "Analyzing…" : "Run Analysis Pipeline")
+                                        .font(.system(size: 12, weight: .bold, design: .rounded))
                                 }
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.purple)
-                                .padding(.horizontal, 12)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
                                 .padding(.vertical, 10)
-                                .contentShape(Rectangle())
+                                .background(
+                                    (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
+                                    ? AnyShapeStyle(Color.primary.opacity(0.05))
+                                    : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
+                                )
+                                .cornerRadius(8)
+                                .shadow(color: (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading) ? .clear : .purple.opacity(0.2), radius: 6, x: 0, y: 2)
                             }
-                            .menuStyle(.borderlessButton)
+                            .disabled(cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
                             .buttonStyle(.plain)
-                            .padding(1)
+                            .padding(.horizontal, 16)
                         }
                     }
 
-                    // 1.5. Test Dataset Card
-                    if !cannotRun {
-                        SidebarCard(title: "Test Dataset (Optional)") {
-                            VStack(spacing: 0) {
-                                if let testPath = viewModel.analysisConfig.testFilePath, !testPath.isEmpty {
-                                    let testURL = URL(fileURLWithPath: testPath)
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "doc.text.fill").foregroundColor(.purple)
-                                            .font(.system(size: 14))
-                                        VStack(alignment: .leading, spacing: 1) {
-                                            Text(testURL.lastPathComponent)
-                                                .font(.system(size: 11, weight: .semibold))
-                                                .foregroundColor(.primary)
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                            Text("Separate validation set")
-                                                .font(.system(size: 9))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                        Button(action: {
-                                            viewModel.analysisConfig.testFilePath = nil
-                                        }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .foregroundColor(.secondary.opacity(0.8))
-                                                .font(.system(size: 11))
-                                        }
-                                        .buttonStyle(.plain)
-                                        .help("Clear selection")
-                                    }
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                    
-                                    Divider()
-                                }
-                                
-                                Button(action: viewModel.selectTestFileManually) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "doc.badge.plus")
-                                        Text(viewModel.analysisConfig.testFilePath == nil ? "Load Test File..." : "Change Test File...")
-                                        Spacer()
-                                    }
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundColor(.purple)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 10)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-
-                    // 2. Target Column Configuration Card
-                    SidebarCard(title: "Target Column(s)") {
-                        VStack(alignment: .leading, spacing: 6) {
-                            let columns = !viewModel.trainColumns.isEmpty ? viewModel.trainColumns : (viewModel.previewResult?.columns ?? viewModel.result?.columns ?? [])
-                            if !columns.isEmpty {
-                                if viewModel.analysisConfig.datasetType == .timeSeries {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text("Select targets to forecast:")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(.secondary)
-                                        
-                                        ForEach(columns, id: \.self) { col in
-                                            if col != viewModel.analysisConfig.timeColumn {
-                                                Button {
-                                                    if viewModel.analysisConfig.targetColumns.contains(col) {
-                                                        viewModel.analysisConfig.targetColumns.removeAll(where: { $0 == col })
-                                                    } else {
-                                                        viewModel.analysisConfig.targetColumns.append(col)
-                                                        viewModel.analysisConfig.excludedColumns.remove(col)
-                                                    }
-                                                } label: {
-                                                    HStack {
-                                                        Image(systemName: viewModel.analysisConfig.targetColumns.contains(col) ? "checkmark.square.fill" : "square")
-                                                            .foregroundColor(viewModel.analysisConfig.targetColumns.contains(col) ? .purple : .secondary)
-                                                        Text(col)
-                                                            .font(.system(size: 11))
-                                                            .foregroundColor(.primary)
-                                                            .lineLimit(1)
-                                                        Spacer()
-                                                    }
-                                                    .contentShape(Rectangle())
-                                                }
-                                                .buttonStyle(.plain)
-                                                .padding(.vertical, 1)
-                                            }
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                } else {
-                                    Menu {
-                                        Button("Auto-detect target") {
-                                            viewModel.analysisConfig.targetColumn = ""
-                                            viewModel.analysisConfig.taskTypeOverride = .auto
-                                        }
-                                        Button("None (Run Clustering)") {
-                                            viewModel.analysisConfig.targetColumn = ""
-                                            viewModel.analysisConfig.taskTypeOverride = .clustering
-                                        }
-                                        Divider()
-                                        ForEach(columns, id: \.self) { col in
-                                            Button(col) {
-                                                viewModel.analysisConfig.targetColumn = col
-                                                viewModel.analysisConfig.excludedColumns.remove(col)
-                                                if viewModel.analysisConfig.taskTypeOverride == .clustering {
-                                                    viewModel.analysisConfig.taskTypeOverride = .auto
-                                                }
-                                            }
-                                        }
-                                    } label: {
-                                        HStack {
-                                            Text(viewModel.analysisConfig.taskTypeOverride == .clustering ? "None (Clustering)" : (viewModel.analysisConfig.targetColumn.isEmpty ? "Auto-detect target" : viewModel.analysisConfig.targetColumn))
-                                                .font(.system(size: 12))
-                                                .foregroundColor((viewModel.analysisConfig.targetColumn.isEmpty && viewModel.analysisConfig.taskTypeOverride != .clustering) ? .secondary : .primary)
-                                                .lineLimit(1)
-                                            Spacer()
-                                            Image(systemName: "chevron.up.chevron.down")
-                                                .font(.system(size: 9))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 6)
-                                        .background(Color.primary.opacity(0.03))
-                                        .cornerRadius(6)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .menuStyle(.borderlessButton)
-                                }
-                            } else {
-                                TextField("Auto-detect target", text: .constant(viewModel.analysisConfig.targetColumn.isEmpty ? "Auto-detect target" : viewModel.analysisConfig.targetColumn))
-                                    .textFieldStyle(.plain)
-                                    .font(.system(size: 12))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Color.primary.opacity(0.03))
-                                    .cornerRadius(6)
-                                    .disabled(true)
-                            }
-                            
-                            Text(viewModel.analysisConfig.datasetType == .timeSeries ? "Select target variables to forecast." : "Guides machine learning model tasks.")
-                                .font(.system(size: 9))
-                                .foregroundColor(.secondary.opacity(0.6))
-                        }
-                        .padding(10)
-                    }
-
-                    // 3. Main Analyze Button CTA
-                    Button(action: viewModel.runEDA) {
-                        HStack(spacing: 6) {
-                            if viewModel.isAnalyzing {
-                                NativeProgressView(controlSize: .small).padding(.trailing, 2)
-                            } else {
-                                Image(systemName: "play.fill")
-                                    .font(.system(size: 11))
-                            }
-                            Text(viewModel.isAnalyzing ? "Analyzing…" : "Run Analysis Pipeline")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 11)
-                        .background(
-                            (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
-                            ? AnyShapeStyle(Color.primary.opacity(0.05))
-                            : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
-                        )
-                        .cornerRadius(8)
-                        .shadow(color: (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading) ? .clear : .purple.opacity(0.2), radius: 6, x: 0, y: 2)
-                    }
-                    .disabled(cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
-                    .buttonStyle(.plain)
-                    .padding(.horizontal, 16)
-
-                    // 4. Sidebar Sample Datasets Card
-                    SidebarCard(title: "Sample Datasets") {
+                    // ── Sample Datasets ───────────────────────────────────────────
+                    DisclosureGroup("Sample Datasets") {
                         VStack(spacing: 0) {
                             Button { viewModel.loadSampleDataset(named: "house_prices.csv") } label: {
                                 HStack {
                                     Image(systemName: "house.fill").foregroundColor(.purple)
                                         .font(.system(size: 11))
                                     Text("House Prices")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: 11))
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
                                         .foregroundColor(.secondary.opacity(0.5))
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05))
                             
                             Button { viewModel.loadSampleDataset(named: "iris.csv") } label: {
                                 HStack {
                                     Image(systemName: "leaf.fill").foregroundColor(.green)
                                         .font(.system(size: 11))
                                     Text("Iris Flowers")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: 11))
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
                                         .foregroundColor(.secondary.opacity(0.5))
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05))
                             
                             Button { viewModel.loadSampleDataset(named: "airline_passengers.csv") } label: {
                                 HStack {
                                     Image(systemName: "chart.line.uptrend.xyaxis").foregroundColor(.blue)
                                         .font(.system(size: 11))
                                     Text("Airline Passengers")
-                                        .font(.system(size: 12))
+                                        .font(.system(size: 11))
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
                                         .foregroundColor(.secondary.opacity(0.5))
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             
-                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
+                            Divider().background(Color.primary.opacity(0.05))
                             
                             Button { viewModel.loadSampleDataset(named: "movie_reviews.csv") } label: {
                                 HStack {
                                     Image(systemName: "text.bubble").foregroundColor(.green)
                                         .font(.system(size: 11))
                                     Text("Movie Reviews")
-                                        .font(.system(size: 12))
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 8))
-                                        .foregroundColor(.secondary.opacity(0.5))
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            
-                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
-                            
-                            Button { viewModel.loadSampleDataset(named: "mnist_mini.npz") } label: {
-                                HStack {
-                                    Image(systemName: "photo.stack").foregroundColor(.orange)
                                         .font(.system(size: 11))
-                                    Text("MNIST Mini (NPZ)")
-                                        .font(.system(size: 12))
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
                                         .foregroundColor(.secondary.opacity(0.5))
                                 }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            
-                            Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
-                            
-                            Button { viewModel.loadSampleDataset(named: "drone_dataset") } label: {
-                                HStack {
-                                    Image(systemName: "viewfinder.rectangular").foregroundColor(.indigo)
-                                        .font(.system(size: 11))
-                                    Text("Drone Detection")
-                                        .font(.system(size: 12))
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 8))
-                                        .foregroundColor(.secondary.opacity(0.5))
-                                }
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                         }
+                        .padding(.top, 4)
                     }
+                    .font(.system(size: 11, weight: .bold))
+                    .padding(.horizontal, 16)
 
-                    // 4.5 Recent Analyses Card
+                    // ── Recent Analyses ──────────────────────────────────────────
                     if !viewModel.historyService.items.isEmpty {
-                        SidebarCard(title: "Recent Analyses") {
+                        DisclosureGroup("Recent Analyses") {
                             VStack(spacing: 0) {
-                                let displayedItems = Array(viewModel.historyService.items.sorted(by: { a, b in
-                                    let aPinned = a.isPinned ?? false
-                                    let bPinned = b.isPinned ?? false
-                                    if aPinned != bPinned { return aPinned }
-                                    return a.timestamp > b.timestamp
-                                }).prefix(4))
-                                
-                                ForEach(displayedItems) { item in
+                                ForEach(viewModel.historyService.items.prefix(5)) { item in
                                     Button { viewModel.loadHistoryItem(item) } label: {
-                                        HStack(spacing: 10) {
+                                        HStack(spacing: 8) {
                                             RoundedRectangle(cornerRadius: 1.5)
                                                 .fill(item.uiColor)
-                                                .frame(width: 3, height: 28)
+                                                .frame(width: 3, height: 24)
                                             
-                                            VStack(alignment: .leading, spacing: 2) {
+                                            VStack(alignment: .leading, spacing: 1) {
                                                 HStack(spacing: 4) {
                                                     if item.isPinned ?? false {
                                                         Image(systemName: "star.fill")
-                                                            .font(.system(size: 8))
+                                                            .font(.system(size: 7))
                                                             .foregroundColor(.yellow)
                                                     }
                                                     Text(item.datasetName)
@@ -664,36 +446,17 @@ struct ContentView: View {
                                                         .lineLimit(1)
                                                 }
                                                 
-                                                HStack(spacing: 4) {
-                                                    Text(item.shortLabel)
-                                                        .font(.system(size: 8, weight: .bold))
-                                                        .foregroundColor(item.uiColor)
-                                                    Text("•")
-                                                        .font(.system(size: 8))
-                                                        .foregroundColor(.secondary.opacity(0.5))
-                                                    Text(item.timestamp, style: .relative)
-                                                        .font(.system(size: 8))
-                                                        .foregroundColor(.secondary)
-                                                }
-                                                
-                                                if let model = item.bestModel, let score = item.bestScore {
-                                                    Text("\(model) (\(String(format: "%.2f", score)))")
-                                                        .font(.system(size: 8))
-                                                        .foregroundColor(.secondary.opacity(0.8))
-                                                        .lineLimit(1)
-                                                } else if let rows = item.rowCount, let cols = item.colCount {
-                                                    Text("\(rows) rows • \(cols) cols")
-                                                        .font(.system(size: 8))
-                                                        .foregroundColor(.secondary.opacity(0.8))
-                                                }
+                                                Text(item.shortLabel)
+                                                    .font(.system(size: 8, weight: .bold))
+                                                    .foregroundColor(item.uiColor)
                                             }
                                             Spacer()
                                             Image(systemName: "chevron.right")
-                                                .font(.system(size: 8))
+                                                .font(.system(size: 7))
                                                 .foregroundColor(.secondary.opacity(0.5))
                                         }
-                                        .padding(.vertical, 6)
-                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .padding(.horizontal, 6)
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(.plain)
@@ -717,29 +480,17 @@ struct ContentView: View {
                                         }
                                     }
                                     
-                                    if item.id != displayedItems.last?.id {
-                                        Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
+                                    if item.id != viewModel.historyService.items.prefix(5).last?.id {
+                                        Divider().background(Color.primary.opacity(0.04))
                                     }
                                 }
-                                
-                                Divider().background(Color.primary.opacity(0.05)).padding(.horizontal, 8)
-                                
-                                Button {
-                                    showHistoryBrowser = true
-                                } label: {
-                                    HStack {
-                                        Spacer()
-                                        Label("See All History...", systemImage: "clock.arrow.circlepath")
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundColor(.accentColor)
-                                        Spacer()
-                                    }
-                                    .padding(.vertical, 6)
-                                }
-                                .buttonStyle(.plain)
                             }
+                            .padding(.top, 4)
                         }
+                        .font(.system(size: 11, weight: .bold))
+                        .padding(.horizontal, 16)
                     }
+                    
                     Spacer(minLength: 20)
                 }
             }
@@ -775,6 +526,7 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("configureSettingsButton")
                 
                 Button {
                     viewModel.showSchedulerSheet = true
@@ -791,11 +543,12 @@ struct ContentView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("manageSchedulesButton")
             }
             .padding(.top, 10)
             .padding(.bottom, 12)
             .background(Color(nsColor: .windowBackgroundColor))
-        } // <-- End of outer VStack wrapper
+        }
     }
 
     // MARK: - Main Detail Content
@@ -803,7 +556,33 @@ struct ContentView: View {
     @ViewBuilder
     private var mainContent: some View {
         ZStack {
-            if viewModel.isAnalyzing {
+            if viewModel.openPages.isEmpty {
+                DragDropView(
+                    onFileDropped: { urls in viewModel.handleDroppedFiles(urls) },
+                    onSelectFileManually: { viewModel.selectFileManually() },
+                    onImportFromDatabase: { viewModel.showDatabaseSheet = true },
+                    onURLSubmitted: { urlString in
+                        viewModel.datasetURLInput = urlString
+                        viewModel.selectedFileURL = nil
+                        viewModel.fetchPreview(for: urlString)
+                    },
+                    onSampleSelected: { name in
+                        viewModel.loadSampleDataset(named: name)
+                    },
+                    recentAnalyses: viewModel.historyService.items,
+                    onRecentSelected: { item in
+                        viewModel.loadHistoryItem(item)
+                    },
+                    onRename: { item in
+                        viewModel.renameText = item.datasetName
+                        viewModel.itemToRename = item
+                        viewModel.showRenameAlert = true
+                    },
+                    onDelete: { item in
+                        viewModel.historyService.deleteItem(item)
+                    }
+                )
+            } else if viewModel.isAnalyzing {
                 loadingView(
                     title: viewModel.progressMessage.isEmpty ? "Running analysis pipeline…" : viewModel.progressMessage,
                     subtitle: "Fitting ML models and generating charts…",
@@ -981,52 +760,13 @@ struct ContentView: View {
                             Text("Select a tab")
                         }
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-
-            // FIX: Using VStack so the GeometryReader calculates exactly what's left!
-            } else if let preview = viewModel.previewResult {
-                VStack(spacing: 0) {
-                    PreviewTableView(
-                        preview: preview,
-                        config: $viewModel.analysisConfig,
-                        onPreviewFileRequested: { path in
-                            viewModel.fetchPreview(for: path)
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    
-                    previewActionBar
-                        .background(Color(nsColor: .windowBackgroundColor)) // Blocks scrolling content
+            } else if let activePage = viewModel.activePage {
+                PendingAnalysisView(page: activePage) {
+                    viewModel.runEDA()
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
             } else {
-                DragDropView(
-                    onFileDropped: { urls in viewModel.handleDroppedFiles(urls) },
-                    onSelectFileManually: { viewModel.selectFileManually() },
-                    onImportFromDatabase: { viewModel.showDatabaseSheet = true },
-                    onURLSubmitted: { urlString in
-                        viewModel.datasetURLInput = urlString
-                        viewModel.selectedFileURL = nil
-                        viewModel.fetchPreview(for: urlString)
-                    },
-                    onSampleSelected: { name in
-                        viewModel.loadSampleDataset(named: name)
-                    },
-                    recentAnalyses: viewModel.historyService.items,
-                    onRecentSelected: { item in
-                        viewModel.loadHistoryItem(item)
-                    },
-                    onRename: { item in
-                        viewModel.renameText = item.datasetName
-                        viewModel.itemToRename = item
-                        viewModel.showRenameAlert = true
-                    },
-                    onDelete: { item in
-                        viewModel.historyService.deleteItem(item)
-                    }
-                )
+                Text("No active content")
             }
         }
     }
@@ -1275,3 +1015,66 @@ struct SidebarCard<Content: View>: View {
         .padding(.horizontal, 16)
     }
 }
+
+struct TabsHeaderView: View {
+    let viewModel: DashboardViewModel
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(viewModel.openPages) { page in
+                        let isActive = page.id == viewModel.activePageId
+                        
+                        HStack(spacing: 8) {
+                            Image(systemName: page.analysisConfig.datasetType.icon)
+                                .font(.system(size: 11))
+                                .foregroundColor(isActive ? Color.purple : Color.secondary)
+                            
+                            Text(page.title)
+                                .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                                .foregroundColor(isActive ? .primary : .secondary)
+                                .lineLimit(1)
+                            
+                            Button(action: {
+                                withAnimation {
+                                    viewModel.closePage(id: page.id)
+                                }
+                            }) {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 8, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                    .padding(4)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(isActive ? Color(nsColor: .windowBackgroundColor) : Color.primary.opacity(0.015))
+                        .overlay(
+                            Rectangle()
+                                .fill(isActive ? Color.purple : Color.clear)
+                                .frame(height: 2),
+                            alignment: .bottom
+                        )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            withAnimation {
+                                viewModel.activePageId = page.id
+                            }
+                        }
+                        
+                        Divider()
+                            .frame(height: 28)
+                    }
+                }
+            }
+            .frame(height: 32)
+            .background(Color.primary.opacity(0.01))
+            
+            Divider()
+        }
+    }
+}
+

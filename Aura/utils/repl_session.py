@@ -88,7 +88,8 @@ def _make_llm_query(base_url: str, model: str):
 
 def reset(file_path: str,
           ollama_base_url: str = "http://localhost:11434",
-          ollama_model: str = "llama3.2") -> dict:
+          ollama_model: str = "llama3.2",
+          cleaning_actions: str = None) -> dict:
     """
     Load `file_path` into `df` inside the REPL namespace.
     Clears all previous session variables.
@@ -147,6 +148,28 @@ def reset(file_path: str,
             "shape": df.shape,
             "table": initial_table
         })
+
+        if cleaning_actions:
+            try:
+                import json
+                from utils.cleaning import StatefulCleaner
+                actions = json.loads(cleaning_actions)
+                if actions:
+                    cleaner = StatefulCleaner(actions)
+                    cleaner.fit(df)
+                    df = cleaner.transform(df, is_training=True)
+                    _namespace["df"] = df
+                    
+                    cleaned_table = pa.Table.from_pandas(df)
+                    _lineage_states.append({
+                        "id": len(_lineage_states),
+                        "description": f"Applied {len(actions)} Cleaning Action(s)",
+                        "shape": df.shape,
+                        "table": cleaned_table
+                    })
+            except Exception as clean_err:
+                import sys
+                sys.stderr.write(f"Warning: Failed to fit/apply cleaning actions in REPL: {str(clean_err)}\n")
 
         return {"status": "ok", "rows": len(df), "cols": len(df.columns)}
     except Exception as e:

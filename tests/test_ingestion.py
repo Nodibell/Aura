@@ -149,3 +149,24 @@ def test_ingest_dataset_zip_classification(temp_dir):
         assert os.path.exists(img_path)
     finally:
         shutil.rmtree(src_dir, ignore_errors=True)
+
+def test_ingest_dataset_preserves_nlp_and_timeseries(temp_dir):
+    csv_file = os.path.join(temp_dir, "test_temp.csv")
+    with open(csv_file, "w") as f:
+        f.write("text,label\na,b\n")
+    
+    path, dtype = ingest_dataset(csv_file, dataset_type="nlp")
+    assert path == csv_file
+    assert dtype == "nlp"
+    
+    path, dtype = ingest_dataset(csv_file, dataset_type="timeseries")
+    assert path == csv_file
+    assert dtype == "timeseries"
+    
+    path, dtype = ingest_dataset(csv_file, dataset_type="tabular")
+    assert path == csv_file
+    assert dtype == "tabular"
+
+    path, dtype = ingest_dataset(csv_file, dataset_type="auto")
+    assert path == csv_file
+    assert dtype == "tabular"

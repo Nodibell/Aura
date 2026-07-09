@@ -681,7 +681,7 @@ def analyze_tabular(df, target_col, task_type_override,
                     smart_sample=False, cleaning_actions=None,
                     test_df=None, val_df=None, has_test_set=False, has_val_set=False,
                     test_info=None, val_info=None, cleaner=None, feature_selection=False,
-                    column_type_overrides=None):
+                    column_type_overrides=None, selected_model=None):
     """
     Main entry point for the Tabular pipeline analysis. Handles preprocessing,
     modeling, metrics evaluation, charts construction, and code export.
@@ -1072,12 +1072,17 @@ def analyze_tabular(df, target_col, task_type_override,
         # Export model and code
         if model_export_path or code_export_path:
             model_to_save = best_model_obj
+            model_name_to_save = best_model_name
+            if selected_model and 'trained_models' in locals() and selected_model in trained_models:
+                model_to_save = trained_models[selected_model]
+                model_name_to_save = selected_model
+                
             feature_names = list(X_train_proc.columns)
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
                 file_path, "tabular", target_col, None,
                 "classification" if is_classification else "regression",
-                feature_names, best_model_name, numeric_cols, categorical_cols, text_cols,
+                feature_names, model_name_to_save, numeric_cols, categorical_cols, text_cols,
                 cleaner=cleaner, preprocessor=preprocessor, label_encoder=le
             )
             

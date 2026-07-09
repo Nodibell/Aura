@@ -7,112 +7,128 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0483175B29A09D4356E1D364 /* RidgelineChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9522992008109277E35A8B /* RidgelineChartView.swift */; };
 		0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */; };
 		051B5E75B48F8348B8D736F5 /* deep_learning.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */; };
 		085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26B8DF684009A48B39E26C67 /* OllamaService.swift */; };
+		08F0545D4E1D51AFAC80666F /* yolo_trainer.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = E7B006EB9ECEFCB30B449754 /* yolo_trainer.cpython-311.pyc */; };
 		09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5CD552B5F09360B5BCABC896 /* Assets.xcassets */; };
 		0EFE0B0855FFABB1AD63E310 /* cleaning.py in Resources */ = {isa = PBXBuildFile; fileRef = F783D2E01729F7CAFCD8C743 /* cleaning.py */; };
-		119669640FD84AE3D17447AB /* Charts/BoxPlotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1FDD29E3A01C5BAC653D64 /* Charts/BoxPlotView.swift */; };
+		10556A880EF64F925A547E20 /* PdpIceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF25BB1030ABE4F370154357 /* PdpIceView.swift */; };
+		131D3A6D40D76D33D64ACE50 /* AnalysisPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 148F728B5BDA62753A11E113 /* AnalysisPage.swift */; };
+		13C94F213510B7CEFE85EFF7 /* ai_analyst.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 6C13DD75FDB3C4B95D33474F /* ai_analyst.cpython-311.pyc */; };
 		14B151B69398C4EEEB5297E9 /* PredictionTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7928B28A4483B5F3E002C18 /* PredictionTabView.swift */; };
 		178011CDB20183D66838D7B1 /* query_db.py in Resources */ = {isa = PBXBuildFile; fileRef = FD250D9E27667F0684F9B96A /* query_db.py */; };
 		17B72300B6D31DF071959B27 /* DataCleaningView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */; };
-		191E4488A84DA5027CA655CC /* Charts/PieDonutChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE58F02EB9B6C9B3D9C75E9D /* Charts/PieDonutChartView.swift */; };
 		1A2B9E0960485CA6BC14552E /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91CF3CDAA267E57897F18030 /* AIService.swift */; };
+		1AE4828D051805CFDDDBC9D9 /* notebook_exporter.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = C290279A0751B8EDF700B68D /* notebook_exporter.cpython-311.pyc */; };
+		1CDAB2F6B41CCC689FF8E648 /* unet_segmentation.py in Resources */ = {isa = PBXBuildFile; fileRef = B207FD36CFCCF9F24D8A09DA /* unet_segmentation.py */; };
 		1D87B95E76C2963B9F865251 /* tabular.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */; };
 		217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */; };
-		2212BD8305B6BDCD25168338 /* Charts/LineChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 661F4F1CF9FF28D94BF03302 /* Charts/LineChartView.swift */; };
 		2243569E3F9ED5A56AA8F9C4 /* helpers.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */; };
 		240CE722F69C5BCF99EEAC6D /* loader.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */; };
+		24137CDBE683DB8470212409 /* yolo_trainer.py in Resources */ = {isa = PBXBuildFile; fileRef = 970EC24502A91B238DF29219 /* yolo_trainer.py */; };
 		242ACCE81E9678B9B855F6AC /* ReportCompiler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE97000C618B91DB55AF3E72 /* ReportCompiler.swift */; };
 		25F4E30F25817CB60715E0B8 /* cleaning.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */; };
 		29641D18C037C33B9C16F82E /* loader.py in Resources */ = {isa = PBXBuildFile; fileRef = 874A91E91B9041211A336B9F /* loader.py */; };
-		2C18677F6DEA0B183E08B40F /* Charts/BarChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46F50C1B3254B3BBD2CEBDB /* Charts/BarChartView.swift */; };
+		2A662F16FDEACC62C018003F /* ingestion.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 77F0DAA4B051E1DA56E0C9CB /* ingestion.cpython-311.pyc */; };
 		349314BDD5FFFAE9B7373062 /* OllamaStatusChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */; };
+		35604D402E143AB2E7B27361 /* event_bus.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 89CF3079A3DC008B5C09E929 /* event_bus.cpython-311.pyc */; };
+		35644D874B9117E52A565EE6 /* model_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = CEF676F0536C20F2CB471261 /* model_engine.py */; };
+		370589FB7B7F14705D9A120B /* cnn_extractor.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = AA53023CE7E612ABD9639AEC /* cnn_extractor.cpython-311.pyc */; };
+		398574B0E198453F58B83B71 /* server.py in Resources */ = {isa = PBXBuildFile; fileRef = 9CC03F445DA919A31C0FF3B1 /* server.py */; };
 		3B3746562D8ED10C6D92122D /* clustering.py in Resources */ = {isa = PBXBuildFile; fileRef = 5FDEED3F35FC53B5A9CC28E4 /* clustering.py */; };
 		3EC11651FB218D12A1DD94FD /* tabular.py in Resources */ = {isa = PBXBuildFile; fileRef = FD99CF1C61CC0C98DC66240B /* tabular.py */; };
+		408D1A04065D83B963B94764 /* server.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = C3DBE1B2C0364F97C895BE26 /* server.cpython-311.pyc */; };
 		428BEC9F7A31189D0B88C8D9 /* ChartPromptTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */; };
+		42EFFE72394A9CBECE9BECF6 /* CustomSegmentedPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A41120901764955E6CDA020 /* CustomSegmentedPicker.swift */; };
 		440BD1B765F92FABAD10EA06 /* object_detection.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */; };
 		49724A22ABE69218A52C185A /* HTMLToPDFConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 036BB7B2813DA346B8701843 /* HTMLToPDFConverter.swift */; };
 		4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */; };
 		4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F04E707B7135771590F783F /* AppLogger.swift */; };
-		4C0B906A2FFC432E000C1FFD /* ingestion.py in Resources */ = {isa = PBXBuildFile; fileRef = 4C0B90692FFC432E000C1FFD /* ingestion.py */; };
-		4C361D442FEC9A9000E5E0C3 /* server.py in Resources */ = {isa = PBXBuildFile; fileRef = 4C361D432FEC9A9000E5E0C3 /* server.py */; };
+		4E28FDE5DA000355A955F9FC /* WordCloudView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D876F8A4F37CCB2DD0D3CF24 /* WordCloudView.swift */; };
 		5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */; };
 		5733E0A22FE6B3003D17C175 /* PythonRunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */; };
 		57973B52D55F9C0741D0C930 /* EnterpriseDatabaseSchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA714F3756E141456F804D26 /* EnterpriseDatabaseSchedulerTests.swift */; };
-		57D575A331B9874FCA204F8A /* Charts/RidgelineChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A678F6704BDAF5973CB863C /* Charts/RidgelineChartView.swift */; };
+		59821F3F052B5761E4062B85 /* HistoryBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B65A16A952EF14D08238C5E2 /* HistoryBrowserView.swift */; };
 		5A10366B0E33CCD292263E7D /* deep_learning.py in Resources */ = {isa = PBXBuildFile; fileRef = BE34872FABAC277BE37FA4F5 /* deep_learning.py */; };
+		5A3E44FAC168E83E48059814 /* ChartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655B9E11426DD22E78813DD0 /* ChartCard.swift */; };
+		5C4D956E46DF791E1B075D58 /* NativeProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CC85493A4D80F5A20F30537 /* NativeProgressView.swift */; };
+		5DA68F35C38C04B89657C55B /* REPLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61D4DBACFA9787E1E593E49 /* REPLService.swift */; };
 		603FDF4097568FD43E23F486 /* AnalysisSchedulerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = C691FBB60044F82129817B23 /* AnalysisSchedulerSheet.swift */; };
+		623DBF8474FC89B4A8E17545 /* ImageGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 891B3719D866711EABDBF744 /* ImageGridView.swift */; };
 		630516F1E04DA43A53C63602 /* object_detection.py in Resources */ = {isa = PBXBuildFile; fileRef = 925E18925B25757AC8523B80 /* object_detection.py */; };
-		632B0FE0CF3D1BBA24A53FE9 /* ServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 997BC3C34FA059B7E4E496B6 /* ServiceProtocols.swift */; };
+		64C586AFE443759B0684F157 /* repl_session.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 09478DBDC3036AF9DCC853DE /* repl_session.cpython-311.pyc */; };
 		677FE39A7C5C40F1BB87180B /* AIChatPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */; };
-		677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF490890 /* NativeProgressView.swift */; };
+		67C0F2B8969446607A5E12FC /* PieDonutChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F488EB3688E5A3B77B25FFF /* PieDonutChartView.swift */; };
 		6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */ = {isa = PBXBuildFile; fileRef = 801D45C07D300201200808EB /* helpers.py */; };
 		6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */; };
+		6BACC276A389CA730B695C19 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D15869D6C23ACD87E0AA018A /* Theme.swift */; };
 		6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */; };
 		6D9368CDB7207045A93E27A7 /* HistoryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4718EA673E457067CA6C94BA /* HistoryItem.swift */; };
+		6E85831440400059E5900B6A /* ShapBeeswarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34B4B2405359C1E4C552C0CF /* ShapBeeswarmView.swift */; };
 		6E99C77956A059840571F2B5 /* PythonRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4964E50D792A7A2C0DAF554D /* PythonRunner.swift */; };
 		72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 401068CD37570487457B1D3C /* ExportReportSheet.swift */; };
 		73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 2658715CABC6977191661349 /* nlp.cpython-311.pyc */; };
+		7675C6794BF90A0E42383207 /* unet_segmentation.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 6B9BDBA4FBE98208804BBF73 /* unet_segmentation.cpython-311.pyc */; };
 		76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */ = {isa = PBXBuildFile; fileRef = 61100B2C70DCAB2960A65C01 /* timeseries.py */; };
+		798EAD99ABEA0F7DDA151B2E /* model_engine.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 4DE67EE2E222A0944A29845E /* model_engine.cpython-311.pyc */; };
 		7A3FE47E6897F119029A7AA7 /* DatasetTypeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */; };
 		7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */; };
-		88D8A27E9CCD769FD6948B7F /* Charts/ChartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 223F0A13C56621FB32F9DA7A /* Charts/ChartCard.swift */; };
+		7B7BA250B7C4B8C5EB267180 /* cv_nlp_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = 31D95ECC61D509AB18E98FBB /* cv_nlp_engine.py */; };
+		812E7CCF80C1E77C020BC0C6 /* ai_analyst.py in Resources */ = {isa = PBXBuildFile; fileRef = 5434F6403CBEF41C326FB719 /* ai_analyst.py */; };
+		870BD1146E13E214031E527C /* repl_session.py in Resources */ = {isa = PBXBuildFile; fileRef = BDA018D91E2AAAA097E5C3AC /* repl_session.py */; };
+		890940064EB079DA59B1FD9C /* ScatterChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E749BBDE7FD29CDD46965F7B /* ScatterChartView.swift */; };
+		8C601C348848645FA2A1582C /* ServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E97FDEA4F64A96EEDC63EAB /* ServiceProtocols.swift */; };
 		93AB26B4B55D549635F9AAA9 /* SummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FEE37BF68704248704A691D /* SummaryView.swift */; };
-		94F7DFA30BF5C51BC8C9CE24 /* ../ViewModels/DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5480E1BBA1CD3AEB2E71D850 /* ../ViewModels/DashboardViewModel.swift */; };
 		954B4108D0D5DCB423F88591 /* AnalysisScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666FED69100D6A979729EF3E /* AnalysisScheduler.swift */; };
-		9995D36E5992CA86EBE7CB79 /* Charts/PdpIceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32D395C7E1993A7606A752D2 /* Charts/PdpIceView.swift */; };
 		9A6F073BB849AE6DCE038137 /* image.py in Resources */ = {isa = PBXBuildFile; fileRef = D1EAB7206F26FEE6CA526B55 /* image.py */; };
 		9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */; };
 		9C799893B31E1D3DBA950DAD /* profiler.py in Resources */ = {isa = PBXBuildFile; fileRef = BFE0A9FA6A6821EF8D5A1728 /* profiler.py */; };
 		9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E79BF77BFF47CAD77B65137 /* ContentView.swift */; };
-		9F4DC0696CF2BB3E16D1D5BD /* Charts/ImageGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0BDCE9DB8B83CCDDFBDC35A /* Charts/ImageGridView.swift */; };
-		A189A849A2B11FD7C81593D3 /* Charts/ShapBeeswarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FC6EE701D197DCE814D6CD0 /* Charts/ShapBeeswarmView.swift */; };
 		A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */; };
 		A3449C7392EA98857DB2606C /* preview.py in Resources */ = {isa = PBXBuildFile; fileRef = 909EAF01F877E18009244DF4 /* preview.py */; };
 		A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94A9C43791F93BBFF10727E /* KeychainService.swift */; };
+		A3FEFDF9BD850644BDA50E14 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4006A13F6439B2D1327719 /* DashboardViewModelTests.swift */; };
 		A5B703A9FA86329B0F3AEF64 /* DatabaseConnectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2196F0B1AA7CC67450A82F6B /* DatabaseConnectionSheet.swift */; };
-		A6F9A3C429BBDEA5CC4E9392 /* Charts/LightboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA2C983C320F4CC39AC9AC4C /* Charts/LightboxView.swift */; };
-		AAAB11112222333344440001 /* event_bus.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440001 /* event_bus.py */; };
-		AAAB11112222333344440002 /* data_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440002 /* data_engine.py */; };
-		AAAB11112222333344440003 /* ai_analyst.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440003 /* ai_analyst.py */; };
-		AAAB11112222333344440004 /* model_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440004 /* model_engine.py */; };
-		AAAB11112222333344440005 /* cv_nlp_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = AAAF11112222333344440005 /* cv_nlp_engine.py */; };
+		AB2189F02449F8E78BA345D4 /* notebook_exporter.py in Resources */ = {isa = PBXBuildFile; fileRef = 4CDA8B345CE0F2760E7B40D1 /* notebook_exporter.py */; };
+		ADC226D112F92CB345BCCE45 /* echarts.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 63C158C6AB6C517B04A7CFB3 /* echarts.min.js */; };
 		ADF3E9387548DAD87C51F950 /* clustering.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */; };
+		AE826BB40C5D39B9B6C57F11 /* PendingAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8AC953724F3C34D7B6A5A23 /* PendingAnalysisView.swift */; };
 		AF0E0093DD138A984AE2AE07 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 624F60BF44A6B0961B100408 /* SettingsView.swift */; };
+		B04F126CBA6ECEC08B430DBA /* data_engine.py in Resources */ = {isa = PBXBuildFile; fileRef = 7B4EF78A2D7E2258AC7E1E6A /* data_engine.py */; };
 		B31889721D087589EE9CAD80 /* FileMergeSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2636FCB70D8699271BDF3 /* FileMergeSheet.swift */; };
-		B31889721D087589EE9CAD89 /* CustomSegmentedPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01C2636FCB70D8699271BDF9 /* CustomSegmentedPicker.swift */; };
-		B35F2BF42922E588AAA29EFC /* Charts/WordCloudView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E50BE537F1B040654FCA3D6 /* Charts/WordCloudView.swift */; };
-		B69BE0E756E302519A2628BB /* Charts/ScatterChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83AC9775A81ED7F04AB8AF9F /* Charts/ScatterChartView.swift */; };
+		B458362966B44E9D651C8D99 /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F655862CC175EC26CE2D69D3 /* CommandPaletteView.swift */; };
+		B4C4465FA5F67285BE9F21F2 /* cv_nlp_engine.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 1B3E536D81D0DEB7A360032D /* cv_nlp_engine.cpython-311.pyc */; };
+		B8C74FCFCB5727522274806D /* ProtectedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91DFDDC4F9A7CBEEFB1A542 /* ProtectedData.swift */; };
 		B935576B41719E3EA7CDDC62 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0709C15E39493935E745814C /* OnboardingView.swift */; };
+		BDD2DA548F05815FA35D6576 /* LineChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE6C65AE3A24178632E547C /* LineChartView.swift */; };
 		BE527B0A2F698E100419EF6E /* AnalysisDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9154FEC5526BFA11EDE8BB41 /* AnalysisDiffView.swift */; };
+		C2CEEF4ECCB515D5CA91AE38 /* event_bus.py in Resources */ = {isa = PBXBuildFile; fileRef = 144EDD81C87C51E8B08792C9 /* event_bus.py */; };
 		C30A9E774BE2C3E50294C4F1 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B775FC772BBB757874196464 /* ChatMessage.swift */; };
 		C41FB1B2B66DC70A3700C6DD /* charts.py in Resources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF49087F /* charts.py */; };
+		C4CA34850D1660DDF37A677B /* BarChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66D62AECB3702F7456725F20 /* BarChartView.swift */; };
 		C8CDF47496C18A6FD7467217 /* ModelExportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */; };
 		CC384032B2C8149A84B4ACAF /* charts.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */; };
+		CD4051FFC21926B7C4303C6E /* cnn_extractor.py in Resources */ = {isa = PBXBuildFile; fileRef = 6928C54A3618ADF5A67E7993 /* cnn_extractor.py */; };
 		CF308130471B42534BC18080 /* DragDropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0748F80EDE9BE8E1331656E0 /* DragDropView.swift */; };
-		D477C77956A059840571F2B5 /* REPLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D464E50D792A7A2C0DAF554D /* REPLService.swift */; };
-		D477C77956A059840571F2C7 /* notebook_exporter.py in Resources */ = {isa = PBXBuildFile; fileRef = D464E50D792A7A2C0DAF555F /* notebook_exporter.py */; };
-		D477C77956A059840571F2C8 /* repl_session.py in Resources */ = {isa = PBXBuildFile; fileRef = D464E50D792A7A2C0DAF5560 /* repl_session.py */; };
-		D477C77956A059840571F2C9 /* arrow_helper.py in Resources */ = {isa = PBXBuildFile; fileRef = D464E50D792A7A2C0DAF5561 /* arrow_helper.py */; };
+		D3760566CCE4A5B343AFEAC3 /* marked.min.js in Resources */ = {isa = PBXBuildFile; fileRef = 81F2953CFD09F28D18BA049B /* marked.min.js */; };
 		DA2F4FC541258A07A801F0E5 /* PredictionResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7072F45E094FA70B2527C59E /* PredictionResult.swift */; };
 		DAB7A5BFCC509E72B7C92EE1 /* analyze.py in Resources */ = {isa = PBXBuildFile; fileRef = 646E55D57E8224D22C2A2172 /* analyze.py */; };
-		DAF3CE34BDE7F686A010061E /* HistoryBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640C2E902D3D831956003633 /* HistoryBrowserView.swift */; };
-		DDFA9D333341BCECFD1A750D /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 996E0C2B5803F19F64B099DB /* DashboardViewModelTests.swift */; };
 		DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */; };
-		DE3233989261CF467120A3CB /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */; };
 		E2210705A0114392408BC5E3 /* AuraApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D21ABEC5EF698C64577CDF3E /* AuraApp.swift */; };
 		E3848A6553A9A5C36EE709B5 /* image.cpython-311.pyc in Resources */ = {isa = PBXBuildFile; fileRef = 817B08D312D42549D73441A9 /* image.cpython-311.pyc */; };
+		E452849BE70BBE3E57F2AD7E /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D8B8E15BBB34C260602B438 /* DashboardViewModel.swift */; };
+		E5CA10D086A479CAF739711E /* BoxPlotView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02B11CA7F5F451FECA5212CC /* BoxPlotView.swift */; };
 		E625E1E6F17C0DCC99446421 /* AnalysisResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0296AD82546F1F9C92E1473F /* AnalysisResult.swift */; };
 		E66D5B62FF637E7829C89DBD /* nlp.py in Resources */ = {isa = PBXBuildFile; fileRef = E3FBB74FD6B5716449BF2ABB /* nlp.py */; };
+		E7482B49EE10402EABD60DEE /* LightboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5802387E216CF0B4DF28196A /* LightboxView.swift */; };
 		E7EC1E58C0C23675AB813DFE /* AutoMLCleaningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */; };
-		EAC524D7600F2A155C268EE9 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF29298DFE05FE5732779C8E /* Theme.swift */; };
 		EC8715C25E05C9D26FD50BD8 /* ProtectedDataTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */; };
-		F4204B26D8C90D646F590354 /* ProtectedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08164E47D38C7F3CE04A5A8E /* ProtectedData.swift */; };
 		F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = E410A6F2A214865D1593E321 /* AnalysisConfig.swift */; };
 		F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */; };
-		FF01AB00FF01AB00FF01AB01 /* echarts.min.js in Resources */ = {isa = PBXBuildFile; fileRef = FF01AB00FF01AB00FF01AB00 /* echarts.min.js */; };
-		FF01AB00FF01AB00FF01AB02 /* marked.min.js in Resources */ = {isa = PBXBuildFile; fileRef = FF01AB00FF01AB00FF01AB03 /* marked.min.js */; };
+		F9F20B1057FB69E4FCEBFCF7 /* arrow_helper.py in Resources */ = {isa = PBXBuildFile; fileRef = 4132DBCA716664112C0A3B3E /* arrow_helper.py */; };
+		FF67DE57F7F297F447E9F7CE /* ingestion.py in Resources */ = {isa = PBXBuildFile; fileRef = A1893507F11BCA4E749278CE /* ingestion.py */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -127,57 +143,71 @@
 
 /* Begin PBXFileReference section */
 		01C2636FCB70D8699271BDF3 /* FileMergeSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMergeSheet.swift; sourceTree = "<group>"; };
-		01C2636FCB70D8699271BDF9 /* CustomSegmentedPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSegmentedPicker.swift; sourceTree = "<group>"; };
 		0296AD82546F1F9C92E1473F /* AnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisResult.swift; sourceTree = "<group>"; };
+		02B11CA7F5F451FECA5212CC /* BoxPlotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxPlotView.swift; sourceTree = "<group>"; };
 		036BB7B2813DA346B8701843 /* HTMLToPDFConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToPDFConverter.swift; sourceTree = "<group>"; };
 		0709C15E39493935E745814C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		0748F80EDE9BE8E1331656E0 /* DragDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropView.swift; sourceTree = "<group>"; };
-		08164E47D38C7F3CE04A5A8E /* ProtectedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectedData.swift; sourceTree = "<group>"; };
-		08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
+		09478DBDC3036AF9DCC853DE /* repl_session.cpython-311.pyc */ = {isa = PBXFileReference; path = "repl_session.cpython-311.pyc"; sourceTree = "<group>"; };
+		144EDD81C87C51E8B08792C9 /* event_bus.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = event_bus.py; sourceTree = "<group>"; };
+		148F728B5BDA62753A11E113 /* AnalysisPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisPage.swift; sourceTree = "<group>"; };
 		16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaSetupView.swift; sourceTree = "<group>"; };
 		181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetTypeTests.swift; sourceTree = "<group>"; };
-		1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "object_detection.cpython-311.pyc"; sourceTree = "<group>"; };
+		1A41120901764955E6CDA020 /* CustomSegmentedPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomSegmentedPicker.swift; sourceTree = "<group>"; };
+		1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */ = {isa = PBXFileReference; path = "object_detection.cpython-311.pyc"; sourceTree = "<group>"; };
+		1B3E536D81D0DEB7A360032D /* cv_nlp_engine.cpython-311.pyc */ = {isa = PBXFileReference; path = "cv_nlp_engine.cpython-311.pyc"; sourceTree = "<group>"; };
 		2196F0B1AA7CC67450A82F6B /* DatabaseConnectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatabaseConnectionSheet.swift; sourceTree = "<group>"; };
-		223F0A13C56621FB32F9DA7A /* Charts/ChartCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/ChartCard.swift; sourceTree = "<group>"; };
 		22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunnerTests.swift; sourceTree = "<group>"; };
-		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
+		2658715CABC6977191661349 /* nlp.cpython-311.pyc */ = {isa = PBXFileReference; path = "nlp.cpython-311.pyc"; sourceTree = "<group>"; };
 		26B8DF684009A48B39E26C67 /* OllamaService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaService.swift; sourceTree = "<group>"; };
-		32D395C7E1993A7606A752D2 /* Charts/PdpIceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/PdpIceView.swift; sourceTree = "<group>"; };
-		3FC6EE701D197DCE814D6CD0 /* Charts/ShapBeeswarmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/ShapBeeswarmView.swift; sourceTree = "<group>"; };
+		2D8B8E15BBB34C260602B438 /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		2F4006A13F6439B2D1327719 /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModelTests.swift; sourceTree = "<group>"; };
+		31D95ECC61D509AB18E98FBB /* cv_nlp_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cv_nlp_engine.py; sourceTree = "<group>"; };
+		34B4B2405359C1E4C552C0CF /* ShapBeeswarmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapBeeswarmView.swift; sourceTree = "<group>"; };
 		401068CD37570487457B1D3C /* ExportReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportReportSheet.swift; sourceTree = "<group>"; };
-		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
+		4132DBCA716664112C0A3B3E /* arrow_helper.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = arrow_helper.py; sourceTree = "<group>"; };
+		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
 		4718EA673E457067CA6C94BA /* HistoryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryItem.swift; sourceTree = "<group>"; };
 		4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CorrelationMatrixView.swift; sourceTree = "<group>"; };
 		4964E50D792A7A2C0DAF554D /* PythonRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PythonRunner.swift; sourceTree = "<group>"; };
 		4A9E59AC258B2C2BA91E5EF7 /* Aura.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aura.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		4C0B90692FFC432E000C1FFD /* ingestion.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ingestion.py; sourceTree = "<group>"; };
-		4C361D432FEC9A9000E5E0C3 /* server.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = server.py; sourceTree = "<group>"; };
+		4CDA8B345CE0F2760E7B40D1 /* notebook_exporter.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = notebook_exporter.py; sourceTree = "<group>"; };
 		4CDCD7CB2692DABC3E2EA75E /* AIChatPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatPanel.swift; sourceTree = "<group>"; };
-		4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "tabular.cpython-311.pyc"; sourceTree = "<group>"; };
-		5480E1BBA1CD3AEB2E71D850 /* ../ViewModels/DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../ViewModels/DashboardViewModel.swift; sourceTree = "<group>"; };
-		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
+		4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */ = {isa = PBXFileReference; path = "tabular.cpython-311.pyc"; sourceTree = "<group>"; };
+		4DE67EE2E222A0944A29845E /* model_engine.cpython-311.pyc */ = {isa = PBXFileReference; path = "model_engine.cpython-311.pyc"; sourceTree = "<group>"; };
+		5434F6403CBEF41C326FB719 /* ai_analyst.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ai_analyst.py; sourceTree = "<group>"; };
+		5802387E216CF0B4DF28196A /* LightboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightboxView.swift; sourceTree = "<group>"; };
+		588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */ = {isa = PBXFileReference; path = "preview.cpython-311.pyc"; sourceTree = "<group>"; };
 		5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewTableView.swift; sourceTree = "<group>"; };
-		5A678F6704BDAF5973CB863C /* Charts/RidgelineChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/RidgelineChartView.swift; sourceTree = "<group>"; };
-		5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "cleaning.cpython-311.pyc"; sourceTree = "<group>"; };
+		5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */ = {isa = PBXFileReference; path = "cleaning.cpython-311.pyc"; sourceTree = "<group>"; };
+		5CC85493A4D80F5A20F30537 /* NativeProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProgressView.swift; sourceTree = "<group>"; };
 		5CD552B5F09360B5BCABC896 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5E97FDEA4F64A96EEDC63EAB /* ServiceProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProtocols.swift; sourceTree = "<group>"; };
 		5FDEED3F35FC53B5A9CC28E4 /* clustering.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = clustering.py; sourceTree = "<group>"; };
 		61100B2C70DCAB2960A65C01 /* timeseries.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = timeseries.py; sourceTree = "<group>"; };
 		624F60BF44A6B0961B100408 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		640C2E902D3D831956003633 /* HistoryBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBrowserView.swift; sourceTree = "<group>"; };
+		63C158C6AB6C517B04A7CFB3 /* echarts.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = echarts.min.js; sourceTree = "<group>"; };
 		646E55D57E8224D22C2A2172 /* analyze.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = analyze.py; sourceTree = "<group>"; };
-		661F4F1CF9FF28D94BF03302 /* Charts/LineChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/LineChartView.swift; sourceTree = "<group>"; };
+		655B9E11426DD22E78813DD0 /* ChartCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartCard.swift; sourceTree = "<group>"; };
 		666FED69100D6A979729EF3E /* AnalysisScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisScheduler.swift; sourceTree = "<group>"; };
+		66D62AECB3702F7456725F20 /* BarChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarChartView.swift; sourceTree = "<group>"; };
 		67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectedDataTests.swift; sourceTree = "<group>"; };
+		6928C54A3618ADF5A67E7993 /* cnn_extractor.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cnn_extractor.py; sourceTree = "<group>"; };
+		6B9BDBA4FBE98208804BBF73 /* unet_segmentation.cpython-311.pyc */ = {isa = PBXFileReference; path = "unet_segmentation.cpython-311.pyc"; sourceTree = "<group>"; };
+		6C13DD75FDB3C4B95D33474F /* ai_analyst.cpython-311.pyc */ = {isa = PBXFileReference; path = "ai_analyst.cpython-311.pyc"; sourceTree = "<group>"; };
 		7072F45E094FA70B2527C59E /* PredictionResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionResult.swift; sourceTree = "<group>"; };
 		7691C69A2C2BAE1C9358197C /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
+		77F0DAA4B051E1DA56E0C9CB /* ingestion.cpython-311.pyc */ = {isa = PBXFileReference; path = "ingestion.cpython-311.pyc"; sourceTree = "<group>"; };
+		7B4EF78A2D7E2258AC7E1E6A /* data_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = data_engine.py; sourceTree = "<group>"; };
 		7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartPromptTests.swift; sourceTree = "<group>"; };
 		7FEE37BF68704248704A691D /* SummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryView.swift; sourceTree = "<group>"; };
 		801D45C07D300201200808EB /* helpers.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = helpers.py; sourceTree = "<group>"; };
-		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
-		83AC9775A81ED7F04AB8AF9F /* Charts/ScatterChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/ScatterChartView.swift; sourceTree = "<group>"; };
+		817B08D312D42549D73441A9 /* image.cpython-311.pyc */ = {isa = PBXFileReference; path = "image.cpython-311.pyc"; sourceTree = "<group>"; };
+		81F2953CFD09F28D18BA049B /* marked.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = marked.min.js; sourceTree = "<group>"; };
 		874A91E91B9041211A336B9F /* loader.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = loader.py; sourceTree = "<group>"; };
 		8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChartsListView.swift; sourceTree = "<group>"; };
-		8E50BE537F1B040654FCA3D6 /* Charts/WordCloudView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/WordCloudView.swift; sourceTree = "<group>"; };
+		891B3719D866711EABDBF744 /* ImageGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageGridView.swift; sourceTree = "<group>"; };
+		89CF3079A3DC008B5C09E929 /* event_bus.cpython-311.pyc */ = {isa = PBXFileReference; path = "event_bus.cpython-311.pyc"; sourceTree = "<group>"; };
 		8E79BF77BFF47CAD77B65137 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		8F04E707B7135771590F783F /* AppLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLogger.swift; sourceTree = "<group>"; };
 		909EAF01F877E18009244DF4 /* preview.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = preview.py; sourceTree = "<group>"; };
@@ -185,56 +215,58 @@
 		91CF3CDAA267E57897F18030 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
 		925E18925B25757AC8523B80 /* object_detection.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = object_detection.py; sourceTree = "<group>"; };
 		938EA13730D79840F2FCBBA5 /* Aura.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Aura.entitlements; sourceTree = "<group>"; };
-		996E0C2B5803F19F64B099DB /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModelTests.swift; sourceTree = "<group>"; };
-		997BC3C34FA059B7E4E496B6 /* ServiceProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProtocols.swift; sourceTree = "<group>"; };
+		970EC24502A91B238DF29219 /* yolo_trainer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = yolo_trainer.py; sourceTree = "<group>"; };
 		9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataCleaningView.swift; sourceTree = "<group>"; };
+		9CC03F445DA919A31C0FF3B1 /* server.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = server.py; sourceTree = "<group>"; };
 		9ED2F02669746860CF49087F /* charts.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = charts.py; sourceTree = "<group>"; };
-		9ED2F02669746860CF490890 /* NativeProgressView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeProgressView.swift; sourceTree = "<group>"; };
+		9F488EB3688E5A3B77B25FFF /* PieDonutChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PieDonutChartView.swift; sourceTree = "<group>"; };
 		A022D7794EB157DA589B4998 /* AnalysisHistoryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisHistoryService.swift; sourceTree = "<group>"; };
-		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
-		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
+		A1893507F11BCA4E749278CE /* ingestion.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ingestion.py; sourceTree = "<group>"; };
+		A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */ = {isa = PBXFileReference; path = "charts.cpython-311.pyc"; sourceTree = "<group>"; };
+		A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */ = {isa = PBXFileReference; path = "analyze.cpython-311.pyc"; sourceTree = "<group>"; };
+		AA53023CE7E612ABD9639AEC /* cnn_extractor.cpython-311.pyc */ = {isa = PBXFileReference; path = "cnn_extractor.cpython-311.pyc"; sourceTree = "<group>"; };
 		AA714F3756E141456F804D26 /* EnterpriseDatabaseSchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnterpriseDatabaseSchedulerTests.swift; sourceTree = "<group>"; };
-		AAAF11112222333344440001 /* event_bus.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = event_bus.py; sourceTree = "<group>"; };
-		AAAF11112222333344440002 /* data_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = data_engine.py; sourceTree = "<group>"; };
-		AAAF11112222333344440003 /* ai_analyst.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = ai_analyst.py; sourceTree = "<group>"; };
-		AAAF11112222333344440004 /* model_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = model_engine.py; sourceTree = "<group>"; };
-		AAAF11112222333344440005 /* cv_nlp_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cv_nlp_engine.py; sourceTree = "<group>"; };
-		AE58F02EB9B6C9B3D9C75E9D /* Charts/PieDonutChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/PieDonutChartView.swift; sourceTree = "<group>"; };
-		B0BDCE9DB8B83CCDDFBDC35A /* Charts/ImageGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/ImageGridView.swift; sourceTree = "<group>"; };
-		B46F50C1B3254B3BBD2CEBDB /* Charts/BarChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/BarChartView.swift; sourceTree = "<group>"; };
+		B207FD36CFCCF9F24D8A09DA /* unet_segmentation.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = unet_segmentation.py; sourceTree = "<group>"; };
+		B65A16A952EF14D08238C5E2 /* HistoryBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryBrowserView.swift; sourceTree = "<group>"; };
 		B775FC772BBB757874196464 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
+		B91DFDDC4F9A7CBEEFB1A542 /* ProtectedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtectedData.swift; sourceTree = "<group>"; };
+		BBE6C65AE3A24178632E547C /* LineChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LineChartView.swift; sourceTree = "<group>"; };
+		BDA018D91E2AAAA097E5C3AC /* repl_session.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = repl_session.py; sourceTree = "<group>"; };
 		BE34872FABAC277BE37FA4F5 /* deep_learning.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = deep_learning.py; sourceTree = "<group>"; };
 		BE97000C618B91DB55AF3E72 /* ReportCompiler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportCompiler.swift; sourceTree = "<group>"; };
 		BFE0A9FA6A6821EF8D5A1728 /* profiler.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = profiler.py; sourceTree = "<group>"; };
+		C290279A0751B8EDF700B68D /* notebook_exporter.cpython-311.pyc */ = {isa = PBXFileReference; path = "notebook_exporter.cpython-311.pyc"; sourceTree = "<group>"; };
+		C3DBE1B2C0364F97C895BE26 /* server.cpython-311.pyc */ = {isa = PBXFileReference; path = "server.cpython-311.pyc"; sourceTree = "<group>"; };
 		C691FBB60044F82129817B23 /* AnalysisSchedulerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSchedulerSheet.swift; sourceTree = "<group>"; };
-		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
-		CC1FDD29E3A01C5BAC653D64 /* Charts/BoxPlotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/BoxPlotView.swift; sourceTree = "<group>"; };
+		CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */ = {isa = PBXFileReference; path = "helpers.cpython-311.pyc"; sourceTree = "<group>"; };
 		CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoMLCleaningTests.swift; sourceTree = "<group>"; };
+		CEF676F0536C20F2CB471261 /* model_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = model_engine.py; sourceTree = "<group>"; };
+		CF25BB1030ABE4F370154357 /* PdpIceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PdpIceView.swift; sourceTree = "<group>"; };
+		D15869D6C23ACD87E0AA018A /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D1EAB7206F26FEE6CA526B55 /* image.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = image.py; sourceTree = "<group>"; };
 		D21ABEC5EF698C64577CDF3E /* AuraApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuraApp.swift; sourceTree = "<group>"; };
-		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
-		D464E50D792A7A2C0DAF554D /* REPLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REPLService.swift; sourceTree = "<group>"; };
-		D464E50D792A7A2C0DAF555F /* notebook_exporter.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = notebook_exporter.py; sourceTree = "<group>"; };
-		D464E50D792A7A2C0DAF5560 /* repl_session.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = repl_session.py; sourceTree = "<group>"; };
-		D464E50D792A7A2C0DAF5561 /* arrow_helper.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = arrow_helper.py; sourceTree = "<group>"; };
+		D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */ = {isa = PBXFileReference; path = "timeseries.cpython-311.pyc"; sourceTree = "<group>"; };
 		D7928B28A4483B5F3E002C18 /* PredictionTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PredictionTabView.swift; sourceTree = "<group>"; };
+		D876F8A4F37CCB2DD0D3CF24 /* WordCloudView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WordCloudView.swift; sourceTree = "<group>"; };
 		D8CF4CF9E7D0954FEFB3E954 /* AuraTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AuraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D94A9C43791F93BBFF10727E /* KeychainService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeychainService.swift; sourceTree = "<group>"; };
-		DA2C983C320F4CC39AC9AC4C /* Charts/LightboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Charts/LightboxView.swift; sourceTree = "<group>"; };
-		DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "deep_learning.cpython-311.pyc"; sourceTree = "<group>"; };
-		DF29298DFE05FE5732779C8E /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */ = {isa = PBXFileReference; path = "deep_learning.cpython-311.pyc"; sourceTree = "<group>"; };
 		E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelExportSheet.swift; sourceTree = "<group>"; };
 		E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullTableView.swift; sourceTree = "<group>"; };
 		E3FBB74FD6B5716449BF2ABB /* nlp.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = nlp.py; sourceTree = "<group>"; };
 		E410A6F2A214865D1593E321 /* AnalysisConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisConfig.swift; sourceTree = "<group>"; };
-		E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "clustering.cpython-311.pyc"; sourceTree = "<group>"; };
+		E61D4DBACFA9787E1E593E49 /* REPLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = REPLService.swift; sourceTree = "<group>"; };
+		E749BBDE7FD29CDD46965F7B /* ScatterChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScatterChartView.swift; sourceTree = "<group>"; };
+		E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */ = {isa = PBXFileReference; path = "clustering.cpython-311.pyc"; sourceTree = "<group>"; };
+		E7B006EB9ECEFCB30B449754 /* yolo_trainer.cpython-311.pyc */ = {isa = PBXFileReference; path = "yolo_trainer.cpython-311.pyc"; sourceTree = "<group>"; };
+		E8AC953724F3C34D7B6A5A23 /* PendingAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingAnalysisView.swift; sourceTree = "<group>"; };
+		EA9522992008109277E35A8B /* RidgelineChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RidgelineChartView.swift; sourceTree = "<group>"; };
 		EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OllamaStatusChecker.swift; sourceTree = "<group>"; };
+		F655862CC175EC26CE2D69D3 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		F783D2E01729F7CAFCD8C743 /* cleaning.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cleaning.py; sourceTree = "<group>"; };
 		FD250D9E27667F0684F9B96A /* query_db.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = query_db.py; sourceTree = "<group>"; };
 		FD99CF1C61CC0C98DC66240B /* tabular.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = tabular.py; sourceTree = "<group>"; };
-		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; lastKnownFileType = file; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
-		FF01AB00FF01AB00FF01AB00 /* echarts.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = echarts.min.js; sourceTree = "<group>"; };
-		FF01AB00FF01AB00FF01AB03 /* marked.min.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = marked.min.js; sourceTree = "<group>"; };
+		FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */ = {isa = PBXFileReference; path = "profiler.cpython-311.pyc"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -251,13 +283,18 @@
 			isa = PBXGroup;
 			children = (
 				E75831B37FA20E569A94ECE4 /* clustering.cpython-311.pyc */,
+				AA53023CE7E612ABD9639AEC /* cnn_extractor.cpython-311.pyc */,
+				1B3E536D81D0DEB7A360032D /* cv_nlp_engine.cpython-311.pyc */,
 				DCDACB94F4E75AA426D20F5C /* deep_learning.cpython-311.pyc */,
 				817B08D312D42549D73441A9 /* image.cpython-311.pyc */,
+				4DE67EE2E222A0944A29845E /* model_engine.cpython-311.pyc */,
 				2658715CABC6977191661349 /* nlp.cpython-311.pyc */,
 				1AAD76F283C55B5A70BC8D03 /* object_detection.cpython-311.pyc */,
 				588CAEB608600B133F3015A9 /* preview.cpython-311.pyc */,
 				4D3FC3A93ED0A95002CE7EDF /* tabular.cpython-311.pyc */,
 				D3B27EAF398677601E3A9BEF /* timeseries.cpython-311.pyc */,
+				6B9BDBA4FBE98208804BBF73 /* unet_segmentation.cpython-311.pyc */,
+				E7B006EB9ECEFCB30B449754 /* yolo_trainer.cpython-311.pyc */,
 			);
 			path = __pycache__;
 			sourceTree = "<group>";
@@ -265,19 +302,19 @@
 		36471513ADADC97BC10280B7 /* utils */ = {
 			isa = PBXGroup;
 			children = (
-				71A4081307A2822F80F7EB54 /* __pycache__ */,
-				AAAF11112222333344440003 /* ai_analyst.py */,
-				4C0B90692FFC432E000C1FFD /* ingestion.py */,
-				D464E50D792A7A2C0DAF5561 /* arrow_helper.py */,
+				5434F6403CBEF41C326FB719 /* ai_analyst.py */,
+				4132DBCA716664112C0A3B3E /* arrow_helper.py */,
 				9ED2F02669746860CF49087F /* charts.py */,
 				F783D2E01729F7CAFCD8C743 /* cleaning.py */,
-				AAAF11112222333344440002 /* data_engine.py */,
-				AAAF11112222333344440001 /* event_bus.py */,
+				7B4EF78A2D7E2258AC7E1E6A /* data_engine.py */,
+				144EDD81C87C51E8B08792C9 /* event_bus.py */,
 				801D45C07D300201200808EB /* helpers.py */,
+				A1893507F11BCA4E749278CE /* ingestion.py */,
 				874A91E91B9041211A336B9F /* loader.py */,
-				D464E50D792A7A2C0DAF555F /* notebook_exporter.py */,
+				4CDA8B345CE0F2760E7B40D1 /* notebook_exporter.py */,
 				BFE0A9FA6A6821EF8D5A1728 /* profiler.py */,
-				D464E50D792A7A2C0DAF5560 /* repl_session.py */,
+				BDA018D91E2AAAA097E5C3AC /* repl_session.py */,
+				71A4081307A2822F80F7EB54 /* __pycache__ */,
 			);
 			path = utils;
 			sourceTree = "<group>";
@@ -286,6 +323,7 @@
 			isa = PBXGroup;
 			children = (
 				A3504C96B09B50403E431E00 /* analyze.cpython-311.pyc */,
+				C3DBE1B2C0364F97C895BE26 /* server.cpython-311.pyc */,
 			);
 			path = __pycache__;
 			sourceTree = "<group>";
@@ -297,38 +335,27 @@
 				9154FEC5526BFA11EDE8BB41 /* AnalysisDiffView.swift */,
 				C691FBB60044F82129817B23 /* AnalysisSchedulerSheet.swift */,
 				8855E6A64EE28BF59CD09BE0 /* ChartsListView.swift */,
+				F655862CC175EC26CE2D69D3 /* CommandPaletteView.swift */,
 				8E79BF77BFF47CAD77B65137 /* ContentView.swift */,
 				4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */,
-				01C2636FCB70D8699271BDF9 /* CustomSegmentedPicker.swift */,
+				1A41120901764955E6CDA020 /* CustomSegmentedPicker.swift */,
 				2196F0B1AA7CC67450A82F6B /* DatabaseConnectionSheet.swift */,
 				9C3DFD9D99050387A5EA291E /* DataCleaningView.swift */,
 				0748F80EDE9BE8E1331656E0 /* DragDropView.swift */,
 				401068CD37570487457B1D3C /* ExportReportSheet.swift */,
 				01C2636FCB70D8699271BDF3 /* FileMergeSheet.swift */,
 				E3F243B159C4FFE7FBAE86ED /* FullTableView.swift */,
+				B65A16A952EF14D08238C5E2 /* HistoryBrowserView.swift */,
 				E26C5C6EDC36ADAAE2F913E1 /* ModelExportSheet.swift */,
-				9ED2F02669746860CF490890 /* NativeProgressView.swift */,
+				5CC85493A4D80F5A20F30537 /* NativeProgressView.swift */,
 				16E7EB2FBAB28C44B32CB834 /* OllamaSetupView.swift */,
 				0709C15E39493935E745814C /* OnboardingView.swift */,
+				E8AC953724F3C34D7B6A5A23 /* PendingAnalysisView.swift */,
 				D7928B28A4483B5F3E002C18 /* PredictionTabView.swift */,
 				5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */,
 				624F60BF44A6B0961B100408 /* SettingsView.swift */,
 				7FEE37BF68704248704A691D /* SummaryView.swift */,
-				5480E1BBA1CD3AEB2E71D850 /* ../ViewModels/DashboardViewModel.swift */,
-				223F0A13C56621FB32F9DA7A /* Charts/ChartCard.swift */,
-				B46F50C1B3254B3BBD2CEBDB /* Charts/BarChartView.swift */,
-				661F4F1CF9FF28D94BF03302 /* Charts/LineChartView.swift */,
-				83AC9775A81ED7F04AB8AF9F /* Charts/ScatterChartView.swift */,
-				3FC6EE701D197DCE814D6CD0 /* Charts/ShapBeeswarmView.swift */,
-				32D395C7E1993A7606A752D2 /* Charts/PdpIceView.swift */,
-				B0BDCE9DB8B83CCDDFBDC35A /* Charts/ImageGridView.swift */,
-				DA2C983C320F4CC39AC9AC4C /* Charts/LightboxView.swift */,
-				CC1FDD29E3A01C5BAC653D64 /* Charts/BoxPlotView.swift */,
-				8E50BE537F1B040654FCA3D6 /* Charts/WordCloudView.swift */,
-				AE58F02EB9B6C9B3D9C75E9D /* Charts/PieDonutChartView.swift */,
-				5A678F6704BDAF5973CB863C /* Charts/RidgelineChartView.swift */,
-				08F8AFBAE83DED9BD0F0981F /* CommandPaletteView.swift */,
-				640C2E902D3D831956003633 /* HistoryBrowserView.swift */,
+				AC5BBB1B5AD15A802BCFE7EE /* Charts */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -336,11 +363,16 @@
 		71A4081307A2822F80F7EB54 /* __pycache__ */ = {
 			isa = PBXGroup;
 			children = (
+				6C13DD75FDB3C4B95D33474F /* ai_analyst.cpython-311.pyc */,
 				A2574F02325C8D1D195D4B63 /* charts.cpython-311.pyc */,
 				5B1824D054096B82D16AF771 /* cleaning.cpython-311.pyc */,
+				89CF3079A3DC008B5C09E929 /* event_bus.cpython-311.pyc */,
 				CA98415D758D9ECF06490318 /* helpers.cpython-311.pyc */,
+				77F0DAA4B051E1DA56E0C9CB /* ingestion.cpython-311.pyc */,
 				43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */,
+				C290279A0751B8EDF700B68D /* notebook_exporter.cpython-311.pyc */,
 				FEC5E34F747B88A5AB8C7355 /* profiler.cpython-311.pyc */,
+				09478DBDC3036AF9DCC853DE /* repl_session.cpython-311.pyc */,
 			);
 			path = __pycache__;
 			sourceTree = "<group>";
@@ -358,9 +390,9 @@
 				26B8DF684009A48B39E26C67 /* OllamaService.swift */,
 				EFD71F46F7C2873EA5C06D93 /* OllamaStatusChecker.swift */,
 				4964E50D792A7A2C0DAF554D /* PythonRunner.swift */,
-				D464E50D792A7A2C0DAF554D /* REPLService.swift */,
+				E61D4DBACFA9787E1E593E49 /* REPLService.swift */,
 				BE97000C618B91DB55AF3E72 /* ReportCompiler.swift */,
-				997BC3C34FA059B7E4E496B6 /* ServiceProtocols.swift */,
+				5E97FDEA4F64A96EEDC63EAB /* ServiceProtocols.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -370,31 +402,51 @@
 			children = (
 				CE5A24F26624583178C01C46 /* AutoMLCleaningTests.swift */,
 				7BAA86848C954FBFC5A1500E /* ChartPromptTests.swift */,
+				2F4006A13F6439B2D1327719 /* DashboardViewModelTests.swift */,
 				181EC2D7C47623ED564EC2CB /* DatasetTypeTests.swift */,
 				AA714F3756E141456F804D26 /* EnterpriseDatabaseSchedulerTests.swift */,
 				67DAA8D9EAF5AB34BE6E4D38 /* ProtectedDataTests.swift */,
 				22FF8769B92078ECB8BA023D /* PythonRunnerTests.swift */,
-				996E0C2B5803F19F64B099DB /* DashboardViewModelTests.swift */,
 			);
 			path = AuraTests;
+			sourceTree = "<group>";
+		};
+		AC5BBB1B5AD15A802BCFE7EE /* Charts */ = {
+			isa = PBXGroup;
+			children = (
+				66D62AECB3702F7456725F20 /* BarChartView.swift */,
+				02B11CA7F5F451FECA5212CC /* BoxPlotView.swift */,
+				655B9E11426DD22E78813DD0 /* ChartCard.swift */,
+				891B3719D866711EABDBF744 /* ImageGridView.swift */,
+				5802387E216CF0B4DF28196A /* LightboxView.swift */,
+				BBE6C65AE3A24178632E547C /* LineChartView.swift */,
+				CF25BB1030ABE4F370154357 /* PdpIceView.swift */,
+				9F488EB3688E5A3B77B25FFF /* PieDonutChartView.swift */,
+				EA9522992008109277E35A8B /* RidgelineChartView.swift */,
+				E749BBDE7FD29CDD46965F7B /* ScatterChartView.swift */,
+				34B4B2405359C1E4C552C0CF /* ShapBeeswarmView.swift */,
+				D876F8A4F37CCB2DD0D3CF24 /* WordCloudView.swift */,
+			);
+			path = Charts;
 			sourceTree = "<group>";
 		};
 		B31AA8476739ED31C7CBAD21 /* Aura */ = {
 			isa = PBXGroup;
 			children = (
-				392542F8312EE21DD7354B2F /* __pycache__ */,
 				646E55D57E8224D22C2A2172 /* analyze.py */,
 				5CD552B5F09360B5BCABC896 /* Assets.xcassets */,
 				938EA13730D79840F2FCBBA5 /* Aura.entitlements */,
 				D21ABEC5EF698C64577CDF3E /* AuraApp.swift */,
-				FF01AB00FF01AB00FF01AB00 /* echarts.min.js */,
-				FF01AB00FF01AB00FF01AB03 /* marked.min.js */,
+				63C158C6AB6C517B04A7CFB3 /* echarts.min.js */,
+				81F2953CFD09F28D18BA049B /* marked.min.js */,
+				FD250D9E27667F0684F9B96A /* query_db.py */,
+				9CC03F445DA919A31C0FF3B1 /* server.py */,
+				392542F8312EE21DD7354B2F /* __pycache__ */,
 				CF8B789E1A9FBACB723B0A09 /* Models */,
 				B8FC08986204B9FC25427146 /* pipelines */,
-				FD250D9E27667F0684F9B96A /* query_db.py */,
-				4C361D432FEC9A9000E5E0C3 /* server.py */,
 				7ECD212904A06E584926C9B0 /* Services */,
 				36471513ADADC97BC10280B7 /* utils */,
+				C4BA4D8EBDE1F55980FFE207 /* ViewModels */,
 				52C92AE6DB80341EC0229D0F /* Views */,
 			);
 			path = Aura;
@@ -403,31 +455,43 @@
 		B8FC08986204B9FC25427146 /* pipelines */ = {
 			isa = PBXGroup;
 			children = (
-				2805FA4CC8DA0DE75010564C /* __pycache__ */,
 				5FDEED3F35FC53B5A9CC28E4 /* clustering.py */,
-				AAAF11112222333344440005 /* cv_nlp_engine.py */,
+				6928C54A3618ADF5A67E7993 /* cnn_extractor.py */,
+				31D95ECC61D509AB18E98FBB /* cv_nlp_engine.py */,
 				BE34872FABAC277BE37FA4F5 /* deep_learning.py */,
 				D1EAB7206F26FEE6CA526B55 /* image.py */,
-				AAAF11112222333344440004 /* model_engine.py */,
+				CEF676F0536C20F2CB471261 /* model_engine.py */,
 				E3FBB74FD6B5716449BF2ABB /* nlp.py */,
 				925E18925B25757AC8523B80 /* object_detection.py */,
 				909EAF01F877E18009244DF4 /* preview.py */,
 				FD99CF1C61CC0C98DC66240B /* tabular.py */,
 				61100B2C70DCAB2960A65C01 /* timeseries.py */,
+				B207FD36CFCCF9F24D8A09DA /* unet_segmentation.py */,
+				970EC24502A91B238DF29219 /* yolo_trainer.py */,
+				2805FA4CC8DA0DE75010564C /* __pycache__ */,
 			);
 			path = pipelines;
+			sourceTree = "<group>";
+		};
+		C4BA4D8EBDE1F55980FFE207 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				2D8B8E15BBB34C260602B438 /* DashboardViewModel.swift */,
+			);
+			path = ViewModels;
 			sourceTree = "<group>";
 		};
 		CF8B789E1A9FBACB723B0A09 /* Models */ = {
 			isa = PBXGroup;
 			children = (
 				E410A6F2A214865D1593E321 /* AnalysisConfig.swift */,
+				148F728B5BDA62753A11E113 /* AnalysisPage.swift */,
 				0296AD82546F1F9C92E1473F /* AnalysisResult.swift */,
 				B775FC772BBB757874196464 /* ChatMessage.swift */,
 				4718EA673E457067CA6C94BA /* HistoryItem.swift */,
 				7072F45E094FA70B2527C59E /* PredictionResult.swift */,
-				DF29298DFE05FE5732779C8E /* Theme.swift */,
-				08164E47D38C7F3CE04A5A8E /* ProtectedData.swift */,
+				B91DFDDC4F9A7CBEEFB1A542 /* ProtectedData.swift */,
+				D15869D6C23ACD87E0AA018A /* Theme.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -487,7 +551,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2660;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 5BE1483D97C2A0314A01DE80 /* Build configuration list for PBXProject "Aura" */;
 			developmentRegion = en;
@@ -514,48 +580,62 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AAAB11112222333344440001 /* event_bus.py in Resources */,
-				AAAB11112222333344440002 /* data_engine.py in Resources */,
-				AAAB11112222333344440003 /* ai_analyst.py in Resources */,
-				4C0B906A2FFC432E000C1FFD /* ingestion.py in Resources */,
-				AAAB11112222333344440004 /* model_engine.py in Resources */,
-				AAAB11112222333344440005 /* cv_nlp_engine.py in Resources */,
 				09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */,
+				13C94F213510B7CEFE85EFF7 /* ai_analyst.cpython-311.pyc in Resources */,
+				812E7CCF80C1E77C020BC0C6 /* ai_analyst.py in Resources */,
 				217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */,
 				DAB7A5BFCC509E72B7C92EE1 /* analyze.py in Resources */,
+				F9F20B1057FB69E4FCEBFCF7 /* arrow_helper.py in Resources */,
 				CC384032B2C8149A84B4ACAF /* charts.cpython-311.pyc in Resources */,
 				C41FB1B2B66DC70A3700C6DD /* charts.py in Resources */,
 				25F4E30F25817CB60715E0B8 /* cleaning.cpython-311.pyc in Resources */,
 				0EFE0B0855FFABB1AD63E310 /* cleaning.py in Resources */,
 				ADF3E9387548DAD87C51F950 /* clustering.cpython-311.pyc in Resources */,
 				3B3746562D8ED10C6D92122D /* clustering.py in Resources */,
+				370589FB7B7F14705D9A120B /* cnn_extractor.cpython-311.pyc in Resources */,
+				CD4051FFC21926B7C4303C6E /* cnn_extractor.py in Resources */,
+				B4C4465FA5F67285BE9F21F2 /* cv_nlp_engine.cpython-311.pyc in Resources */,
+				7B7BA250B7C4B8C5EB267180 /* cv_nlp_engine.py in Resources */,
+				B04F126CBA6ECEC08B430DBA /* data_engine.py in Resources */,
 				051B5E75B48F8348B8D736F5 /* deep_learning.cpython-311.pyc in Resources */,
 				5A10366B0E33CCD292263E7D /* deep_learning.py in Resources */,
+				ADC226D112F92CB345BCCE45 /* echarts.min.js in Resources */,
+				35604D402E143AB2E7B27361 /* event_bus.cpython-311.pyc in Resources */,
+				C2CEEF4ECCB515D5CA91AE38 /* event_bus.py in Resources */,
 				2243569E3F9ED5A56AA8F9C4 /* helpers.cpython-311.pyc in Resources */,
 				6A1EC32C557EA07E95BBB981 /* helpers.py in Resources */,
 				E3848A6553A9A5C36EE709B5 /* image.cpython-311.pyc in Resources */,
 				9A6F073BB849AE6DCE038137 /* image.py in Resources */,
+				2A662F16FDEACC62C018003F /* ingestion.cpython-311.pyc in Resources */,
+				FF67DE57F7F297F447E9F7CE /* ingestion.py in Resources */,
 				240CE722F69C5BCF99EEAC6D /* loader.cpython-311.pyc in Resources */,
 				29641D18C037C33B9C16F82E /* loader.py in Resources */,
+				D3760566CCE4A5B343AFEAC3 /* marked.min.js in Resources */,
+				798EAD99ABEA0F7DDA151B2E /* model_engine.cpython-311.pyc in Resources */,
+				35644D874B9117E52A565EE6 /* model_engine.py in Resources */,
 				73151D1DB996A6A186E187B9 /* nlp.cpython-311.pyc in Resources */,
 				E66D5B62FF637E7829C89DBD /* nlp.py in Resources */,
+				1AE4828D051805CFDDDBC9D9 /* notebook_exporter.cpython-311.pyc in Resources */,
+				AB2189F02449F8E78BA345D4 /* notebook_exporter.py in Resources */,
 				440BD1B765F92FABAD10EA06 /* object_detection.cpython-311.pyc in Resources */,
-				4C361D442FEC9A9000E5E0C3 /* server.py in Resources */,
 				630516F1E04DA43A53C63602 /* object_detection.py in Resources */,
 				DE0F025EE7616197EBD575F3 /* preview.cpython-311.pyc in Resources */,
 				A3449C7392EA98857DB2606C /* preview.py in Resources */,
 				7A7B39D64922EDC2D952C07C /* profiler.cpython-311.pyc in Resources */,
 				9C799893B31E1D3DBA950DAD /* profiler.py in Resources */,
 				178011CDB20183D66838D7B1 /* query_db.py in Resources */,
+				64C586AFE443759B0684F157 /* repl_session.cpython-311.pyc in Resources */,
+				870BD1146E13E214031E527C /* repl_session.py in Resources */,
+				408D1A04065D83B963B94764 /* server.cpython-311.pyc in Resources */,
+				398574B0E198453F58B83B71 /* server.py in Resources */,
 				1D87B95E76C2963B9F865251 /* tabular.cpython-311.pyc in Resources */,
 				3EC11651FB218D12A1DD94FD /* tabular.py in Resources */,
 				4AF5FE88DEDC2C452ACAD94C /* timeseries.cpython-311.pyc in Resources */,
 				76D09CA6AFBFA35E2A530603 /* timeseries.py in Resources */,
-				D477C77956A059840571F2C7 /* notebook_exporter.py in Resources */,
-				D477C77956A059840571F2C8 /* repl_session.py in Resources */,
-				D477C77956A059840571F2C9 /* arrow_helper.py in Resources */,
-				FF01AB00FF01AB00FF01AB01 /* echarts.min.js in Resources */,
-				FF01AB00FF01AB00FF01AB02 /* marked.min.js in Resources */,
+				7675C6794BF90A0E42383207 /* unet_segmentation.cpython-311.pyc in Resources */,
+				1CDAB2F6B41CCC689FF8E648 /* unet_segmentation.py in Resources */,
+				08F0545D4E1D51AFAC80666F /* yolo_trainer.cpython-311.pyc in Resources */,
+				24137CDBE683DB8470212409 /* yolo_trainer.py in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -571,58 +651,60 @@
 				F5437739CAFB4E21B9F41142 /* AnalysisConfig.swift in Sources */,
 				BE527B0A2F698E100419EF6E /* AnalysisDiffView.swift in Sources */,
 				F5A8BDB405355C4C67DD3EB1 /* AnalysisHistoryService.swift in Sources */,
+				131D3A6D40D76D33D64ACE50 /* AnalysisPage.swift in Sources */,
 				E625E1E6F17C0DCC99446421 /* AnalysisResult.swift in Sources */,
 				954B4108D0D5DCB423F88591 /* AnalysisScheduler.swift in Sources */,
 				603FDF4097568FD43E23F486 /* AnalysisSchedulerSheet.swift in Sources */,
 				4BEE11FA7F9A3DDB4DF197AA /* AppLogger.swift in Sources */,
 				E2210705A0114392408BC5E3 /* AuraApp.swift in Sources */,
+				C4CA34850D1660DDF37A677B /* BarChartView.swift in Sources */,
+				E5CA10D086A479CAF739711E /* BoxPlotView.swift in Sources */,
+				5A3E44FAC168E83E48059814 /* ChartCard.swift in Sources */,
 				9BD16C0D8C9187130E77BD1E /* ChartsListView.swift in Sources */,
 				C30A9E774BE2C3E50294C4F1 /* ChatMessage.swift in Sources */,
 				6C248060946ABA1FD810B24A /* ChatViewModel.swift in Sources */,
+				B458362966B44E9D651C8D99 /* CommandPaletteView.swift in Sources */,
 				9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */,
 				A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */,
+				42EFFE72394A9CBECE9BECF6 /* CustomSegmentedPicker.swift in Sources */,
+				E452849BE70BBE3E57F2AD7E /* DashboardViewModel.swift in Sources */,
 				17B72300B6D31DF071959B27 /* DataCleaningView.swift in Sources */,
 				A5B703A9FA86329B0F3AEF64 /* DatabaseConnectionSheet.swift in Sources */,
 				CF308130471B42534BC18080 /* DragDropView.swift in Sources */,
 				72BB40117BC1756B3AF9EE55 /* ExportReportSheet.swift in Sources */,
 				B31889721D087589EE9CAD80 /* FileMergeSheet.swift in Sources */,
-				B31889721D087589EE9CAD89 /* CustomSegmentedPicker.swift in Sources */,
 				6B1B3ED8DAD16D7D49050DDF /* FullTableView.swift in Sources */,
 				49724A22ABE69218A52C185A /* HTMLToPDFConverter.swift in Sources */,
+				59821F3F052B5761E4062B85 /* HistoryBrowserView.swift in Sources */,
 				6D9368CDB7207045A93E27A7 /* HistoryItem.swift in Sources */,
+				623DBF8474FC89B4A8E17545 /* ImageGridView.swift in Sources */,
 				A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */,
-				677FE39A7C5C40F1BB871890 /* NativeProgressView.swift in Sources */,
+				E7482B49EE10402EABD60DEE /* LightboxView.swift in Sources */,
+				BDD2DA548F05815FA35D6576 /* LineChartView.swift in Sources */,
 				C8CDF47496C18A6FD7467217 /* ModelExportSheet.swift in Sources */,
+				5C4D956E46DF791E1B075D58 /* NativeProgressView.swift in Sources */,
 				085A8EC5188057047E33FBBA /* OllamaService.swift in Sources */,
 				0496280A559DC37C5B47A701 /* OllamaSetupView.swift in Sources */,
 				349314BDD5FFFAE9B7373062 /* OllamaStatusChecker.swift in Sources */,
 				B935576B41719E3EA7CDDC62 /* OnboardingView.swift in Sources */,
+				10556A880EF64F925A547E20 /* PdpIceView.swift in Sources */,
+				AE826BB40C5D39B9B6C57F11 /* PendingAnalysisView.swift in Sources */,
+				67C0F2B8969446607A5E12FC /* PieDonutChartView.swift in Sources */,
 				DA2F4FC541258A07A801F0E5 /* PredictionResult.swift in Sources */,
 				14B151B69398C4EEEB5297E9 /* PredictionTabView.swift in Sources */,
 				5612F4215AC7A0BD3F6A137D /* PreviewTableView.swift in Sources */,
+				B8C74FCFCB5727522274806D /* ProtectedData.swift in Sources */,
 				6E99C77956A059840571F2B5 /* PythonRunner.swift in Sources */,
-				D477C77956A059840571F2B5 /* REPLService.swift in Sources */,
+				5DA68F35C38C04B89657C55B /* REPLService.swift in Sources */,
 				242ACCE81E9678B9B855F6AC /* ReportCompiler.swift in Sources */,
+				0483175B29A09D4356E1D364 /* RidgelineChartView.swift in Sources */,
+				890940064EB079DA59B1FD9C /* ScatterChartView.swift in Sources */,
+				8C601C348848645FA2A1582C /* ServiceProtocols.swift in Sources */,
 				AF0E0093DD138A984AE2AE07 /* SettingsView.swift in Sources */,
+				6E85831440400059E5900B6A /* ShapBeeswarmView.swift in Sources */,
 				93AB26B4B55D549635F9AAA9 /* SummaryView.swift in Sources */,
-				632B0FE0CF3D1BBA24A53FE9 /* ServiceProtocols.swift in Sources */,
-				EAC524D7600F2A155C268EE9 /* Theme.swift in Sources */,
-				F4204B26D8C90D646F590354 /* ProtectedData.swift in Sources */,
-				94F7DFA30BF5C51BC8C9CE24 /* ../ViewModels/DashboardViewModel.swift in Sources */,
-				88D8A27E9CCD769FD6948B7F /* Charts/ChartCard.swift in Sources */,
-				2C18677F6DEA0B183E08B40F /* Charts/BarChartView.swift in Sources */,
-				2212BD8305B6BDCD25168338 /* Charts/LineChartView.swift in Sources */,
-				B69BE0E756E302519A2628BB /* Charts/ScatterChartView.swift in Sources */,
-				A189A849A2B11FD7C81593D3 /* Charts/ShapBeeswarmView.swift in Sources */,
-				9995D36E5992CA86EBE7CB79 /* Charts/PdpIceView.swift in Sources */,
-				9F4DC0696CF2BB3E16D1D5BD /* Charts/ImageGridView.swift in Sources */,
-				A6F9A3C429BBDEA5CC4E9392 /* Charts/LightboxView.swift in Sources */,
-				119669640FD84AE3D17447AB /* Charts/BoxPlotView.swift in Sources */,
-				B35F2BF42922E588AAA29EFC /* Charts/WordCloudView.swift in Sources */,
-				191E4488A84DA5027CA655CC /* Charts/PieDonutChartView.swift in Sources */,
-				57D575A331B9874FCA204F8A /* Charts/RidgelineChartView.swift in Sources */,
-				DE3233989261CF467120A3CB /* CommandPaletteView.swift in Sources */,
-				DAF3CE34BDE7F686A010061E /* HistoryBrowserView.swift in Sources */,
+				6BACC276A389CA730B695C19 /* Theme.swift in Sources */,
+				4E28FDE5DA000355A955F9FC /* WordCloudView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -632,11 +714,11 @@
 			files = (
 				E7EC1E58C0C23675AB813DFE /* AutoMLCleaningTests.swift in Sources */,
 				428BEC9F7A31189D0B88C8D9 /* ChartPromptTests.swift in Sources */,
+				A3FEFDF9BD850644BDA50E14 /* DashboardViewModelTests.swift in Sources */,
 				7A3FE47E6897F119029A7AA7 /* DatasetTypeTests.swift in Sources */,
 				57973B52D55F9C0741D0C930 /* EnterpriseDatabaseSchedulerTests.swift in Sources */,
 				EC8715C25E05C9D26FD50BD8 /* ProtectedDataTests.swift in Sources */,
 				5733E0A22FE6B3003D17C175 /* PythonRunnerTests.swift in Sources */,
-				DDFA9D333341BCECFD1A750D /* DashboardViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -657,8 +739,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -666,7 +746,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -679,8 +758,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = Aura/Aura.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -688,7 +765,6 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 0.7.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -700,7 +776,6 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -718,7 +793,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -749,11 +823,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -766,7 +838,6 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
@@ -777,7 +848,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
@@ -808,11 +878,9 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEAD_CODE_STRIPPING = YES;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -832,7 +900,6 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -844,7 +911,6 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEAD_CODE_STRIPPING = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

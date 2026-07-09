@@ -300,6 +300,7 @@ struct OnboardingView: View {
                         .cornerRadius(Theme.Layout.cornerRadius)
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("onboardingNextButton")
                 .shadow(color: .purple.opacity(0.25), radius: 6, x: 0, y: 3)
             }
             .padding(.horizontal, 32)

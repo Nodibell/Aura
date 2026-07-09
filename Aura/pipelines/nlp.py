@@ -36,11 +36,11 @@ class SentenceTransformerTransformer(BaseEstimator, TransformerMixin):
         else:
             texts = [str(x) for x in X]
         return st_model.encode(texts, show_progress_bar=False)
-
 def analyze_nlp(df, target_col, task_type_override,
                 row_count, col_count, columns, full_preview, missing,
                 numeric_cols, categorical_cols,
-                file_path=None, model_export_path=None, code_export_path=None):
+                file_path=None, model_export_path=None, code_export_path=None,
+                selected_model=None):
     try:
         print_progress(0.30, "Detecting primary text feature column...")
         
@@ -1009,13 +1009,18 @@ def analyze_nlp(df, target_col, task_type_override,
         # Phase 1: Model & Code Export
         if model_export_path or code_export_path:
             raw_clf = best_clf if is_classification else best_reg
+            model_name_to_save = best_model
+            if selected_model and 'trained_models' in locals() and selected_model in trained_models:
+                raw_clf = trained_models[selected_model]
+                model_name_to_save = selected_model
+
             from sklearn.pipeline import Pipeline as SKPipeline
             
             if use_sentence_transformers:
                 steps = [
                     ('embedder', SentenceTransformerTransformer('all-MiniLM-L6-v2'))
                 ]
-                if best_model in ["Multinomial Naive Bayes", "Complement Naive Bayes"]:
+                if model_name_to_save in ["Multinomial Naive Bayes", "Complement Naive Bayes"]:
                     from sklearn.preprocessing import MinMaxScaler
                     steps.append(('scaler', MinMaxScaler()))
                 steps.append(('clf', raw_clf))
@@ -1029,13 +1034,13 @@ def analyze_nlp(df, target_col, task_type_override,
             if is_classification:
                 if is_multi_label:
                     export_le = mlb
-                elif best_model == "Tuned XGBoost Classifier":
+                elif model_name_to_save == "Tuned XGBoost Classifier" or model_name_to_save.startswith("Tuned XGBoost"):
                     export_le = le
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
                 file_path, "nlp", target_col, None,
                 "classification" if is_classification else "regression",
-                None, best_model, numeric_cols, categorical_cols,
+                None, model_name_to_save, numeric_cols, categorical_cols,
                 [text_col] if 'text_col' in locals() else [],
                 cleaner=None, preprocessor=None, label_encoder=export_le
             )

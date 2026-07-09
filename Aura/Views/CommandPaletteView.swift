@@ -23,14 +23,14 @@ struct CommandPaletteView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Search Input Field
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.Layout.spacing * 2) {
                 Image(systemName: "magnifyingglass")
                     .font(.title3)
                     .foregroundColor(.secondary)
                 
                 TextField("Search commands, navigation targets, or history runs...", text: $searchText)
                     .textFieldStyle(.plain)
-                    .font(.title3)
+                    .font(Theme.Font.brand(size: 14))
                 
                 if !searchText.isEmpty {
                     Button {
@@ -46,12 +46,12 @@ struct CommandPaletteView: View {
                     .font(.caption2)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color.primary.opacity(0.1))
-                    .cornerRadius(4)
+                    .background(Theme.Color.cardBackground)
+                    .cornerRadius(Theme.Layout.cornerRadius - 4)
                     .foregroundColor(.secondary)
             }
-            .padding()
-            .background(Color(NSColor.controlBackgroundColor))
+            .padding(Theme.Layout.padding)
+            .background(Theme.Color.background)
             
             Divider()
             
@@ -59,9 +59,10 @@ struct CommandPaletteView: View {
             if filteredItems.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "terminal")
-                        .font(.system(size: 32))
+                        .font(Theme.Font.brand(size: 32))
                         .foregroundColor(.secondary)
                     Text("No matching commands found.")
+                        .font(Theme.Font.bodyRounded)
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, minHeight: 240)
@@ -69,20 +70,20 @@ struct CommandPaletteView: View {
                 ScrollViewReader { proxy in
                     List {
                         ForEach(Array(filteredItems.enumerated()), id: \.element.id) { idx, item in
-                            HStack(spacing: 12) {
+                            HStack(spacing: Theme.Layout.spacing * 2) {
                                 Image(systemName: item.iconName)
                                     .font(.system(size: 14))
                                     .foregroundColor(selectedIndex == idx ? .white : .accentColor)
                                     .frame(width: 24, height: 24)
-                                    .background(selectedIndex == idx ? Color.white.opacity(0.2) : Color.primary.opacity(0.04))
-                                    .cornerRadius(6)
+                                    .background(selectedIndex == idx ? Color.white.opacity(0.2) : Theme.Color.cardBackground)
+                                    .cornerRadius(Theme.Layout.cornerRadius - 2)
                                 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title)
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(Theme.Font.brand(size: 13, weight: .semibold))
                                         .foregroundColor(selectedIndex == idx ? .white : .primary)
                                     Text(item.subtitle)
-                                        .font(.system(size: 10))
+                                        .font(Theme.Font.brand(size: 10))
                                         .foregroundColor(selectedIndex == idx ? .white.opacity(0.8) : .secondary)
                                 }
                                 
@@ -93,15 +94,15 @@ struct CommandPaletteView: View {
                                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
-                                        .background(selectedIndex == idx ? Color.white.opacity(0.25) : Color.primary.opacity(0.06))
-                                        .cornerRadius(4)
+                                        .background(selectedIndex == idx ? Color.white.opacity(0.25) : Theme.Color.cardStroke)
+                                        .cornerRadius(Theme.Layout.cornerRadius - 4)
                                         .foregroundColor(selectedIndex == idx ? .white : .secondary)
                                 }
                             }
                             .padding(.vertical, 6)
                             .padding(.horizontal, 10)
                             .background(selectedIndex == idx ? Color.accentColor : Color.clear)
-                            .cornerRadius(8)
+                            .cornerRadius(Theme.Layout.cornerRadius)
                             .id(idx)
                             .contentShape(Rectangle())
                             .onTapGesture {

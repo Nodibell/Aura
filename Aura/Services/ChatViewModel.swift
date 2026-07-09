@@ -15,7 +15,7 @@ class ChatViewModel {
 
     // MARK: - Context Injection
 
-    func injectContext(_ result: AnalysisResult, datasetURL: String? = nil) {
+    func injectContext(_ result: AnalysisResult, datasetURL: String? = nil, cleaningActions: String? = nil) {
         // Cap correlation pairs to avoid flooding a local LLM's context window
         let maxCorr = 10
         let corrList = result.correlations.prefix(maxCorr).map {
@@ -114,7 +114,7 @@ class ChatViewModel {
         
         if let filePath = pathForREPL {
             Task {
-                try? await REPLService.shared.reset(filePath: filePath)
+                try? await REPLService.shared.reset(filePath: filePath, cleaningActions: cleaningActions)
             }
         }
     }

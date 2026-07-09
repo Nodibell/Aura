@@ -3,7 +3,7 @@ import SwiftUI
 struct ModelExportSheet: View {
     @Binding var config: AnalysisConfig
     @Binding var isPresented: Bool
-    let onRunExport: () -> Void
+    let onRunExport: (AnalysisConfig) -> Void
 
     @State private var selectedFolderURL: URL? = nil
     @State private var modelFilename: String = "best_model.joblib"
@@ -18,9 +18,9 @@ struct ModelExportSheet: View {
             HStack {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Export Trained Model & Code")
-                        .font(.title3.bold())
+                        .font(Theme.Font.brand(size: 16, weight: .bold))
                     Text("Save scikit-learn pipeline (.joblib) and reproduction format")
-                        .font(.caption)
+                        .font(Theme.Font.brand(size: 11))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
@@ -31,33 +31,33 @@ struct ModelExportSheet: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(20)
+            .padding(Theme.Layout.padding)
 
             Divider().background(Color.primary.opacity(0.07))
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: Theme.Layout.spacing * 3.5) {
                     // Explanation
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Layout.spacing * 1.3) {
                         Label("How it works", systemImage: "info.circle")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(Theme.Font.brand(size: 11, weight: .bold))
                             .foregroundColor(.secondary.opacity(0.7))
                             .tracking(0.3)
                         
                         Text("Aura will fit the best model pipeline on your dataset and serialize it using the 'joblib' library. A corresponding reproduction format will be generated containing the exact steps (imputation, scaling, encoding, training) to replicate the pipeline locally.")
-                            .font(.system(size: 11))
+                            .font(Theme.Font.brand(size: 11))
                             .foregroundColor(.secondary)
                             .lineSpacing(3)
-                            .padding(12)
-                            .background(Color.primary.opacity(0.02))
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.05)))
+                            .padding(Theme.Layout.spacing * 2)
+                            .background(Theme.Color.cardBackground)
+                            .cornerRadius(Theme.Layout.cornerRadius)
+                            .overlay(RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius).stroke(Theme.Color.cardStroke))
                     }
 
                     // Export Format Picker
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Layout.spacing * 1.3) {
                         Label("Export Format", systemImage: "doc.text")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(Theme.Font.brand(size: 11, weight: .bold))
                             .foregroundColor(.secondary.opacity(0.7))
                             .tracking(0.3)
                         
@@ -70,13 +70,13 @@ struct ModelExportSheet: View {
                     }
 
                     // Directory selector
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Layout.spacing * 1.3) {
                         Label("Export Destination Folder", systemImage: "folder")
-                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .font(Theme.Font.brand(size: 11, weight: .bold))
                             .foregroundColor(.secondary.opacity(0.7))
                             .tracking(0.3)
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: Theme.Layout.spacing * 2) {
                             if let url = selectedFolderURL {
                                 HStack {
                                     Image(systemName: "folder.fill").foregroundColor(.yellow)
@@ -87,18 +87,18 @@ struct ModelExportSheet: View {
                                 }
                                 .padding(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color.primary.opacity(0.025))
-                                .cornerRadius(6)
-                                .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                                .background(Theme.Color.cardBackground)
+                                .cornerRadius(Theme.Layout.cornerRadius - 2)
+                                .overlay(RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius - 2).stroke(Theme.Color.cardStroke, lineWidth: 1))
                             } else {
                                 Text("No folder selected")
-                                    .font(.system(size: 11))
+                                    .font(Theme.Font.brand(size: 11))
                                     .foregroundColor(.secondary)
                                     .padding(8)
                                     .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color.primary.opacity(0.025))
-                                    .cornerRadius(6)
-                                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+                                    .background(Theme.Color.cardBackground)
+                                    .cornerRadius(Theme.Layout.cornerRadius - 2)
+                                    .overlay(RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius - 2).stroke(Theme.Color.cardStroke, lineWidth: 1))
                             }
 
 
@@ -110,13 +110,13 @@ struct ModelExportSheet: View {
 
                     // Filename customisation
                     if selectedFolderURL != nil {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: Theme.Layout.spacing * 2) {
                             Label("Output Filenames", systemImage: "doc.on.doc")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .font(Theme.Font.brand(size: 11, weight: .bold))
                                 .foregroundColor(.secondary.opacity(0.7))
                                 .tracking(0.3)
                             
-                            HStack(spacing: 12) {
+                            HStack(spacing: Theme.Layout.spacing * 2) {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Model Pipeline (.joblib)")
                                         .font(.caption2)
@@ -155,16 +155,16 @@ struct ModelExportSheet: View {
                             .foregroundColor(.red)
                             .padding(10)
                             .background(Color.red.opacity(0.07))
-                            .cornerRadius(8)
+                            .cornerRadius(Theme.Layout.cornerRadius)
                     }
                 }
-                .padding(20)
+                .padding(Theme.Layout.padding)
             }
 
             Divider().background(Color.primary.opacity(0.07))
 
             // Action Buttons
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.Layout.spacing * 2) {
                 Button("Cancel") { isPresented = false }
                     .buttonStyle(.bordered)
 
@@ -184,19 +184,19 @@ struct ModelExportSheet: View {
                     .background(
                         selectedFolderURL == nil
                             ? AnyShapeStyle(Color.primary.opacity(0.08))
-                            : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
+                            : AnyShapeStyle(Theme.Color.brandGradient)
                     )
-                    .cornerRadius(9)
+                    .cornerRadius(Theme.Layout.cornerRadius + 1)
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedFolderURL == nil)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Theme.Layout.padding)
+            .padding(.vertical, Theme.Layout.padding - 2)
         }
         .frame(width: 480, height: 420)
-        .background(Color(nsColor: .windowBackgroundColor))
-        .cornerRadius(16)
+        .background(Theme.Color.background)
+        .cornerRadius(Theme.Layout.cornerRadius * 2)
         
     }
 
@@ -222,7 +222,9 @@ struct ModelExportSheet: View {
         }
 
         let modelURL = folder.appendingPathComponent(mFilename.hasSuffix(".joblib") ? mFilename : "\(mFilename).joblib")
-        config.modelExportPath = modelURL.path
+        
+        var updatedConfig = config
+        updatedConfig.modelExportPath = modelURL.path
 
         if exportType == 0 {
             let cFilename = codeFilename.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -231,8 +233,8 @@ struct ModelExportSheet: View {
                 return
             }
             let codeURL = folder.appendingPathComponent(cFilename.hasSuffix(".py") ? cFilename : "\(cFilename).py")
-            config.codeExportPath = codeURL.path
-            config.notebookExportPath = nil
+            updatedConfig.codeExportPath = codeURL.path
+            updatedConfig.notebookExportPath = nil
         } else {
             let nFilename = notebookFilename.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !nFilename.isEmpty else {
@@ -240,13 +242,14 @@ struct ModelExportSheet: View {
                 return
             }
             let notebookURL = folder.appendingPathComponent(nFilename.hasSuffix(".ipynb") ? nFilename : "\(nFilename).ipynb")
-            config.notebookExportPath = notebookURL.path
-            config.codeExportPath = nil
+            updatedConfig.notebookExportPath = notebookURL.path
+            updatedConfig.codeExportPath = nil
         }
         
+        config = updatedConfig
         isPresented = false
         
-        // Trigger re-run analysis
-        onRunExport()
+        // Trigger re-run analysis with the updated config directly
+        onRunExport(updatedConfig)
     }
 }

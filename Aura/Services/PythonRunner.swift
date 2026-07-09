@@ -405,6 +405,9 @@ actor PythonRunner: PythonRunning {
             "smart_sample": config.smartSample,
             "feature_selection": config.featureSelection
         ]
+        if let activeModel = config.activeModelName {
+            bodyDict["active_model"] = activeModel
+        }
         if let target = targetColumn {
             bodyDict["target_col"] = target
         }

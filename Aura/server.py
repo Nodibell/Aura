@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-app = FastAPI(title="Aura Local API Server", version="0.7.1")
+app = FastAPI(title="Aura Local API Server", version="0.7.2")
 
 # Resolve paths relative to this script's directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -51,6 +51,7 @@ class AnalyzeRequest(BaseModel):
     column_type_overrides: Optional[str] = None
     time_range_start: Optional[str] = None
     time_range_end: Optional[str] = None
+    active_model: Optional[str] = None
 
 
 class PreviewRequest(BaseModel):
@@ -84,6 +85,7 @@ class REPLResetRequest(BaseModel):
     file_path: str
     ollama_base_url: str = "http://localhost:11434"
     ollama_model: str = "llama3.2"
+    cleaning_actions: Optional[str] = None
 class REPLRollbackRequest(BaseModel):
     state_id: int
 
@@ -91,10 +93,10 @@ class REPLRollbackRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "version": "0.7.1"}
+    return {"status": "ok", "version": "0.7.2"}
 
 
-async def run_subprocess_stream(args):
+async def run_subprocess_stream(args, original_file_path=None):
     """
     Runs a subprocess asynchronously and yields progress events and final stdout output.
     """
@@ -103,6 +105,8 @@ async def run_subprocess_stream(args):
     env["MTL_DEBUG_LAYER"] = "0"
     env["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
     env["OMP_NUM_THREADS"] = "1"
+    if original_file_path:
+        env["AURA_ORIGINAL_FILE_PATH"] = original_file_path
 
     proc = await asyncio.create_subprocess_exec(
         *args,
@@ -200,8 +204,10 @@ async def analyze_endpoint(req: AnalyzeRequest):
         args += ["--time-range-start", req.time_range_start]
     if req.time_range_end:
         args += ["--time-range-end", req.time_range_end]
-
-    return StreamingResponse(run_subprocess_stream(args), media_type="text/event-stream")
+    if req.active_model:
+        args += ["--active-model", req.active_model]
+ 
+    return StreamingResponse(run_subprocess_stream(args, original_file_path=req.file_path), media_type="text/event-stream")
 
 @app.post("/analyze/arrow")
 async def analyze_arrow_endpoint(request: Request):
@@ -223,6 +229,7 @@ async def analyze_arrow_endpoint(request: Request):
         arrow_bytes = body[4 + json_len :]
         
         req_dict = json.loads(json_bytes.decode("utf-8"))
+        original_path = req_dict.get("file_path")
         req = AnalyzeRequest(**req_dict)
         
         import pyarrow as pa
@@ -278,9 +285,11 @@ async def analyze_arrow_endpoint(request: Request):
             args += ["--time-range-start", req.time_range_start]
         if req.time_range_end:
             args += ["--time-range-end", req.time_range_end]
+        if req.active_model:
+            args += ["--active-model", req.active_model]
             
-        return StreamingResponse(run_subprocess_stream(args), media_type="text/event-stream")
-        
+        return StreamingResponse(run_subprocess_stream(args, original_file_path=original_path), media_type="text/event-stream")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Arrow IPC analyze failed: {str(e)}")
 
@@ -367,7 +376,7 @@ async def repl_reset_endpoint(req: REPLResetRequest):
         raise HTTPException(status_code=503, detail="REPL session module not loaded.")
     result = await asyncio.get_event_loop().run_in_executor(
         None,
-        lambda: _repl.reset(req.file_path, req.ollama_base_url, req.ollama_model)
+        lambda: _repl.reset(req.file_path, req.ollama_base_url, req.ollama_model, req.cleaning_actions)
     )
     if result.get("status") == "error":
         import sys

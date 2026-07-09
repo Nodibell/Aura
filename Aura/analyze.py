@@ -268,6 +268,11 @@ def _try_export_notebook(notebook_export_path, res, file_path, target_col, datas
         return
     if isinstance(res, dict) and res.get("error"):
         return
+    
+    orig_path = os.environ.get("AURA_ORIGINAL_FILE_PATH")
+    if orig_path:
+        file_path = orig_path
+
     try:
         from utils.notebook_exporter import generate_notebook
         config_dict = {
@@ -287,7 +292,7 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             task_type_override="auto", time_col=None, exclude_cols=None, test_file_path=None, val_file_path=None,
             model_export_path=None, code_export_path=None, notebook_export_path=None, smart_sample=False, cleaning_actions=None,
             feature_selection=False, column_type_overrides=None,
-            time_range_start=None, time_range_end=None):
+            time_range_start=None, time_range_end=None, active_model=None):
     from utils.helpers import print_progress
     from utils.loader import download_dataset, load_dataset
     from utils.cleaning import StatefulCleaner
@@ -760,7 +765,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                     combined_df, t, time_col, task_type_override,
                     row_count, col_count, columns, full_preview, missing,
                     numeric_cols, categorical_cols,
-                    file_path=file_path, model_export_path=m_path, code_export_path=c_path
+                    file_path=file_path, model_export_path=m_path, code_export_path=c_path,
+                    selected_model=active_model
                 )
                 if is_first:
                     first_target_res = t_res
@@ -793,7 +799,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
                 combined_df, target_col, task_type_override,
                 row_count, col_count, columns, full_preview, missing,
                 numeric_cols, categorical_cols,
-                file_path=file_path, model_export_path=model_export_path, code_export_path=code_export_path
+                file_path=file_path, model_export_path=model_export_path, code_export_path=code_export_path,
+                selected_model=active_model
             )
             res.update(test_info)
             res.update(val_info)
@@ -836,7 +843,8 @@ def analyze(file_path, target_col=None, dataset_type="tabular",
             test_df=test_df, val_df=val_df, has_test_set=has_test_set, has_val_set=has_val_set,
             test_info=test_info, val_info=val_info,
             cleaner=cleaner, feature_selection=feature_selection,
-            column_type_overrides=column_type_overrides
+            column_type_overrides=column_type_overrides,
+            selected_model=active_model
         )
 
         
@@ -1137,12 +1145,153 @@ def run_predict(model_path, input_data_json):
             return v.item()
         return v
 
-    res["prediction"] = serialize_val(res["prediction"])
-    if "probabilities" in res:
-        res["probabilities"] = serialize_val(res["probabilities"])
-
     _log(f"Final prediction: {res['prediction']}")
     return res
+
+def run_predict_batch(model_path, input_file_path, output_csv_path):
+    import joblib
+    import sys
+    import pandas as pd
+    import numpy as np
+
+    def _log(msg):
+        sys.stderr.write(f"[run_predict_batch] {msg}\n")
+        sys.stderr.flush()
+
+    _log(f"Loading pipeline from: {model_path}")
+    try:
+        pipeline = joblib.load(model_path)
+    except Exception as e:
+        _log(f"ERROR loading model: {e}")
+        raise
+
+    if not isinstance(pipeline, dict):
+        pipeline = {
+            'cleaner': None,
+            'preprocessor': None,
+            'model': pipeline,
+            'feature_names': None,
+            'target_col': None,
+            'label_encoder': None,
+        }
+
+    _log(f"Reading input dataset from: {input_file_path}")
+    df = pd.read_csv(input_file_path)
+    original_df = df.copy()
+
+    # Apply cleaner
+    if 'cleaner' in pipeline and pipeline['cleaner'] is not None:
+        _log("Applying StatefulCleaner.transform() ...")
+        try:
+            df = pipeline['cleaner'].transform(df)
+        except Exception as e:
+            _log(f"ERROR in cleaner.transform: {e}")
+            raise
+    else:
+        _log("No cleaner in pipeline, skipping.")
+
+    # Apply preprocessor
+    X_proc = df
+    if 'preprocessor' in pipeline and pipeline['preprocessor'] is not None:
+        preprocessor = pipeline['preprocessor']
+        _log(f"Applying preprocessor: {type(preprocessor).__name__}")
+        if hasattr(preprocessor, "feature_names_in_"):
+            expected = list(preprocessor.feature_names_in_)
+            for col in expected:
+                if col not in df.columns:
+                    _log(f"  Adding missing column '{col}' = None")
+                    df[col] = None
+        try:
+            X_proc = preprocessor.transform(df)
+        except Exception as e:
+            _log(f"ERROR in preprocessor.transform: {e}")
+            raise
+
+        if hasattr(X_proc, "columns"):
+            new_cols = []
+            for col in X_proc.columns:
+                c = str(col)
+                c = c.replace('[', '_').replace(']', '_').replace('<', 'lt_').replace('>', 'gt_')
+                new_cols.append(c)
+            X_proc.columns = new_cols
+
+    # Re-align features
+    from sklearn.pipeline import Pipeline as _SKPipeline
+    _is_sklearn_pipeline = isinstance(pipeline.get('model'), _SKPipeline)
+    if not _is_sklearn_pipeline and 'feature_names' in pipeline and pipeline['feature_names'] is not None:
+        feat_names = list(pipeline['feature_names'])
+        _log(f"Re-aligning to {len(feat_names)} feature names")
+        if hasattr(X_proc, "columns"):
+            for col in feat_names:
+                if col not in X_proc.columns:
+                    X_proc[col] = 0.0
+            X_proc = X_proc[feat_names]
+
+    model = pipeline['model']
+    model_type_name = type(model).__name__
+
+    if model_type_name in ["ARIMAResultsWrapper", "SARIMAXResultsWrapper", "HoltWintersResultsWrapper"]:
+        _log("Routing to statsmodels forecast API...")
+        exog_data = X_proc.select_dtypes(include=[np.number]) if isinstance(X_proc, pd.DataFrame) else pd.DataFrame(X_proc).select_dtypes(include=[np.number])
+        if exog_data.shape[1] > 0:
+            preds = model.forecast(steps=len(df), exog=exog_data)
+        else:
+            preds = model.forecast(steps=len(df))
+        preds_array = np.asarray(preds)
+    else:
+        import scipy.sparse
+        if isinstance(model, _SKPipeline):
+            if X_proc.shape[1] == 1:
+                X_input = X_proc.iloc[:, 0]
+            else:
+                X_input = X_proc
+        elif scipy.sparse.issparse(X_proc):
+            X_input = X_proc
+        else:
+            X_input = X_proc.to_numpy() if hasattr(X_proc, "to_numpy") else X_proc
+        
+        preds = model.predict(X_input)
+        preds_array = np.asarray(preds)
+
+    # Inverse Label Encoding
+    if 'label_encoder' in pipeline and pipeline['label_encoder'] is not None:
+        try:
+            le = pipeline['label_encoder']
+            from sklearn.preprocessing import MultiLabelBinarizer
+            is_mlb = isinstance(le, MultiLabelBinarizer)
+            if is_mlb:
+                pred_tuples = le.inverse_transform(preds_array)
+                preds_final = [", ".join(map(str, t)) for t in pred_tuples]
+            else:
+                preds_final = list(le.inverse_transform(preds_array))
+        except Exception as e:
+            _log(f"WARNING: inverse_transform failed: {e}")
+            preds_final = preds_array.tolist()
+    else:
+        # Convert numpy types to native Python types
+        def serialize_val(v):
+            if hasattr(v, "tolist"):
+                return v.tolist()
+            elif hasattr(v, "item"):
+                return v.item()
+            elif isinstance(v, list):
+                return [serialize_val(x) for x in v]
+            elif isinstance(v, np.generic):
+                return v.item()
+            return v
+        preds_final = [serialize_val(x) for x in preds_array]
+
+    # Save to CSV
+    target_col = pipeline.get('target_col') or 'predicted_target'
+    original_df[target_col] = preds_final
+    original_df.to_csv(output_csv_path, index=False)
+    _log(f"Successfully saved predictions to: {output_csv_path}")
+
+    return {
+        "success": True,
+        "output_path": output_csv_path,
+        "row_count": len(original_df)
+    }
 
 if __name__ == "__main__":
     import argparse
@@ -1155,6 +1304,8 @@ if __name__ == "__main__":
     parser.add_argument("--predict", action="store_true", help="Run inference on model")
     parser.add_argument("--model-path", default=None, help="Path to the serialized model (.joblib)")
     parser.add_argument("--input-data", default=None, help="JSON string representing the input features")
+    parser.add_argument("--input-file-path", default=None, help="Path to input CSV for batch prediction")
+    parser.add_argument("--output-csv-path", default=None, help="Path to output CSV for batch prediction results")
     parser.add_argument("--dataset-type", default="tabular",
                         choices=["tabular", "timeseries", "image", "nlp", "object_detection"],
                         help="Dataset type (tabular|timeseries|image|nlp|object_detection)")
@@ -1177,6 +1328,7 @@ if __name__ == "__main__":
     parser.add_argument("--column-type-overrides", default=None, help="JSON string of column type overrides")
     parser.add_argument("--time-range-start", default=None, help="Start date/time for time series filtering")
     parser.add_argument("--time-range-end", default=None, help="End date/time for time series filtering")
+    parser.add_argument("--active-model", default=None, help="The active/selected model name to export")
     
     # Merge options
     parser.add_argument("--merge", action="store_true", help="Merge two files and exit")
@@ -1192,17 +1344,30 @@ if __name__ == "__main__":
     ProgressSubject.get_instance().attach(StderrProgressObserver())
 
     if args.predict:
-        if not args.model_path or not args.input_data:
-            print(json.dumps({"error": "Prediction requires --model-path and --input-data."}))
-            sys.exit(1)
-        try:
-            prediction_result = run_predict(args.model_path, args.input_data)
-            print(json.dumps(prediction_result))
-            sys.exit(0)
-        except Exception as pred_err:
-            import traceback
-            print(json.dumps({"error": f"Prediction failed: {str(pred_err)}\n{traceback.format_exc()}"}))
-            sys.exit(1)
+        if args.input_file_path:
+            if not args.model_path or not args.output_csv_path:
+                print(json.dumps({"error": "Batch prediction requires --model-path and --output-csv-path."}))
+                sys.exit(1)
+            try:
+                result = run_predict_batch(args.model_path, args.input_file_path, args.output_csv_path)
+                print(json.dumps(result))
+                sys.exit(0)
+            except Exception as e:
+                import traceback
+                print(json.dumps({"error": f"Batch prediction failed: {str(e)}\n{traceback.format_exc()}"}))
+                sys.exit(1)
+        else:
+            if not args.model_path or not args.input_data:
+                print(json.dumps({"error": "Prediction requires --model-path and --input-data."}))
+                sys.exit(1)
+            try:
+                prediction_result = run_predict(args.model_path, args.input_data)
+                print(json.dumps(prediction_result))
+                sys.exit(0)
+            except Exception as pred_err:
+                import traceback
+                print(json.dumps({"error": f"Prediction failed: {str(pred_err)}\n{traceback.format_exc()}"}))
+                sys.exit(1)
 
     # Resolve target: --target wins over legacy positional
     target = args.target or args.legacy_target
@@ -1261,7 +1426,8 @@ if __name__ == "__main__":
             feature_selection=args.feature_selection,
             column_type_overrides=column_type_overrides,
             time_range_start=args.time_range_start,
-            time_range_end=args.time_range_end
+            time_range_end=args.time_range_end,
+            active_model=args.active_model
         )
 
 

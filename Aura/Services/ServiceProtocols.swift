@@ -103,7 +103,7 @@ protocol OllamaServiceProtocol: AnyObject, Sendable {
 
 // MARK: - REPLServiceProtocol
 protocol REPLServiceProtocol {
-    func reset(filePath: String, ollamaBaseURL: String, ollamaModel: String) async throws
+    func reset(filePath: String, ollamaBaseURL: String, ollamaModel: String, cleaningActions: String?) async throws
     func execute(_ code: String) async throws -> REPLResult
     func getLineage() async throws -> [REPLService.LineageNode]
     func rollback(stateId: Int) async throws -> REPLService.RollbackResult

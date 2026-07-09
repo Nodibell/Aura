@@ -22,18 +22,18 @@ struct DragDropView: View {
             GeometryReader { geo in
                 ZStack {
                     // Dark theme window background base
-                    Color(nsColor: .windowBackgroundColor)
+                    Theme.Color.background
                     
                     // Left Purple Glow
                     Circle()
-                        .fill(Color.purple.opacity(animateAurora ? 0.15 : 0.08))
+                        .fill(Theme.Color.purple.opacity(animateAurora ? 0.15 : 0.08))
                         .frame(width: 450, height: 450)
                         .blur(radius: 90)
                         .offset(x: animateAurora ? -100 : -150, y: animateAurora ? -80 : -120)
                     
                     // Right Blue/Indigo Glow
                     Circle()
-                        .fill(Color.blue.opacity(animateAurora ? 0.12 : 0.06))
+                        .fill(Theme.Color.indigo.opacity(animateAurora ? 0.12 : 0.06))
                         .frame(width: 500, height: 500)
                         .blur(radius: 100)
                         .offset(x: animateAurora ? 120 : 180, y: animateAurora ? 100 : 150)
@@ -55,25 +55,25 @@ struct DragDropView: View {
                     VStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .fill(LinearGradient(colors: [.purple.opacity(0.2), .indigo.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                                .fill(LinearGradient(colors: [Theme.Color.purple.opacity(0.2), Theme.Color.indigo.opacity(0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
                                 .frame(width: 72, height: 72)
                                 .blur(radius: 4)
                             
                             Image(systemName: "chart.bar.doc.horizontal.fill")
-                                .font(.system(size: 34, weight: .bold))
+                                .font(Theme.Font.brand(size: 34, weight: .bold))
                                 .foregroundStyle(
                                     LinearGradient(
-                                        colors: [.purple, .indigo, .blue],
+                                        colors: [Theme.Color.purple, Theme.Color.indigo, .blue],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .shadow(color: .purple.opacity(0.3), radius: 8, x: 0, y: 4)
+                                .shadow(color: Theme.Color.purple.opacity(0.3), radius: 8, x: 0, y: 4)
                         }
                         .padding(.top, 24)
                         
                         Text("Aura")
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(Theme.Font.brand(size: 32, weight: .bold))
                             .foregroundColor(.primary)
                         
                         Text("Instantly preview, analyze, and generate AI insights for any dataset.")
@@ -87,20 +87,20 @@ struct DragDropView: View {
                     VStack(spacing: 0) {
                         ZStack {
                             // Glassmorphic background
-                            RoundedRectangle(cornerRadius: 18)
+                            RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius * 2)
                                 .fill(.ultraThinMaterial)
                                 .shadow(color: Color.black.opacity(0.15), radius: 10, x: 0, y: 5)
                             
                             // Highlight on Drag
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(isDraggingOver ? Color.purple.opacity(0.06) : Color.clear)
+                            RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius * 2)
+                                .fill(isDraggingOver ? Theme.Color.purple.opacity(0.06) : Color.clear)
                             
                             // Dashed stroke border
-                            RoundedRectangle(cornerRadius: 18)
+                            RoundedRectangle(cornerRadius: Theme.Layout.cornerRadius * 2)
                                 .strokeBorder(
                                     LinearGradient(
                                         colors: isDraggingOver
-                                            ? [.purple, .indigo, .blue]
+                                            ? [Theme.Color.purple, Theme.Color.indigo, .blue]
                                             : [.secondary.opacity(0.2), .secondary.opacity(0.08)],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
@@ -111,10 +111,10 @@ struct DragDropView: View {
                             // Drop zone inner contents
                             VStack(spacing: 18) {
                                 Image(systemName: "arrow.down.doc.fill")
-                                    .font(.system(size: 44))
+                                    .font(Theme.Font.brand(size: 44))
                                     .foregroundStyle(
                                         LinearGradient(
-                                            colors: isDraggingOver ? [.purple, .indigo] : [.secondary.opacity(0.6), .secondary.opacity(0.3)],
+                                            colors: isDraggingOver ? [Theme.Color.purple, Theme.Color.indigo] : [.secondary.opacity(0.6), .secondary.opacity(0.3)],
                                             startPoint: .topLeading,
                                             endPoint: .bottomTrailing
                                         )
@@ -166,6 +166,7 @@ struct DragDropView: View {
                                         .cornerRadius(10)
                                     }
                                     .buttonStyle(.plain)
+                                    .accessibilityIdentifier("importFromDbButton")
                                     .shadow(color: Color.blue.opacity(0.25), radius: 6, x: 0, y: 3)
                                 }
                             }

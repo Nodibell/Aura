@@ -49,7 +49,10 @@ scratch_build*.log
 *.dmg
 *.zip
 *.joblib
+*.pt
+yolov8n.pt
 
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+

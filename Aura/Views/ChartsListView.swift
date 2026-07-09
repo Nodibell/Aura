@@ -20,21 +20,21 @@ struct CategoryTabButton: View {
             HStack(spacing: 5) {
                 if let icon = iconName {
                     Image(systemName: icon)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Theme.Font.brand(size: 10, weight: .bold))
                 }
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.brand(size: 11, weight: .semibold))
             }
             .foregroundColor(isSelected || isHovered ? .white : .secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
             .background(
                 Capsule()
-                    .fill(isSelected || isHovered ? Color.accentColor : Color.primary.opacity(0.04))
+                    .fill(isSelected || isHovered ? Color.accentColor : Theme.Color.cardBackground)
             )
             .overlay(
                 Capsule()
-                    .stroke(isSelected || isHovered ? Color.accentColor : Color.primary.opacity(0.08), lineWidth: 1)
+                    .stroke(isSelected || isHovered ? Color.accentColor : Theme.Color.cardStroke, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -59,9 +59,9 @@ struct ChartsListView: View {
         ScrollViewReader { proxy in
             VStack(spacing: 0) {
                 // Category Filter Picker
-                HStack(spacing: 12) {
+                HStack(spacing: Theme.Layout.spacing * 2) {
                     Label("Jump to:", systemImage: "arrow.right.circle.fill")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Theme.Font.brand(size: 11, weight: .bold))
                         .foregroundColor(.secondary)
                         .padding(.trailing, 4)
                     
@@ -94,10 +94,31 @@ struct ChartsListView: View {
                     }
                     
                     Spacer()
+                    
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .font(Theme.Font.brand(size: 10))
+                            .foregroundColor(.secondary)
+                        TextField("Search plots...", text: $searchText)
+                            .font(Theme.Font.brand(size: 11))
+                            .textFieldStyle(.plain)
+                            .frame(width: 160)
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.primary.opacity(0.04))
+                    .cornerRadius(6)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 12)
-                .background(Color(NSColor.controlBackgroundColor))
+                .padding(.horizontal, Theme.Layout.padding)
+                .padding(.vertical, Theme.Layout.spacing * 2)
+                .background(Theme.Color.background)
                 
                 Divider()
                 
@@ -190,7 +211,6 @@ struct ChartsListView: View {
                 }
             }
         }
-        .searchable(text: $searchText, placement: .sidebar, prompt: "Search charts...")
         .sheet(item: Binding<DrillDownItem?>(
             get: {
                 if let preview = drillDownPreview {

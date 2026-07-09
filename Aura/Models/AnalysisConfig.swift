@@ -169,4 +169,5 @@ struct AnalysisConfig: Codable, Equatable {
     var columnTypeOverrides: [String: String] = [:]
     var timeRangeStart: String?           = nil   // Time Series Date Range Start
     var timeRangeEnd: String?             = nil     // Time Series Date Range End
+    var activeModelName: String?          = nil
 }

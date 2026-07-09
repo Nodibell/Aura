@@ -9,16 +9,23 @@ class DashboardViewModel {
     let historyService: any AnalysisHistoryServiceProtocol
     let ollamaStatus: OllamaStatusChecker
     
-    // MARK: - State Properties
-    var selectedFileURL: URL? = nil
-    var datasetURLInput: String = ""
-    var isAnalyzing = false
-    var isPreloading = false
-    var previewResult: DatasetPreview? = nil
-    var result: AnalysisResult? = nil
-    var errorMessage: String? = nil
-    var selectedTab: String = "Summary"
-    var fileDetails: String = ""
+    // MARK: - Page Tab Management
+    var openPages: [AnalysisPage] = []
+    var activePageId: UUID? = nil
+    
+    private var fallbackPage: AnalysisPage? = nil
+    
+    var activePage: AnalysisPage? {
+        if openPages.isEmpty {
+            if fallbackPage == nil {
+                fallbackPage = AnalysisPage(title: "Aura Dashboard")
+            }
+            return fallbackPage
+        }
+        return openPages.first(where: { $0.id == activePageId })
+    }
+    
+    // MARK: - State Properties (Shared UI state)
     var showAIPanel: Bool = false
     var showRenameAlert = false
     var renameText = ""
@@ -27,33 +34,123 @@ class DashboardViewModel {
     var showModelExportSheet: Bool = false
     var showURLInputAlert = false
     var urlInputText = ""
-    var selectedTargetName = ""
     var showOnboarding = false
     var showDatabaseSheet = false
     var showSchedulerSheet = false
-    var currentHistoryItemId: UUID? = nil
-    var activeModelName: String? = nil
     var showMergeSheet = false
     var mergeFile1Path = ""
     var mergeFile2Path = ""
     
-    var analysisConfig: AnalysisConfig = AnalysisConfig()
-    var trainColumns: [String] = []
-    var selectedDataTab: String = "train"
+    // MARK: - Computed Properties Forwarding to activePage
+    var selectedFileURL: URL? {
+        get { activePage?.selectedFileURL }
+        set { activePage?.selectedFileURL = newValue }
+    }
     
-    var progressFraction: Double = 0.0
-    var progressMessage: String = ""
+    var datasetURLInput: String {
+        get { activePage?.datasetURLInput ?? "" }
+        set { activePage?.datasetURLInput = newValue }
+    }
+    
+    var isAnalyzing: Bool {
+        get { activePage?.isAnalyzing ?? false }
+        set { activePage?.isAnalyzing = newValue }
+    }
+    
+    var isPreloading: Bool {
+        get { activePage?.isPreloading ?? false }
+        set { activePage?.isPreloading = newValue }
+    }
+    
+    var previewResult: DatasetPreview? {
+        get { activePage?.previewResult }
+        set { activePage?.previewResult = newValue }
+    }
+    
+    var result: AnalysisResult? {
+        get { activePage?.result }
+        set { activePage?.result = newValue }
+    }
+    
+    var errorMessage: String? {
+        get { activePage?.errorMessage }
+        set { activePage?.errorMessage = newValue }
+    }
+    
+    var selectedTab: String {
+        get { activePage?.selectedTab ?? "Summary" }
+        set { activePage?.selectedTab = newValue }
+    }
+    
+    var fileDetails: String {
+        get { activePage?.fileDetails ?? "" }
+        set { activePage?.fileDetails = newValue }
+    }
+    
+    var selectedTargetName: String {
+        get { activePage?.selectedTargetName ?? "" }
+        set { activePage?.selectedTargetName = newValue }
+    }
+    
+    var activeModelName: String? {
+        get { activePage?.activeModelName }
+        set { activePage?.activeModelName = newValue }
+    }
+    
+    var analysisConfig: AnalysisConfig {
+        get { activePage?.analysisConfig ?? AnalysisConfig() }
+        set { activePage?.analysisConfig = newValue }
+    }
+    
+    var trainColumns: [String] {
+        get { activePage?.trainColumns ?? [] }
+        set { activePage?.trainColumns = newValue }
+    }
+    
+    var selectedDataTab: String {
+        get { activePage?.selectedDataTab ?? "train" }
+        set { activePage?.selectedDataTab = newValue }
+    }
+    
+    var progressFraction: Double {
+        get { activePage?.progressFraction ?? 0.0 }
+        set { activePage?.progressFraction = newValue }
+    }
+    
+    var progressMessage: String {
+        get { activePage?.progressMessage ?? "" }
+        set { activePage?.progressMessage = newValue }
+    }
     
     struct ProgressStage: Identifiable, Equatable {
         let id = UUID()
         let message: String
         let elapsed: Double
     }
-    var completedStages: [ProgressStage] = []
-    var currentStageMessage: String = ""
-    var currentStageStartTime: Date = Date()
     
-    let chatViewModel = ChatViewModel()
+    var completedStages: [ProgressStage] {
+        get { activePage?.completedStages ?? [] }
+        set { activePage?.completedStages = newValue }
+    }
+    
+    var currentStageMessage: String {
+        get { activePage?.currentStageMessage ?? "" }
+        set { activePage?.currentStageMessage = newValue }
+    }
+    
+    var currentStageStartTime: Date {
+        get { activePage?.currentStageStartTime ?? Date() }
+        set { activePage?.currentStageStartTime = newValue }
+    }
+    
+    var chatViewModel: ChatViewModel {
+        activePage?.chatViewModel ?? ChatViewModel()
+    }
+    
+    var currentHistoryItemId: UUID? {
+        get { activePage?.currentHistoryItemId }
+        set { activePage?.currentHistoryItemId = newValue }
+    }
     
     // MARK: - Initialization
     @MainActor
@@ -74,6 +171,32 @@ class DashboardViewModel {
         return "Aura Dashboard"
     }
     
+    // MARK: - Page Lifecycle Management
+    func openNewPage(title: String, fileURL: URL? = nil, datasetURLInput: String = "", previewResult: DatasetPreview? = nil, result: AnalysisResult? = nil, config: AnalysisConfig = AnalysisConfig(), trainColumns: [String] = [], historyItemId: UUID? = nil) -> AnalysisPage {
+        let newPage = AnalysisPage(
+            title: title,
+            fileURL: fileURL,
+            datasetURLInput: datasetURLInput,
+            previewResult: previewResult,
+            result: result,
+            config: config,
+            trainColumns: trainColumns,
+            historyItemId: historyItemId
+        )
+        openPages.append(newPage)
+        activePageId = newPage.id
+        return newPage
+    }
+    
+    func closePage(id: UUID) {
+        if let index = openPages.firstIndex(where: { $0.id == id }) {
+            openPages.remove(at: index)
+            if activePageId == id {
+                activePageId = openPages.last?.id
+            }
+        }
+    }
+    
     // MARK: - Business Logic Methods
     
     func handleDroppedFiles(_ urls: [URL]) {
@@ -87,30 +210,22 @@ class DashboardViewModel {
     }
     
     func loadDroppedFile(_ url: URL) {
-        selectedFileURL = url
-        datasetURLInput = ""
-        errorMessage = nil
-        result = nil
-        previewResult = nil
-        
-        // Reset configuration and columns for the new dataset
-        analysisConfig = AnalysisConfig()
-        analysisConfig.trainFilePath = url.path
-        trainColumns = []
+        let title = url.lastPathComponent
+        let page = openNewPage(title: title, fileURL: url)
+        page.analysisConfig.trainFilePath = url.path
         
         if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
             let fmt = ByteCountFormatter()
             fmt.countStyle = .file
-            fileDetails = fmt.string(fromByteCount: Int64(size))
+            page.fileDetails = fmt.string(fromByteCount: Int64(size))
             
-            // Automatically enable smart sample for files > 20MB
             if size > 20 * 1024 * 1024 {
-                analysisConfig.smartSample = true
+                page.analysisConfig.smartSample = true
             }
         } else {
-            fileDetails = "Unknown size"
+            page.fileDetails = "Unknown size"
         }
-        fetchPreview(for: url.path)
+        fetchPreview(for: url.path, page: page)
     }
     
     func selectFileManually() {
@@ -146,15 +261,19 @@ class DashboardViewModel {
     }
     
     func clearSelection() {
-        selectedFileURL = nil
-        datasetURLInput = ""
-        previewResult = nil
-        result = nil
-        errorMessage = nil
-        trainColumns = []
-        selectedDataTab = "train"
-        analysisConfig = AnalysisConfig()
-        chatViewModel.clearConversation()
+        if let activeId = activePageId {
+            closePage(id: activeId)
+        } else {
+            selectedFileURL = nil
+            datasetURLInput = ""
+            previewResult = nil
+            result = nil
+            errorMessage = nil
+            trainColumns = []
+            selectedDataTab = "train"
+            analysisConfig = AnalysisConfig()
+            chatViewModel.clearConversation()
+        }
     }
     
     func getURLProviderName(_ urlString: String) -> String {
@@ -170,62 +289,68 @@ class DashboardViewModel {
     }
     
     func fetchPreview(for pathOrURL: String) {
+        if let page = activePage {
+            fetchPreview(for: pathOrURL, page: page)
+        }
+    }
+    
+    func fetchPreview(for pathOrURL: String, page: AnalysisPage) {
         withAnimation {
-            isPreloading = true
-            errorMessage = nil
-            previewResult = nil
-            result = nil
-            progressFraction = 0.0
-            progressMessage = "Preparing preview..."
+            page.isPreloading = true
+            page.errorMessage = nil
+            page.previewResult = nil
+            page.result = nil
+            page.progressFraction = 0.0
+            page.progressMessage = "Preparing preview..."
         }
         Task {
             await pythonRunner.runPreview(csvPathOrURL: pathOrURL, progress: { frac, msg in
                 Task { @MainActor in
-                    self.progressFraction = frac
-                    self.progressMessage = msg
+                    page.progressFraction = frac
+                    page.progressMessage = msg
                 }
             }) { response in
                 Task { @MainActor in
                     withAnimation {
-                        self.isPreloading = false
+                        page.isPreloading = false
                         switch response {
                         case .success(let previewData):
-                            self.previewResult = previewData
-                            if self.analysisConfig.trainFilePath == nil {
-                                self.analysisConfig.trainFilePath = previewData.localPath
-                            }
-                            if previewData.localPath == self.analysisConfig.trainFilePath {
-                                self.trainColumns = previewData.columns
-                            }
-                            if let inferred = previewData.inferredDatasetType,
-                               let type = DatasetType(rawValue: inferred) {
-                                self.analysisConfig.datasetType = type
-                            }
-                            
-                            // Auto deselect id columns
-                            for (idx, col) in previewData.columns.enumerated() {
-                                if self.isLikelyIdentifierColumn(name: col, columnIndex: idx, previewRows: previewData.previewRows) {
-                                    self.analysisConfig.excludedColumns.insert(col)
-                                }
-                            }
-                            
-                            // Automate test and validation pre-selection
-                            if let available = previewData.availableFiles {
-                                if self.analysisConfig.testFilePath == nil {
-                                    if let testFile = available.first(where: { $0.lowercased().contains("test") }) {
-                                        self.analysisConfig.testFilePath = testFile
-                                    }
-                                }
-                                if self.analysisConfig.validationFilePath == nil {
-                                    if let valFile = available.first(where: { $0.lowercased().contains("val") || $0.lowercased().contains("valid") }) {
-                                        self.analysisConfig.validationFilePath = valFile
-                                    }
-                                }
-                            }
+                           page.previewResult = previewData
+                           if page.analysisConfig.trainFilePath == nil {
+                               page.analysisConfig.trainFilePath = previewData.localPath
+                           }
+                           if previewData.localPath == page.analysisConfig.trainFilePath {
+                               page.trainColumns = previewData.columns
+                           }
+                           if let inferred = previewData.inferredDatasetType,
+                              let type = DatasetType(rawValue: inferred) {
+                               page.analysisConfig.datasetType = type
+                           }
+                           
+                           // Auto deselect id columns
+                           for (idx, col) in previewData.columns.enumerated() {
+                               if self.isLikelyIdentifierColumn(name: col, columnIndex: idx, previewRows: previewData.previewRows) {
+                                   page.analysisConfig.excludedColumns.insert(col)
+                               }
+                           }
+                           
+                           // Automate test and validation pre-selection
+                           if let available = previewData.availableFiles {
+                               if page.analysisConfig.testFilePath == nil {
+                                   if let testFile = available.first(where: { $0.lowercased().contains("test") }) {
+                                       page.analysisConfig.testFilePath = testFile
+                                   }
+                               }
+                               if page.analysisConfig.validationFilePath == nil {
+                                   if let valFile = available.first(where: { $0.lowercased().contains("val") || $0.lowercased().contains("valid") }) {
+                                       page.analysisConfig.validationFilePath = valFile
+                                   }
+                               }
+                           }
                         case .failure(let error):
-                            if (error as NSError).code != -999 {
-                                self.errorMessage = error.localizedDescription
-                            }
+                           if (error as NSError).code != -999 {
+                               page.errorMessage = error.localizedDescription
+                           }
                         }
                     }
                 }
@@ -274,49 +399,68 @@ class DashboardViewModel {
     }
     
     func runEDA() {
+        if let page = activePage {
+            runEDA(with: nil, page: page)
+        }
+    }
+
+    func runEDA(with customConfig: AnalysisConfig?) {
+        if let page = activePage {
+            runEDA(with: customConfig, page: page)
+        }
+    }
+
+    func runEDA(with customConfig: AnalysisConfig?, page: AnalysisPage) {
+        let configToUse = customConfig ?? page.analysisConfig
+        
         let csvPath: String
-        if let trainPath = analysisConfig.trainFilePath {
+        if let trainPath = configToUse.trainFilePath {
             csvPath = trainPath
-        } else if let preview = previewResult {
+        } else if let preview = page.previewResult {
             csvPath = preview.localPath
-        } else if let fileURL = selectedFileURL {
+        } else if let fileURL = page.selectedFileURL {
             csvPath = fileURL.path
         } else {
-            let urlStr = datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+            let urlStr = page.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !urlStr.isEmpty else { return }
             csvPath = urlStr
         }
 
         withAnimation {
-            isAnalyzing = true
-            progressFraction = 0.0
-            progressMessage = "Starting analysis..."
-            errorMessage = nil
-            result = nil
+            page.isAnalyzing = true
+            page.progressFraction = 0.0
+            page.progressMessage = "Starting analysis..."
+            page.errorMessage = nil
+            page.result = nil
         }
 
         let targetParam: String?
-        if analysisConfig.datasetType == .timeSeries && !analysisConfig.targetColumns.isEmpty {
-            targetParam = analysisConfig.targetColumns.joined(separator: ",")
+        if configToUse.datasetType == .timeSeries && !configToUse.targetColumns.isEmpty {
+            targetParam = configToUse.targetColumns.joined(separator: ",")
         } else {
-            let target = analysisConfig.targetColumn.trimmingCharacters(in: .whitespacesAndNewlines)
+            let target = configToUse.targetColumn.trimmingCharacters(in: .whitespacesAndNewlines)
             targetParam = target.isEmpty ? nil : target
         }
 
-        var finalConfig = analysisConfig
+        var finalConfig = configToUse
         if let targetParam = targetParam {
             let targetsList = targetParam.split(separator: ",").map(String.init)
             for t in targetsList {
                 finalConfig.excludedColumns.remove(t)
             }
         }
+        
+        // Reset export paths on the persistent config so they do not linger for subsequent normal runs
+        page.analysisConfig.modelExportPath = nil
+        page.analysisConfig.codeExportPath = nil
+        page.analysisConfig.notebookExportPath = nil
 
         // Reset timing stages
-        self.completedStages = []
-        self.currentStageMessage = ""
-        self.currentStageStartTime = Date()
+        page.completedStages = []
+        page.currentStageMessage = ""
+        page.currentStageStartTime = Date()
         
-        let originalSource = selectedFileURL?.path ?? datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let originalSource = page.selectedFileURL?.path ?? page.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines)
         
         Task {
             await pythonRunner.runAnalysis(
@@ -326,19 +470,19 @@ class DashboardViewModel {
                 progress: { frac, msg in
                     Task { @MainActor in
                         withAnimation(.easeInOut(duration: 0.15)) {
-                            self.progressFraction = frac
-                            self.progressMessage = msg
+                            page.progressFraction = frac
+                            page.progressMessage = msg
                             
-                            if self.currentStageMessage != msg {
-                                if !self.currentStageMessage.isEmpty {
-                                    let elapsed = Date().timeIntervalSince(self.currentStageStartTime)
-                                    let stage = ProgressStage(message: self.currentStageMessage, elapsed: elapsed)
-                                    if !self.completedStages.contains(where: { $0.message == stage.message }) {
-                                        self.completedStages.append(stage)
+                            if page.currentStageMessage != msg {
+                                if !page.currentStageMessage.isEmpty {
+                                    let elapsed = Date().timeIntervalSince(page.currentStageStartTime)
+                                    let stage = ProgressStage(message: page.currentStageMessage, elapsed: elapsed)
+                                    if !page.completedStages.contains(where: { $0.message == stage.message }) {
+                                        page.completedStages.append(stage)
                                     }
                                 }
-                                self.currentStageMessage = msg
-                                self.currentStageStartTime = Date()
+                                page.currentStageMessage = msg
+                                page.currentStageStartTime = Date()
                             }
                         }
                     }
@@ -346,32 +490,41 @@ class DashboardViewModel {
             ) { response in
                 Task { @MainActor in
                     withAnimation {
-                        if !self.currentStageMessage.isEmpty {
-                            let elapsed = Date().timeIntervalSince(self.currentStageStartTime)
-                            let stage = ProgressStage(message: self.currentStageMessage, elapsed: elapsed)
-                            if !self.completedStages.contains(where: { $0.message == stage.message }) {
-                                self.completedStages.append(stage)
+                        if !page.currentStageMessage.isEmpty {
+                            let elapsed = Date().timeIntervalSince(page.currentStageStartTime)
+                            let stage = ProgressStage(message: page.currentStageMessage, elapsed: elapsed)
+                            if !page.completedStages.contains(where: { $0.message == stage.message }) {
+                                page.completedStages.append(stage)
                             }
                         }
-                        self.isAnalyzing = false
+                        page.isAnalyzing = false
                         switch response {
                         case .success(let data):
-                            self.result = data
-                            self.activeModelName = data.metrics.model
+                            page.result = data
+                            page.activeModelName = data.metrics.model
                             if let targetsMap = data.targets, !targetsMap.isEmpty {
-                                self.selectedTargetName = targetsMap.keys.sorted().first ?? data.targetColumn
-                                self.analysisConfig.targetColumns = Array(targetsMap.keys).sorted()
+                                page.selectedTargetName = targetsMap.keys.sorted().first ?? data.targetColumn
+                                page.analysisConfig.targetColumns = Array(targetsMap.keys).sorted()
                             } else {
-                                self.selectedTargetName = data.targetColumn
-                                self.analysisConfig.targetColumn = data.targetColumn
+                                page.selectedTargetName = data.targetColumn
+                                page.analysisConfig.targetColumn = data.targetColumn
+                            }
+                            var cleaningActionsJson: String? = nil
+                            if !finalConfig.cleaningActions.isEmpty {
+                                let actionsArray = Array(finalConfig.cleaningActions)
+                                if let encodedData = try? JSONEncoder().encode(actionsArray),
+                                   let jsonString = String(data: encodedData, encoding: .utf8) {
+                                    cleaningActionsJson = jsonString
+                                }
                             }
                             let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
-                            self.currentHistoryItemId = savedItem?.id
-                            self.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL)
+                            page.currentHistoryItemId = savedItem?.id
+                            page.title = savedItem?.datasetName ?? page.title
+                            page.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL, cleaningActions: cleaningActionsJson)
                             if self.ollamaStatus.isAvailable { self.showAIPanel = true }
                         case .failure(let error):
                             if (error as NSError).code != -999 {
-                                self.errorMessage = error.localizedDescription
+                                page.errorMessage = error.localizedDescription
                             }
                         }
                     }
@@ -381,12 +534,20 @@ class DashboardViewModel {
     }
     
     func loadHistoryItem(_ item: HistoryItem) {
+        // If already open, make active
+        if let existing = openPages.first(where: { $0.currentHistoryItemId == item.id }) {
+            activePageId = existing.id
+            return
+        }
+        
+        let page = openNewPage(title: item.datasetName, historyItemId: item.id)
+        
         withAnimation {
-            self.errorMessage = nil
-            self.isAnalyzing = false
-            self.isPreloading = true   // show a spinner while we read from disk
-            self.progressFraction = 0.0
-            self.progressMessage = ""
+            page.errorMessage = nil
+            page.isAnalyzing = false
+            page.isPreloading = true   // show a spinner while we read from disk
+            page.progressFraction = 0.0
+            page.progressMessage = ""
         }
 
         // Reconstruct the base configuration for this history item
@@ -394,22 +555,22 @@ class DashboardViewModel {
         newConfig.trainFilePath = item.datasetPath
 
         if let datasetURL = item.datasetURL, !datasetURL.isEmpty {
-            self.datasetURLInput = datasetURL
-            self.selectedFileURL = nil
-            self.fileDetails = "Remote URL Dataset"
+            page.datasetURLInput = datasetURL
+            page.selectedFileURL = nil
+            page.fileDetails = "Remote URL Dataset"
         } else if item.datasetPath.hasPrefix("http://") || item.datasetPath.hasPrefix("https://") {
-            self.datasetURLInput = item.datasetPath
-            self.selectedFileURL = nil
-            self.fileDetails = "Remote URL Dataset"
+            page.datasetURLInput = item.datasetPath
+            page.selectedFileURL = nil
+            page.fileDetails = "Remote URL Dataset"
         } else {
-            self.selectedFileURL = URL(fileURLWithPath: item.datasetPath)
-            self.datasetURLInput = ""
-            if let size = try? selectedFileURL?.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+            page.selectedFileURL = URL(fileURLWithPath: item.datasetPath)
+            page.datasetURLInput = ""
+            if let size = try? page.selectedFileURL?.resourceValues(forKeys: [.fileSizeKey]).fileSize {
                 let fmt = ByteCountFormatter()
                 fmt.countStyle = .file
-                self.fileDetails = fmt.string(fromByteCount: Int64(size))
+                page.fileDetails = fmt.string(fromByteCount: Int64(size))
             } else {
-                self.fileDetails = "Local File"
+                page.fileDetails = "Local File"
             }
         }
 
@@ -417,20 +578,19 @@ class DashboardViewModel {
         Task { @MainActor in
             let loadedResult = await historyService.loadAnalysisResult(item: item)
             withAnimation {
-                self.isPreloading = false
+                page.isPreloading = false
             }
             if let loadedResult {
-                self.result = loadedResult
-                self.activeModelName = item.bestModel ?? loadedResult.metrics.model
-                self.currentHistoryItemId = item.id
-                self.trainColumns = loadedResult.columns
-                self.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL)
+                page.result = loadedResult
+                page.activeModelName = item.bestModel ?? loadedResult.metrics.model
+                page.trainColumns = loadedResult.columns
+                page.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL)
 
                 if let targetsMap = loadedResult.targets, !targetsMap.isEmpty {
-                    self.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn
+                    page.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn
                     newConfig.targetColumns = Array(targetsMap.keys).sorted()
                 } else {
-                    self.selectedTargetName = loadedResult.targetColumn
+                    page.selectedTargetName = loadedResult.targetColumn
                     newConfig.targetColumn = loadedResult.targetColumn
                 }
 
@@ -449,7 +609,7 @@ class DashboardViewModel {
                     datasetTypeStr = loadedResult.taskType.lowercased()
                 }
 
-                self.previewResult = DatasetPreview(
+                page.previewResult = DatasetPreview(
                     columns: loadedResult.columns,
                     previewRows: previewRows,
                     localPath: item.datasetPath,
@@ -463,13 +623,13 @@ class DashboardViewModel {
                     newConfig.datasetType = type
                 }
 
-                self.analysisConfig = newConfig
+                page.analysisConfig = newConfig
                 if self.ollamaStatus.isAvailable { self.showAIPanel = true }
-                self.selectedTab = "Summary"
+                page.selectedTab = "Summary"
             } else {
                 newConfig.targetColumn = item.targetColumn ?? ""
-                self.analysisConfig = newConfig
-                self.errorMessage = "Could not load saved analysis result from disk."
+                page.analysisConfig = newConfig
+                page.errorMessage = "Could not load saved analysis result from disk."
             }
         }
     }

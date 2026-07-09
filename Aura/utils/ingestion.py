@@ -282,9 +282,11 @@ def ingest_dataset(file_path, dataset_type="auto"):
         if ext == '.npz':
             return file_path, "image"
         elif ext in ['.csv', '.tsv', '.parquet']:
-            # If dataset_type is image, it's probably images from tabular, keep it as is
-            # Else it's tabular/timeseries
-            resolved_type = "image" if dataset_type == "image" else "tabular"
+            # Respect user chosen type if it's a valid pipeline type
+            if dataset_type in ["nlp", "timeseries", "image", "tabular", "object_detection"]:
+                resolved_type = dataset_type
+            else:
+                resolved_type = "tabular"
             return file_path, resolved_type
 
     return file_path, dataset_type
