@@ -293,52 +293,20 @@ struct ContentView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
 
-                    // ── Active Page Preview & Settings ──────────────────────────────
-                    if let activePage = viewModel.activePage, let preview = activePage.previewResult {
-                        VStack(alignment: .leading, spacing: 12) {
-                            PreviewTableView(
-                                preview: preview,
-                                config: Binding(
-                                    get: { activePage.analysisConfig },
-                                    set: { activePage.analysisConfig = $0 }
-                                ),
-                                onPreviewFileRequested: { path in
-                                    viewModel.fetchPreview(for: path, page: activePage)
-                                },
-                                isSidebar: true
-                            )
-                            .frame(height: 380)
-                            .cornerRadius(8)
-                            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.primary.opacity(0.06), lineWidth: 1))
-                            .padding(.horizontal, 16)
-                            
-                            // CTA Button
-                            Button(action: viewModel.runEDA) {
-                                HStack(spacing: 6) {
-                                    if viewModel.isAnalyzing {
-                                        NativeProgressView(controlSize: .small).padding(.trailing, 2)
-                                    } else {
-                                        Image(systemName: "play.fill")
-                                            .font(.system(size: 11))
-                                    }
-                                    Text(viewModel.isAnalyzing ? "Analyzing…" : "Run Analysis Pipeline")
-                                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                    // ── Active Page Reanalyze Config ──────────────────────────────
+                    if let activePage = viewModel.activePage {
+                        ReanalyzeConfigView(
+                            page: activePage,
+                            onRun: {
+                                viewModel.runEDA()
+                            },
+                            onCancel: {
+                                withAnimation {
+                                    viewModel.closePage(id: activePage.id)
                                 }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .background(
-                                    (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
-                                    ? AnyShapeStyle(Color.primary.opacity(0.05))
-                                    : AnyShapeStyle(LinearGradient(colors: [.purple, .indigo], startPoint: .leading, endPoint: .trailing))
-                                )
-                                .cornerRadius(8)
-                                .shadow(color: (cannotRun || viewModel.isAnalyzing || viewModel.isPreloading) ? .clear : .purple.opacity(0.2), radius: 6, x: 0, y: 2)
                             }
-                            .disabled(cannotRun || viewModel.isAnalyzing || viewModel.isPreloading)
-                            .buttonStyle(.plain)
-                            .padding(.horizontal, 16)
-                        }
+                        )
+                        .padding(.vertical, 8)
                     }
 
                     // ── Sample Datasets ───────────────────────────────────────────
