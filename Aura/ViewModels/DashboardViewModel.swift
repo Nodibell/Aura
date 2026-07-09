@@ -277,6 +277,24 @@ class DashboardViewModel {
         }
     }
     
+    func loadRemoteDataset(_ urlString: String) {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        
+        let provider = getURLProviderName(trimmed)
+        let title: String
+        if let url = URL(string: trimmed), !url.lastPathComponent.isEmpty && url.lastPathComponent != "/" {
+            title = url.lastPathComponent
+        } else {
+            title = provider
+        }
+        
+        let page = openNewPage(title: title, fileURL: nil, isPreview: true)
+        page.datasetURLInput = trimmed
+        
+        fetchPreview(for: trimmed, page: page)
+    }
+    
     func clearSelection() {
         if let activeId = activePageId {
             closePage(id: activeId)
@@ -538,7 +556,7 @@ class DashboardViewModel {
                             let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
                             page.currentHistoryItemId = savedItem?.id
                             page.title = savedItem?.datasetName ?? page.title
-                            page.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL, cleaningActions: cleaningActionsJson)
+                            page.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL, cleaningActions: cleaningActionsJson, otherRunsSummary: self.buildOtherRunsSummary(for: savedItem?.datasetName ?? page.title, excludingItemWithId: savedItem?.id))
                             if self.ollamaStatus.isAvailable { self.showAIPanel = true }
                         case .failure(let error):
                             if (error as NSError).code != -999 {
@@ -603,7 +621,7 @@ class DashboardViewModel {
                 page.result = loadedResult
                 page.activeModelName = item.bestModel ?? loadedResult.metrics.model
                 page.trainColumns = loadedResult.columns
-                page.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL)
+                page.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL, otherRunsSummary: self.buildOtherRunsSummary(for: item.datasetName, excludingItemWithId: item.id))
 
                 if let targetsMap = loadedResult.targets, !targetsMap.isEmpty {
                     page.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn
@@ -663,6 +681,27 @@ class DashboardViewModel {
             let bTime = b.runs.first?.timestamp ?? Date.distantPast
             return aTime > bTime
         })
+    }
+    
+    func buildOtherRunsSummary(for datasetName: String, excludingItemWithId: UUID? = nil) -> String {
+        let otherRuns = historyService.items.filter {
+            $0.datasetName == datasetName && $0.id != excludingItemWithId
+        }
+        guard !otherRuns.isEmpty else { return "" }
+        
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        
+        return otherRuns.map { run in
+            let dateStr = formatter.string(from: run.timestamp)
+            let task = run.taskType ?? "EDA"
+            let target = run.targetColumn ?? "N/A"
+            let best = run.bestModel ?? "N/A"
+            let scoreVal = run.bestScore != nil ? String(format: "%.4f", run.bestScore!) : "N/A"
+            let scoreT = run.scoreType ?? "score"
+            return "- Task: \(task), Target: \(target), Best Model: \(best) (\(scoreT): \(scoreVal)), Run Date: \(dateStr)"
+        }.joined(separator: "\n")
     }
 }
 

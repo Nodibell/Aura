@@ -587,6 +587,38 @@ def _crop_and_classify(splits, class_names, max_crops_per_class=200, crop_size=6
     return metrics, cm_data, models_compared, sample_images, importance_chart
 
 
+def draw_yolo_boxes_and_encode(img_path, boxes, class_names):
+    from PIL import Image, ImageDraw
+    import base64
+    from io import BytesIO
+    import sys
+    try:
+        with Image.open(img_path) as img:
+            img = img.convert("RGB")
+            draw = ImageDraw.Draw(img)
+            W, H = img.size
+            for box in boxes:
+                class_id, cx, cy, w, h = box
+                x_center = cx * W
+                y_center = cy * H
+                box_w = w * W
+                box_h = h * H
+                
+                xmin = max(0.0, x_center - box_w / 2.0)
+                ymin = max(0.0, y_center - box_h / 2.0)
+                xmax = min(float(W), x_center + box_w / 2.0)
+                ymax = min(float(H), y_center + box_h / 2.0)
+                
+                draw.rectangle([xmin, ymin, xmax, ymax], outline="red", width=2)
+            
+            img.thumbnail((240, 240))
+            buf = BytesIO()
+            img.save(buf, format="JPEG", quality=75)
+            return base64.b64encode(buf.getvalue()).decode("utf-8")
+    except Exception as e:
+        sys.stderr.write(f"Warning: failed to draw boxes on {img_path}: {e}\n")
+        return None
+
 # ─── Preview helpers for preview.py ─────────────────────────────────────────
 
 def preview_yolo(root):
@@ -621,7 +653,6 @@ def preview_yolo(root):
             sampled_imgs = imgs
             if use_estimation:
                 import random
-                # Use a fixed seed for reproducible preview counts
                 random.seed(42)
                 sampled_imgs = random.sample(imgs, 1000)
             
@@ -640,9 +671,16 @@ def preview_yolo(root):
 
     # Build a mini preview table: filename, split, n_boxes, classes_present
     preview_rows = []
+    preview_images = []
+    
+    # Collect up to 12 sample images for display in the grid
+    image_count = 0
+    
     for split, (img_dir, lab_dir, fmt) in splits.items():
-        img_paths = _list_images(img_dir)[:5]
-        for p in img_paths:
+        img_paths = _list_images(img_dir)
+        
+        # Table preview: first 5 paths
+        for p in img_paths[:5]:
             stem = os.path.splitext(os.path.basename(p))[0]
             boxes = []
             if lab_dir:
@@ -660,6 +698,31 @@ def preview_yolo(root):
                 str(len(boxes)),
                 classes_present
             ])
+            
+        # Image Grid preview: first 6 paths of this split
+        for p in img_paths:
+            if image_count >= 12:
+                break
+            stem = os.path.splitext(os.path.basename(p))[0]
+            boxes = []
+            if lab_dir:
+                if fmt == "voc":
+                    boxes = _parse_voc_label_file(os.path.join(lab_dir, stem + ".xml"), class_names)
+                else:
+                    boxes = _parse_label_file(os.path.join(lab_dir, stem + ".txt"))
+            
+            b64 = draw_yolo_boxes_and_encode(p, boxes, class_names)
+            if b64:
+                classes_present = ", ".join(sorted(set(
+                    class_names[b[0]] if b[0] < len(class_names) else f"class_{b[0]}"
+                    for b in boxes
+                ))) or "Background"
+                preview_images.append({
+                    "name": os.path.basename(p),
+                    "label": f"{split.upper()} | {len(boxes)} boxes ({classes_present})",
+                    "b64_data": b64
+                })
+                image_count += 1
 
     cols = ["filename", "split", "n_boxes", "classes_present"]
     n_classes = len(class_names)
@@ -671,7 +734,7 @@ def preview_yolo(root):
         "local_path": root,
         "total_rows": row_count,
         "available_files": [root],
-        # Extra metadata shown as a hint in the UI
+        "preview_images": preview_images,
         "_od_meta": {
             "n_classes": n_classes,
             "class_names": class_names,

@@ -13,9 +13,14 @@ class ChatViewModel {
     private static let maxREPLDepth = 5
 
 
+    private var otherRunsSummary: String = ""
+
     // MARK: - Context Injection
 
-    func injectContext(_ result: AnalysisResult, datasetURL: String? = nil, cleaningActions: String? = nil) {
+    func injectContext(_ result: AnalysisResult, datasetURL: String? = nil, cleaningActions: String? = nil, otherRunsSummary: String? = nil) {
+        if let runs = otherRunsSummary {
+            self.otherRunsSummary = runs
+        }
         // Cap correlation pairs to avoid flooding a local LLM's context window
         let maxCorr = 10
         let corrList = result.correlations.prefix(maxCorr).map {
@@ -101,6 +106,10 @@ class ChatViewModel {
         // Append rich dataset context snapshot (column stats + sample rows)
         if let ctx = result.datasetContext, !ctx.isEmpty {
             systemPrompt += "\n\n" + ctx
+        }
+
+        if !self.otherRunsSummary.isEmpty {
+            systemPrompt += "\n\nOther historical analyses completed in this dataset group:\n" + self.otherRunsSummary
         }
 
         // Clear and re-inject

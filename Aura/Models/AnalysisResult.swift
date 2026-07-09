@@ -421,6 +421,19 @@ struct DatetimeBounds: Codable, Sendable, Equatable {
     let max: String
 }
 
+struct PreviewImage: Codable, Identifiable, Sendable {
+    var id: String { name }
+    let name: String
+    let label: String
+    let b64Data: String
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case label
+        case b64Data = "b64_data"
+    }
+}
+
 struct DatasetPreview: Codable, Sendable {
     let columns: [String]
     let previewRows: [[PreviewValue]]
@@ -432,6 +445,7 @@ struct DatasetPreview: Codable, Sendable {
     let totalRows: Int?
     let columnTypes: [String: String]?
     let datetimeRange: [String: DatetimeBounds]?
+    let previewImages: [PreviewImage]?
 
     init(
         columns: [String],
@@ -442,7 +456,8 @@ struct DatasetPreview: Codable, Sendable {
         availableFiles: [String]? = nil,
         totalRows: Int? = nil,
         columnTypes: [String: String]? = nil,
-        datetimeRange: [String: DatetimeBounds]? = nil
+        datetimeRange: [String: DatetimeBounds]? = nil,
+        previewImages: [PreviewImage]? = nil
     ) {
         self.columns = columns
         self.previewRows = previewRows
@@ -453,6 +468,7 @@ struct DatasetPreview: Codable, Sendable {
         self.totalRows = totalRows
         self.columnTypes = columnTypes
         self.datetimeRange = datetimeRange
+        self.previewImages = previewImages
     }
 
     enum CodingKeys: String, CodingKey {
@@ -465,6 +481,7 @@ struct DatasetPreview: Codable, Sendable {
         case totalRows = "total_rows"
         case columnTypes = "column_types"
         case datetimeRange = "datetime_range"
+        case previewImages = "preview_images"
     }
 }
 

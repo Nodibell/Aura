@@ -626,9 +626,7 @@ struct ContentView: View {
                     onSelectFileManually: { viewModel.selectFileManually() },
                     onImportFromDatabase: { viewModel.showDatabaseSheet = true },
                     onURLSubmitted: { urlString in
-                        viewModel.datasetURLInput = urlString
-                        viewModel.selectedFileURL = nil
-                        viewModel.fetchPreview(for: urlString)
+                        viewModel.loadRemoteDataset(urlString)
                     },
                     onSampleSelected: { name in
                         viewModel.loadSampleDataset(named: name)
@@ -646,240 +644,203 @@ struct ContentView: View {
                         viewModel.historyService.deleteItem(item)
                     }
                 )
-            } else if let activePage = viewModel.activePage, activePage.isDataOnly {
-                if let preview = activePage.previewResult {
+            } else if let activePage = viewModel.activePage {
+                if let analysisResult = viewModel.result {
                     VStack(spacing: 0) {
-                        PreviewTableView(
-                            preview: preview,
-                            config: Binding(
-                                get: { activePage.analysisConfig },
-                                set: { activePage.analysisConfig = $0 }
-                            ),
-                            onPreviewFileRequested: { path in
-                                viewModel.fetchPreview(for: path, page: activePage)
-                            },
-                            isSidebar: false
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    loadingView(
-                        title: "Loading data preview...",
-                        subtitle: "Parsing the dataset schema..."
-                    )
-                }
-            } else if viewModel.isAnalyzing {
-                loadingView(
-                    title: viewModel.progressMessage.isEmpty ? "Running analysis pipeline…" : viewModel.progressMessage,
-                    subtitle: "Fitting ML models and generating charts…",
-                    fraction: viewModel.progressFraction,
-                    onCancel: { Task { await PythonRunner.shared.cancelActiveAnalysis() } }
-                )
-
-            } else if viewModel.isPreloading {
-                loadingView(
-                    title: viewModel.progressMessage.isEmpty ? "Loading dataset preview…" : viewModel.progressMessage,
-                    subtitle: "Downloading and parsing the file format…",
-                    fraction: (viewModel.progressFraction > 0.0 || !viewModel.progressMessage.isEmpty) ? viewModel.progressFraction : nil,
-                    onCancel: { Task { await PythonRunner.shared.cancelActiveAnalysis() } }
-                )
-
-            } else if let error = viewModel.errorMessage {
-                errorView(error: error)
-
-            } else if let analysisResult = viewModel.result {
-                VStack(spacing: 0) {
-                    // Tab bar
-                    HStack {
-                        CustomSegmentedPicker(
-                            selection: $viewModel.selectedTab,
-                            items: [
-                                ("Summary", "Summary"),
-                                ("Charts", "Charts"),
-                                ("Correlations", "Correlations"),
-                                ("Data", "Data"),
-                                ("Cleaning", "Cleaning"),
-                                ("Diff", "Diff")
-                            ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
-                        )
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            withAnimation {
-                                viewModel.activePage?.result = nil
-                            }
-                        }) {
-                            Label("Reanalyze", systemImage: "arrow.counterclockwise")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.purple)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.purple.opacity(0.08))
-                                .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 16)
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(Color.primary.opacity(0.015))
-
-
-                    // Target Selector Pill Bar for Multi-Target Time Series
-                    if let targetsMap = analysisResult.targets, !targetsMap.isEmpty {
-                        VStack(spacing: 8) {
-                            HStack(spacing: 8) {
-                                Text("Forecast Target:")
+                        // Tab bar
+                        HStack {
+                            CustomSegmentedPicker(
+                                selection: $viewModel.selectedTab,
+                                items: [
+                                    ("Summary", "Summary"),
+                                    ("Charts", "Charts"),
+                                    ("Correlations", "Correlations"),
+                                    ("Data", "Data"),
+                                    ("Cleaning", "Cleaning"),
+                                    ("Diff", "Diff")
+                                ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
+                            )
+                            
+                            Spacer()
+                            
+                            Button(action: {
+                                withAnimation {
+                                    viewModel.activePage?.result = nil
+                                }
+                            }) {
+                                Label("Reanalyze", systemImage: "arrow.counterclockwise")
                                     .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.secondary)
-                                ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 6) {
-                                        ForEach(targetsMap.keys.sorted(), id: \.self) { targetName in
-                                            Button {
-                                                withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
-                                                    viewModel.selectedTargetName = targetName
+                                    .foregroundColor(.purple)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Color.purple.opacity(0.08))
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.trailing, 16)
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(Color.primary.opacity(0.015))
+
+
+                        // Target Selector Pill Bar for Multi-Target Time Series
+                        if let targetsMap = analysisResult.targets, !targetsMap.isEmpty {
+                            VStack(spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Text("Forecast Target:")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.secondary)
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 6) {
+                                            ForEach(targetsMap.keys.sorted(), id: \.self) { targetName in
+                                                Button {
+                                                    withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
+                                                        viewModel.selectedTargetName = targetName
+                                                    }
+                                                } label: {
+                                                    Text(targetName)
+                                                        .font(.system(size: 10, weight: .semibold))
+                                                        .padding(.horizontal, 10)
+                                                        .padding(.vertical, 5)
+                                                        .background(viewModel.selectedTargetName == targetName ? Color.purple : Color.primary.opacity(0.05))
+                                                        .foregroundColor(viewModel.selectedTargetName == targetName ? .white : .secondary)
+                                                        .cornerRadius(12)
                                                 }
-                                            } label: {
-                                                Text(targetName)
-                                                    .font(.system(size: 10, weight: .semibold))
-                                                    .padding(.horizontal, 10)
-                                                    .padding(.vertical, 5)
-                                                    .background(viewModel.selectedTargetName == targetName ? Color.purple : Color.primary.opacity(0.05))
-                                                    .foregroundColor(viewModel.selectedTargetName == targetName ? .white : .secondary)
-                                                    .cornerRadius(12)
+                                                .buttonStyle(.plain)
                                             }
-                                            .buttonStyle(.plain)
                                         }
                                     }
                                 }
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 10)
+                                
+                                Divider()
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 10)
-                            
+                        } else {
                             Divider()
                         }
-                    } else {
-                        Divider()
-                    }
 
-                    ZStack {
-                        switch viewModel.selectedTab {
-                        case "Summary":
-                            SummaryView(
-                                result: analysisResult.resultForTarget(viewModel.selectedTargetName),
-                                config: $viewModel.analysisConfig,
-                                activeModelName: $viewModel.activeModelName,
-                                onRunAnalysis: { viewModel.runEDA() },
-                                onExportModelAndCode: { viewModel.showModelExportSheet = true },
-                                onAskAI: { prompt in
+                        ZStack {
+                            switch viewModel.selectedTab {
+                            case "Summary":
+                                SummaryView(
+                                    result: analysisResult.resultForTarget(viewModel.selectedTargetName),
+                                    config: $viewModel.analysisConfig,
+                                    activeModelName: $viewModel.activeModelName,
+                                    onRunAnalysis: { viewModel.runEDA() },
+                                    onExportModelAndCode: { viewModel.showModelExportSheet = true },
+                                    onAskAI: { prompt in
+                                        sendToChat(prompt)
+                                    },
+                                    onScheduleAnalysis: {
+                                        viewModel.showSchedulerSheet = true
+                                    }
+                                )
+                            case "Charts":
+                                ChartsListView(result: analysisResult.resultForTarget(viewModel.selectedTargetName)) { prompt in
                                     sendToChat(prompt)
-                                },
-                                onScheduleAnalysis: {
-                                    viewModel.showSchedulerSheet = true
                                 }
-                            )
-                        case "Charts":
-                            ChartsListView(result: analysisResult.resultForTarget(viewModel.selectedTargetName)) { prompt in
-                                sendToChat(prompt)
-                            }
-                        case "Correlations":
-                            CorrelationMatrixView(result: analysisResult.resultForTarget(viewModel.selectedTargetName)) { prompt in
-                                sendToChat(prompt)
-                            }
-                        case "Data":
-                            VStack(spacing: 0) {
-                                if analysisResult.testFullPreview != nil || analysisResult.valFullPreview != nil {
-                                    HStack {
-                                        Spacer()
-                                        let dataItems: [(String, String)] = {
-                                            var list = [("Train", "train")]
-                                            if analysisResult.testFullPreview != nil {
-                                                list.append(("Test", "test"))
-                                            }
-                                            if analysisResult.valFullPreview != nil {
-                                                list.append(("Validation", "val"))
-                                            }
-                                            return list
-                                        }()
-                                        CustomSegmentedPicker(
-                                            selection: $viewModel.selectedDataTab,
-                                            items: dataItems
-                                        )
-                                        .frame(width: 280)
-                                        .padding(.horizontal)
-                                        .padding(.vertical, 8)
-                                        Spacer()
-                                    }
-                                    Divider().background(Color.primary.opacity(0.06))
+                            case "Correlations":
+                                CorrelationMatrixView(result: analysisResult.resultForTarget(viewModel.selectedTargetName)) { prompt in
+                                    sendToChat(prompt)
                                 }
-                                
-                                let activePreview: FullTablePreview? = {
-                                    if viewModel.selectedDataTab == "test", let testFp = analysisResult.testFullPreview {
-                                        return testFp
+                            case "Data":
+                                VStack(spacing: 0) {
+                                    if analysisResult.testFullPreview != nil || analysisResult.valFullPreview != nil {
+                                        HStack {
+                                            Spacer()
+                                            let dataItems: [(String, String)] = {
+                                                var list = [("Train", "train")]
+                                                if analysisResult.testFullPreview != nil {
+                                                    list.append(("Test", "test"))
+                                                }
+                                                if analysisResult.valFullPreview != nil {
+                                                    list.append(("Validation", "val"))
+                                                }
+                                                return list
+                                            }()
+                                            CustomSegmentedPicker(
+                                                selection: $viewModel.selectedDataTab,
+                                                items: dataItems
+                                            )
+                                            .frame(width: 280)
+                                            .padding(.horizontal)
+                                            .padding(.vertical, 8)
+                                            Spacer()
+                                        }
+                                        Divider().background(Color.primary.opacity(0.06))
                                     }
-                                    if viewModel.selectedDataTab == "val", let valFp = analysisResult.valFullPreview {
-                                        return valFp
+                                    
+                                    let activePreview: FullTablePreview? = {
+                                        if viewModel.selectedDataTab == "test", let testFp = analysisResult.testFullPreview {
+                                            return testFp
+                                        }
+                                        if viewModel.selectedDataTab == "val", let valFp = analysisResult.valFullPreview {
+                                            return valFp
+                                        }
+                                        return analysisResult.fullPreview
+                                    }()
+                                    
+                                    if let fp = activePreview {
+                                        FullTableView(preview: fp)
+                                    } else {
+                                        VStack(spacing: 12) {
+                                            Image(systemName: "tablecells")
+                                                .font(.system(size: 40))
+                                                .foregroundColor(.secondary)
+                                            Text("Full table not available for this analysis.")
+                                                .foregroundColor(.secondary)
+                                            Text("Re-run the analysis to include table data.")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary.opacity(0.6))
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                                     }
-                                    return analysisResult.fullPreview
-                                }()
-                                
-                                if let fp = activePreview {
-                                    FullTableView(preview: fp)
-                                } else {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "tablecells")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(.secondary)
-                                        Text("Full table not available for this analysis.")
-                                            .foregroundColor(.secondary)
-                                        Text("Re-run the analysis to include table data.")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary.opacity(0.6))
-                                    }
-                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 }
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case "Cleaning":
+                                DataCleaningView(
+                                    result: analysisResult,
+                                    config: $viewModel.analysisConfig,
+                                    onRunAnalysis: { viewModel.runEDA() }
+                                )
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case "Diff":
+                                AnalysisDiffView(
+                                    currentResult: analysisResult,
+                                    currentHistoryItemId: viewModel.currentHistoryItemId
+                                )
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            case "Predict":
+                                PredictionTabView(
+                                    result: analysisResult.resultForTarget(viewModel.selectedTargetName),
+                                    csvPath: viewModel.analysisConfig.trainFilePath ?? viewModel.previewResult?.localPath ?? viewModel.selectedFileURL?.path ?? viewModel.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    config: viewModel.analysisConfig,
+                                    activeModelName: viewModel.activeModelName
+                                )
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            default:
+                                Text("Select a tab")
                             }
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case "Cleaning":
-                            DataCleaningView(
-                                result: analysisResult,
-                                config: $viewModel.analysisConfig,
-                                onRunAnalysis: { viewModel.runEDA() }
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case "Diff":
-                            AnalysisDiffView(
-                                currentResult: analysisResult,
-                                currentHistoryItemId: viewModel.currentHistoryItemId
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        case "Predict":
-                            PredictionTabView(
-                                result: analysisResult.resultForTarget(viewModel.selectedTargetName),
-                                csvPath: viewModel.analysisConfig.trainFilePath ?? viewModel.previewResult?.localPath ?? viewModel.selectedFileURL?.path ?? viewModel.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines),
-                                config: viewModel.analysisConfig,
-                                activeModelName: viewModel.activeModelName
-                            )
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        default:
-                            Text("Select a tab")
                         }
                     }
+                } else {
+                    PendingAnalysisView(
+                        page: activePage,
+                        onRunAnalysis: {
+                            viewModel.runEDA()
+                        },
+                        onCancel: {
+                            withAnimation {
+                                viewModel.closePage(id: activePage.id)
+                            }
+                        },
+                        onPreviewFileRequested: { path in
+                            viewModel.fetchPreview(for: path, page: activePage)
+                        }
+                    )
                 }
-            } else if let activePage = viewModel.activePage {
-                PendingAnalysisView(
-                    page: activePage,
-                    onRunAnalysis: {
-                        viewModel.runEDA()
-                    },
-                    onCancel: {
-                        withAnimation {
-                            viewModel.closePage(id: activePage.id)
-                        }
-                    }
-                )
             } else {
                 Text("No active content")
             }

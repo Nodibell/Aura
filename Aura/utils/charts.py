@@ -52,6 +52,46 @@ def load_images_from_tabular(df, target_col=None):
         
     return X_images, y_arr
 
+def get_thumbnail_b64(img_or_arr):
+    import base64
+    from io import BytesIO
+    from PIL import Image
+    import numpy as np
+    import sys
+    try:
+        if isinstance(img_or_arr, np.ndarray):
+            # Normalize float array if needed
+            if img_or_arr.dtype == np.float32 or img_or_arr.dtype == np.float64:
+                if img_or_arr.max() <= 1.01:
+                    arr = (img_or_arr * 255.0).astype(np.uint8)
+                else:
+                    arr = img_or_arr.astype(np.uint8)
+            else:
+                arr = img_or_arr.astype(np.uint8)
+                
+            # Handle shape (H, W, C)
+            if len(arr.shape) == 3:
+                if arr.shape[2] == 1:
+                    arr = arr.squeeze(axis=2)
+                    img = Image.fromarray(arr, mode="L")
+                else:
+                    img = Image.fromarray(arr, mode="RGB")
+            elif len(arr.shape) == 2:
+                img = Image.fromarray(arr, mode="L")
+            else:
+                return None
+        else:
+            img = img_or_arr
+            
+        img = img.convert("RGB")
+        img.thumbnail((120, 120))
+        buffered = BytesIO()
+        img.save(buffered, format="JPEG", quality=75)
+        return base64.b64encode(buffered.getvalue()).decode('utf-8')
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to generate thumbnail: {str(e)}\n")
+        return None
+
 def get_image_preview(file_path, nrows=15):
     # This reads up to nrows images and returns metadata
     import zipfile
@@ -63,6 +103,7 @@ def get_image_preview(file_path, nrows=15):
     
     columns = ["image_index", "class_label", "width", "height", "channels", "mean_intensity", "std_intensity"]
     preview_rows = []
+    preview_images = []
     total_rows = 0
     
     temp_dir = None
@@ -88,12 +129,20 @@ def get_image_preview(file_path, nrows=15):
                     f"{pixel_mean:.2f}",
                     f"{pixel_std:.2f}"
                 ])
+                b64 = get_thumbnail_b64(img_slice)
+                if b64:
+                    preview_images.append({
+                        "name": f"Image {idx}",
+                        "label": str(y_arr[idx]),
+                        "b64_data": b64
+                    })
             return {
                 "columns": columns,
                 "preview_rows": preview_rows,
                 "local_path": file_path,
                 "inferred_dataset_type": "image",
                 "total_rows": total_rows,
+                "preview_images": preview_images,
                 "error": None
             }
 
@@ -167,6 +216,13 @@ def get_image_preview(file_path, nrows=15):
                     f"{pixel_mean:.2f}",
                     f"{pixel_std:.2f}"
                 ])
+                b64 = get_thumbnail_b64(img_slice)
+                if b64:
+                    preview_images.append({
+                        "name": f"Array Index {idx}",
+                        "label": label,
+                        "b64_data": b64
+                    })
         else:
             # zip or folder
             working_path = file_path
@@ -182,10 +238,10 @@ def get_image_preview(file_path, nrows=15):
                 
             image_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.gif', '.webp')
             all_image_paths = []
-            for root, dirs, files in os.walk(working_path):
+            for root_dir, dirs, files in os.walk(working_path):
                 for f in files:
                     if f.lower().endswith(image_extensions):
-                        all_image_paths.append(os.path.join(root, f))
+                        all_image_paths.append(os.path.join(root_dir, f))
             all_image_paths.sort()
             total_rows = len(all_image_paths)
             
@@ -210,6 +266,13 @@ def get_image_preview(file_path, nrows=15):
                         f"{pixel_mean:.2f}",
                         f"{pixel_std:.2f}"
                     ])
+                    b64 = get_thumbnail_b64(img)
+                    if b64:
+                        preview_images.append({
+                            "name": os.path.basename(path),
+                            "label": class_label,
+                            "b64_data": b64
+                        })
                     
         return {
             "columns": columns,
@@ -217,6 +280,7 @@ def get_image_preview(file_path, nrows=15):
             "local_path": file_path,
             "inferred_dataset_type": "image",
             "total_rows": total_rows,
+            "preview_images": preview_images,
             "error": None
         }
     except Exception as e:
