@@ -172,7 +172,18 @@ class DashboardViewModel {
     }
     
     // MARK: - Page Lifecycle Management
-    func openNewPage(title: String, fileURL: URL? = nil, datasetURLInput: String = "", previewResult: DatasetPreview? = nil, result: AnalysisResult? = nil, config: AnalysisConfig = AnalysisConfig(), trainColumns: [String] = [], historyItemId: UUID? = nil) -> AnalysisPage {
+    func openNewPage(
+        title: String,
+        fileURL: URL? = nil,
+        datasetURLInput: String = "",
+        previewResult: DatasetPreview? = nil,
+        result: AnalysisResult? = nil,
+        config: AnalysisConfig = AnalysisConfig(),
+        trainColumns: [String] = [],
+        historyItemId: UUID? = nil,
+        isPreview: Bool = false,
+        isDataOnly: Bool = false
+    ) -> AnalysisPage {
         let newPage = AnalysisPage(
             title: title,
             fileURL: fileURL,
@@ -181,9 +192,15 @@ class DashboardViewModel {
             result: result,
             config: config,
             trainColumns: trainColumns,
-            historyItemId: historyItemId
+            historyItemId: historyItemId,
+            isPreview: isPreview,
+            isDataOnly: isDataOnly
         )
-        openPages.append(newPage)
+        if isPreview, let prevIndex = openPages.firstIndex(where: { $0.isPreview }) {
+            openPages[prevIndex] = newPage
+        } else {
+            openPages.append(newPage)
+        }
         activePageId = newPage.id
         return newPage
     }
@@ -211,7 +228,7 @@ class DashboardViewModel {
     
     func loadDroppedFile(_ url: URL) {
         let title = url.lastPathComponent
-        let page = openNewPage(title: title, fileURL: url)
+        let page = openNewPage(title: title, fileURL: url, isPreview: true)
         page.analysisConfig.trainFilePath = url.path
         
         if let size = try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize {
@@ -411,6 +428,7 @@ class DashboardViewModel {
     }
 
     func runEDA(with customConfig: AnalysisConfig?, page: AnalysisPage) {
+        page.isPreview = false
         let configToUse = customConfig ?? page.analysisConfig
         
         let csvPath: String
@@ -533,14 +551,15 @@ class DashboardViewModel {
         }
     }
     
-    func loadHistoryItem(_ item: HistoryItem) {
+    func loadHistoryItem(_ item: HistoryItem, isPreview: Bool = false, isDataOnly: Bool = false) {
         // If already open, make active
-        if let existing = openPages.first(where: { $0.currentHistoryItemId == item.id }) {
+        if let existing = openPages.first(where: { $0.currentHistoryItemId == item.id && $0.isDataOnly == isDataOnly }) {
             activePageId = existing.id
             return
         }
         
-        let page = openNewPage(title: item.datasetName, historyItemId: item.id)
+        let title = isDataOnly ? "\(item.datasetName) • Data" : item.datasetName
+        let page = openNewPage(title: title, historyItemId: item.id, isPreview: isPreview, isDataOnly: isDataOnly)
         
         withAnimation {
             page.errorMessage = nil
@@ -629,8 +648,26 @@ class DashboardViewModel {
             } else {
                 newConfig.targetColumn = item.targetColumn ?? ""
                 page.analysisConfig = newConfig
-                page.errorMessage = "Could not load saved analysis result from disk."
             }
         }
     }
+    
+    var groupedDatasets: [GroupedDataset] {
+        let items = historyService.items
+        let grouped = Dictionary(grouping: items, by: { $0.datasetName })
+        return grouped.map { name, runs in
+            let sortedRuns = runs.sorted(by: { $0.timestamp > $1.timestamp })
+            return GroupedDataset(name: name, runs: sortedRuns)
+        }.sorted(by: { a, b in
+            let aTime = a.runs.first?.timestamp ?? Date.distantPast
+            let bTime = b.runs.first?.timestamp ?? Date.distantPast
+            return aTime > bTime
+        })
+    }
+}
+
+struct GroupedDataset: Identifiable {
+    var id: String { name }
+    let name: String
+    let runs: [HistoryItem]
 }

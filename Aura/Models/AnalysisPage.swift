@@ -33,6 +33,8 @@ class AnalysisPage: Identifiable, Equatable {
     
     let chatViewModel: ChatViewModel
     var currentHistoryItemId: UUID? = nil
+    var isPreview: Bool = false
+    var isDataOnly: Bool = false
     
     init(
         id: UUID = UUID(),
@@ -43,7 +45,9 @@ class AnalysisPage: Identifiable, Equatable {
         result: AnalysisResult? = nil,
         config: AnalysisConfig = AnalysisConfig(),
         trainColumns: [String] = [],
-        historyItemId: UUID? = nil
+        historyItemId: UUID? = nil,
+        isPreview: Bool = false,
+        isDataOnly: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -55,6 +59,8 @@ class AnalysisPage: Identifiable, Equatable {
         self.trainColumns = trainColumns
         self.currentHistoryItemId = historyItemId
         self.chatViewModel = ChatViewModel()
+        self.isPreview = isPreview
+        self.isDataOnly = isDataOnly
         
         if let res = result {
             self.activeModelName = res.metrics.model

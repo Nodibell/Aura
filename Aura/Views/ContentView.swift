@@ -5,6 +5,7 @@ struct ContentView: View {
     @State private var viewModel = DashboardViewModel()
     @State private var showHistoryBrowser = false
     @State private var showCommandPalette = false
+    @State private var expandedDatasets: Set<String> = []
     @AppStorage("Aura_hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("Aura_Appearance") private var appearanceMode = "System"
     
@@ -422,66 +423,135 @@ struct ContentView: View {
                     .font(.system(size: 11, weight: .bold))
                     .padding(.horizontal, 16)
 
-                    // ── Recent Analyses ──────────────────────────────────────────
+                    // ── Datasets (Grouped Hierarchy) ──────────────────────────────
                     if !viewModel.historyService.items.isEmpty {
-                        DisclosureGroup("Recent Analyses") {
-                            VStack(spacing: 0) {
-                                ForEach(viewModel.historyService.items.prefix(5)) { item in
-                                    Button { viewModel.loadHistoryItem(item) } label: {
-                                        HStack(spacing: 8) {
-                                            RoundedRectangle(cornerRadius: 1.5)
-                                                .fill(item.uiColor)
-                                                .frame(width: 3, height: 24)
-                                            
-                                            VStack(alignment: .leading, spacing: 1) {
-                                                HStack(spacing: 4) {
-                                                    if item.isPinned ?? false {
-                                                        Image(systemName: "star.fill")
-                                                            .font(.system(size: 7))
-                                                            .foregroundColor(.yellow)
-                                                    }
-                                                    Text(item.datasetName)
-                                                        .font(.system(size: 11, weight: .semibold, design: .rounded))
+                        DisclosureGroup("Datasets", isExpanded: Binding<Bool>(
+                            get: { expandedDatasets.contains("ROOT_DATASETS") },
+                            set: { isExpanded in
+                                if isExpanded {
+                                    expandedDatasets.insert("ROOT_DATASETS")
+                                } else {
+                                    expandedDatasets.remove("ROOT_DATASETS")
+                                }
+                            }
+                        )) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                ForEach(viewModel.groupedDatasets) { group in
+                                    let isExpanded = Binding<Bool>(
+                                        get: { expandedDatasets.contains(group.name) },
+                                        set: { isAdding in
+                                            if isAdding {
+                                                expandedDatasets.insert(group.name)
+                                            } else {
+                                                expandedDatasets.remove(group.name)
+                                            }
+                                        }
+                                    )
+                                    
+                                    DisclosureGroup(isExpanded: isExpanded) {
+                                        VStack(spacing: 0) {
+                                            // 1. Shared Data View
+                                            Button {
+                                                if let latestRun = group.runs.first {
+                                                    viewModel.loadHistoryItem(latestRun, isPreview: true, isDataOnly: true)
+                                                }
+                                            } label: {
+                                                HStack {
+                                                    Image(systemName: "grid")
+                                                        .foregroundColor(.secondary)
+                                                        .font(.system(size: 11))
+                                                    Text("Data")
+                                                        .font(.system(size: 11))
                                                         .foregroundColor(.primary)
-                                                        .lineLimit(1)
+                                                    Spacer()
+                                                    Text("shared")
+                                                        .font(.system(size: 9))
+                                                        .foregroundColor(.secondary.opacity(0.6))
+                                                }
+                                                .padding(.vertical, 6)
+                                                .padding(.horizontal, 8)
+                                                .contentShape(Rectangle())
+                                            }
+                                            .buttonStyle(.plain)
+                                            
+                                            Divider().background(Color.primary.opacity(0.04))
+                                            
+                                            // 2. Individual Runs
+                                            ForEach(group.runs) { item in
+                                                Button {
+                                                    viewModel.loadHistoryItem(item, isPreview: true, isDataOnly: false)
+                                                } label: {
+                                                    HStack(spacing: 8) {
+                                                        RoundedRectangle(cornerRadius: 1.5)
+                                                            .fill(item.uiColor)
+                                                            .frame(width: 3, height: 24)
+                                                        
+                                                        VStack(alignment: .leading, spacing: 1) {
+                                                            HStack(spacing: 4) {
+                                                                if item.isPinned ?? false {
+                                                                    Image(systemName: "star.fill")
+                                                                        .font(.system(size: 7))
+                                                                        .foregroundColor(.yellow)
+                                                                }
+                                                                Text(item.shortLabel)
+                                                                    .font(.system(size: 11, weight: .bold))
+                                                                    .foregroundColor(item.uiColor)
+                                                            }
+                                                            
+                                                            Text(item.timestamp, style: .date)
+                                                                .font(.system(size: 8))
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                        Spacer()
+                                                        
+                                                        if let model = item.bestModel, let score = item.bestScore {
+                                                            Text("\(model) (\(String(format: "%.2f", score)))")
+                                                                .font(.system(size: 9))
+                                                                .foregroundColor(.secondary)
+                                                        }
+                                                    }
+                                                    .padding(.vertical, 5)
+                                                    .padding(.horizontal, 6)
+                                                    .contentShape(Rectangle())
+                                                }
+                                                .buttonStyle(.plain)
+                                                .contextMenu {
+                                                    Button {
+                                                        viewModel.renameText = item.datasetName
+                                                        viewModel.itemToRename = item
+                                                        viewModel.showRenameAlert = true
+                                                    } label: {
+                                                        Label("Rename Analysis...", systemImage: "pencil")
+                                                    }
+                                                    Button {
+                                                        viewModel.historyService.togglePinItem(item)
+                                                    } label: {
+                                                        Label((item.isPinned ?? false) ? "Unpin Analysis" : "Pin Analysis", systemImage: "star")
+                                                    }
+                                                    Button(role: .destructive) {
+                                                        viewModel.historyService.deleteItem(item)
+                                                    } label: {
+                                                        Label("Delete Analysis", systemImage: "trash")
+                                                    }
                                                 }
                                                 
-                                                Text(item.shortLabel)
-                                                    .font(.system(size: 8, weight: .bold))
-                                                    .foregroundColor(item.uiColor)
+                                                if item.id != group.runs.last?.id {
+                                                    Divider().background(Color.primary.opacity(0.04))
+                                                }
                                             }
+                                        }
+                                        .padding(.top, 4)
+                                    } label: {
+                                        HStack {
+                                            Image(systemName: "tablecells")
+                                                .foregroundColor(.purple)
+                                                .font(.system(size: 11))
+                                            Text(group.name)
+                                                .font(.system(size: 11, weight: .semibold))
+                                                .foregroundColor(.primary)
+                                                .lineLimit(1)
                                             Spacer()
-                                            Image(systemName: "chevron.right")
-                                                .font(.system(size: 7))
-                                                .foregroundColor(.secondary.opacity(0.5))
                                         }
-                                        .padding(.vertical, 5)
-                                        .padding(.horizontal, 6)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .contextMenu {
-                                        Button {
-                                            viewModel.renameText = item.datasetName
-                                            viewModel.itemToRename = item
-                                            viewModel.showRenameAlert = true
-                                        } label: {
-                                            Label("Rename Analysis...", systemImage: "pencil")
-                                        }
-                                        Button {
-                                            viewModel.historyService.togglePinItem(item)
-                                        } label: {
-                                            Label((item.isPinned ?? false) ? "Unpin Analysis" : "Pin Analysis", systemImage: "star")
-                                        }
-                                        Button(role: .destructive) {
-                                            viewModel.historyService.deleteItem(item)
-                                        } label: {
-                                            Label("Delete Analysis", systemImage: "trash")
-                                        }
-                                    }
-                                    
-                                    if item.id != viewModel.historyService.items.prefix(5).last?.id {
-                                        Divider().background(Color.primary.opacity(0.04))
                                     }
                                 }
                             }
@@ -489,6 +559,9 @@ struct ContentView: View {
                         }
                         .font(.system(size: 11, weight: .bold))
                         .padding(.horizontal, 16)
+                        .onAppear {
+                            expandedDatasets.insert("ROOT_DATASETS")
+                        }
                     }
                     
                     Spacer(minLength: 20)
@@ -582,6 +655,29 @@ struct ContentView: View {
                         viewModel.historyService.deleteItem(item)
                     }
                 )
+            } else if let activePage = viewModel.activePage, activePage.isDataOnly {
+                if let preview = activePage.previewResult {
+                    VStack(spacing: 0) {
+                        PreviewTableView(
+                            preview: preview,
+                            config: Binding(
+                                get: { activePage.analysisConfig },
+                                set: { activePage.analysisConfig = $0 }
+                            ),
+                            onPreviewFileRequested: { path in
+                                viewModel.fetchPreview(for: path, page: activePage)
+                            },
+                            isSidebar: false
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    loadingView(
+                        title: "Loading data preview...",
+                        subtitle: "Parsing the dataset schema..."
+                    )
+                }
             } else if viewModel.isAnalyzing {
                 loadingView(
                     title: viewModel.progressMessage.isEmpty ? "Running analysis pipeline…" : viewModel.progressMessage,
@@ -1031,10 +1127,20 @@ struct TabsHeaderView: View {
                                 .font(.system(size: 11))
                                 .foregroundColor(isActive ? Color.purple : Color.secondary)
                             
-                            Text(page.title)
-                                .font(.system(size: 11, weight: isActive ? .semibold : .regular))
-                                .foregroundColor(isActive ? .primary : .secondary)
-                                .lineLimit(1)
+                            Group {
+                                if page.isPreview {
+                                    Text(page.title)
+                                        .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                                        .italic()
+                                        .foregroundColor(isActive ? .primary : .secondary)
+                                        .lineLimit(1)
+                                } else {
+                                    Text(page.title)
+                                        .font(.system(size: 11, weight: isActive ? .semibold : .regular))
+                                        .foregroundColor(isActive ? .primary : .secondary)
+                                        .lineLimit(1)
+                                }
+                            }
                             
                             Button(action: {
                                 withAnimation {
@@ -1059,6 +1165,11 @@ struct TabsHeaderView: View {
                             alignment: .bottom
                         )
                         .contentShape(Rectangle())
+                        .onTapGesture(count: 2) {
+                            withAnimation {
+                                page.isPreview = false
+                            }
+                        }
                         .onTapGesture {
                             withAnimation {
                                 viewModel.activePageId = page.id
