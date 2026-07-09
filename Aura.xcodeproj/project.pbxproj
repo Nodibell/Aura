@@ -104,7 +104,6 @@
 		B935576B41719E3EA7CDDC62 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0709C15E39493935E745814C /* OnboardingView.swift */; };
 		BDD2DA548F05815FA35D6576 /* LineChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBE6C65AE3A24178632E547C /* LineChartView.swift */; };
 		BE527B0A2F698E100419EF6E /* AnalysisDiffView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9154FEC5526BFA11EDE8BB41 /* AnalysisDiffView.swift */; };
-		C229F842669AC8364727703E /* ReanalyzeConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5384610B9C1F44054F2085 /* ReanalyzeConfigView.swift */; };
 		C2CEEF4ECCB515D5CA91AE38 /* event_bus.py in Resources */ = {isa = PBXBuildFile; fileRef = 144EDD81C87C51E8B08792C9 /* event_bus.py */; };
 		C30A9E774BE2C3E50294C4F1 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B775FC772BBB757874196464 /* ChatMessage.swift */; };
 		C41FB1B2B66DC70A3700C6DD /* charts.py in Resources */ = {isa = PBXBuildFile; fileRef = 9ED2F02669746860CF49087F /* charts.py */; };
@@ -165,7 +164,6 @@
 		2F4006A13F6439B2D1327719 /* DashboardViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModelTests.swift; sourceTree = "<group>"; };
 		31D95ECC61D509AB18E98FBB /* cv_nlp_engine.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = cv_nlp_engine.py; sourceTree = "<group>"; };
 		34B4B2405359C1E4C552C0CF /* ShapBeeswarmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapBeeswarmView.swift; sourceTree = "<group>"; };
-		3F5384610B9C1F44054F2085 /* ReanalyzeConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReanalyzeConfigView.swift; sourceTree = "<group>"; };
 		401068CD37570487457B1D3C /* ExportReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportReportSheet.swift; sourceTree = "<group>"; };
 		4132DBCA716664112C0A3B3E /* arrow_helper.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = arrow_helper.py; sourceTree = "<group>"; };
 		43B18B5AFF90EF954D17CAEE /* loader.cpython-311.pyc */ = {isa = PBXFileReference; path = "loader.cpython-311.pyc"; sourceTree = "<group>"; };
@@ -355,7 +353,6 @@
 				E8AC953724F3C34D7B6A5A23 /* PendingAnalysisView.swift */,
 				D7928B28A4483B5F3E002C18 /* PredictionTabView.swift */,
 				5A3E70D96E31DBF381D493A3 /* PreviewTableView.swift */,
-				3F5384610B9C1F44054F2085 /* ReanalyzeConfigView.swift */,
 				624F60BF44A6B0961B100408 /* SettingsView.swift */,
 				7FEE37BF68704248704A691D /* SummaryView.swift */,
 				AC5BBB1B5AD15A802BCFE7EE /* Charts */,
@@ -699,7 +696,6 @@
 				B8C74FCFCB5727522274806D /* ProtectedData.swift in Sources */,
 				6E99C77956A059840571F2B5 /* PythonRunner.swift in Sources */,
 				5DA68F35C38C04B89657C55B /* REPLService.swift in Sources */,
-				C229F842669AC8364727703E /* ReanalyzeConfigView.swift in Sources */,
 				242ACCE81E9678B9B855F6AC /* ReportCompiler.swift in Sources */,
 				0483175B29A09D4356E1D364 /* RidgelineChartView.swift in Sources */,
 				890940064EB079DA59B1FD9C /* ScatterChartView.swift in Sources */,

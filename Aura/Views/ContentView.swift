@@ -293,21 +293,6 @@ struct ContentView: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
 
-                    // ── Active Page Reanalyze Config ──────────────────────────────
-                    if let activePage = viewModel.activePage {
-                        ReanalyzeConfigView(
-                            page: activePage,
-                            onRun: {
-                                viewModel.runEDA()
-                            },
-                            onCancel: {
-                                withAnimation {
-                                    viewModel.closePage(id: activePage.id)
-                                }
-                            }
-                        )
-                        .padding(.vertical, 8)
-                    }
 
                     // ── Sample Datasets ───────────────────────────────────────────
                     DisclosureGroup("Sample Datasets") {
@@ -374,6 +359,44 @@ struct ContentView: View {
                                     Image(systemName: "text.bubble").foregroundColor(.green)
                                         .font(.system(size: 11))
                                     Text("Movie Reviews")
+                                        .font(.system(size: 11))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                }
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Divider().background(Color.primary.opacity(0.05))
+                            
+                            Button { viewModel.loadSampleDataset(named: "mnist_mini.npz") } label: {
+                                HStack {
+                                    Image(systemName: "photo.stack").foregroundColor(.orange)
+                                        .font(.system(size: 11))
+                                    Text("MNIST Mini (NPZ)")
+                                        .font(.system(size: 11))
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 8))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                }
+                                .padding(.vertical, 6)
+                                .padding(.horizontal, 8)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            
+                            Divider().background(Color.primary.opacity(0.05))
+                            
+                            Button { viewModel.loadSampleDataset(named: "drone_dataset") } label: {
+                                HStack {
+                                    Image(systemName: "viewfinder.rectangular").foregroundColor(.red)
+                                        .font(.system(size: 11))
+                                    Text("Drone Detection")
                                         .font(.system(size: 11))
                                     Spacer()
                                     Image(systemName: "chevron.right")
@@ -668,17 +691,37 @@ struct ContentView: View {
             } else if let analysisResult = viewModel.result {
                 VStack(spacing: 0) {
                     // Tab bar
-                    CustomSegmentedPicker(
-                        selection: $viewModel.selectedTab,
-                        items: [
-                            ("Summary", "Summary"),
-                            ("Charts", "Charts"),
-                            ("Correlations", "Correlations"),
-                            ("Data", "Data"),
-                            ("Cleaning", "Cleaning"),
-                            ("Diff", "Diff")
-                        ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
-                    )
+                    HStack {
+                        CustomSegmentedPicker(
+                            selection: $viewModel.selectedTab,
+                            items: [
+                                ("Summary", "Summary"),
+                                ("Charts", "Charts"),
+                                ("Correlations", "Correlations"),
+                                ("Data", "Data"),
+                                ("Cleaning", "Cleaning"),
+                                ("Diff", "Diff")
+                            ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
+                        )
+                        
+                        Spacer()
+                        
+                        Button(action: {
+                            withAnimation {
+                                viewModel.activePage?.result = nil
+                            }
+                        }) {
+                            Label("Reanalyze", systemImage: "arrow.counterclockwise")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.purple)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Color.purple.opacity(0.08))
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.trailing, 16)
+                    }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     .background(Color.primary.opacity(0.015))
@@ -826,9 +869,17 @@ struct ContentView: View {
                     }
                 }
             } else if let activePage = viewModel.activePage {
-                PendingAnalysisView(page: activePage) {
-                    viewModel.runEDA()
-                }
+                PendingAnalysisView(
+                    page: activePage,
+                    onRunAnalysis: {
+                        viewModel.runEDA()
+                    },
+                    onCancel: {
+                        withAnimation {
+                            viewModel.closePage(id: activePage.id)
+                        }
+                    }
+                )
             } else {
                 Text("No active content")
             }
