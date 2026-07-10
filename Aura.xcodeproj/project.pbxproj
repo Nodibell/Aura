@@ -87,6 +87,7 @@
 		9C799893B31E1D3DBA950DAD /* profiler.py in Resources */ = {isa = PBXBuildFile; fileRef = BFE0A9FA6A6821EF8D5A1728 /* profiler.py */; };
 		9EAA1B72CE23B19B87619445 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E79BF77BFF47CAD77B65137 /* ContentView.swift */; };
 		A21AED96A0471C2581EC2FE7 /* CorrelationMatrixView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4812E4EAF0ADDE9AE646C7EE /* CorrelationMatrixView.swift */; };
+		A228D88007860FA663974EE3 /* Views.zip in Resources */ = {isa = PBXBuildFile; fileRef = 060CA3FBCF059D4F1D9785A5 /* Views.zip */; };
 		A3449C7392EA98857DB2606C /* preview.py in Resources */ = {isa = PBXBuildFile; fileRef = 909EAF01F877E18009244DF4 /* preview.py */; };
 		A382C645D50ABCE8A36228ED /* KeychainService.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94A9C43791F93BBFF10727E /* KeychainService.swift */; };
 		A3FEFDF9BD850644BDA50E14 /* DashboardViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F4006A13F6439B2D1327719 /* DashboardViewModelTests.swift */; };
@@ -146,6 +147,7 @@
 		0296AD82546F1F9C92E1473F /* AnalysisResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisResult.swift; sourceTree = "<group>"; };
 		02B11CA7F5F451FECA5212CC /* BoxPlotView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoxPlotView.swift; sourceTree = "<group>"; };
 		036BB7B2813DA346B8701843 /* HTMLToPDFConverter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToPDFConverter.swift; sourceTree = "<group>"; };
+		060CA3FBCF059D4F1D9785A5 /* Views.zip */ = {isa = PBXFileReference; lastKnownFileType = archive.zip; path = Views.zip; sourceTree = "<group>"; };
 		0709C15E39493935E745814C /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		0748F80EDE9BE8E1331656E0 /* DragDropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DragDropView.swift; sourceTree = "<group>"; };
 		09478DBDC3036AF9DCC853DE /* repl_session.cpython-311.pyc */ = {isa = PBXFileReference; path = "repl_session.cpython-311.pyc"; sourceTree = "<group>"; };
@@ -441,6 +443,7 @@
 				81F2953CFD09F28D18BA049B /* marked.min.js */,
 				FD250D9E27667F0684F9B96A /* query_db.py */,
 				9CC03F445DA919A31C0FF3B1 /* server.py */,
+				060CA3FBCF059D4F1D9785A5 /* Views.zip */,
 				392542F8312EE21DD7354B2F /* __pycache__ */,
 				CF8B789E1A9FBACB723B0A09 /* Models */,
 				B8FC08986204B9FC25427146 /* pipelines */,
@@ -581,6 +584,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				09855E8CBE560945EC01F964 /* Assets.xcassets in Resources */,
+				A228D88007860FA663974EE3 /* Views.zip in Resources */,
 				13C94F213510B7CEFE85EFF7 /* ai_analyst.cpython-311.pyc in Resources */,
 				812E7CCF80C1E77C020BC0C6 /* ai_analyst.py in Resources */,
 				217CB12B41AA63AF8B1D5B3F /* analyze.cpython-311.pyc in Resources */,
@@ -746,6 +750,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
@@ -765,6 +770,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.8.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.aura.Aura;
 				PRODUCT_NAME = Aura;
 				SDKROOT = macosx;
