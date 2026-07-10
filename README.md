@@ -8,88 +8,53 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 
 ## 🌟 Key Features
 
-### 1. Multi-Format Automated Data Profiling
-* **Inteligent Type Detection**: Auto-detects column types: numeric, categorical, text/NLP, identifiers, and datetime.
-* **Smart Exclusions**: Automatically flags and filters out datetime and identifier columns from training features to avoid leakage.
-* **Correlations & Descriptives**: Provides summary statistics, histograms, and top correlation matrices.
+### 1. Automated Data Profiling & Versioning
+* **Intelligent Type Detection**: Auto-detects column types — numeric, categorical, text/NLP, identifiers, and datetime.
+* **Smart Exclusions**: Automatically flags and filters datetime/identifier columns from training features to avoid leakage, with a manual toggle to re-enable them or override any column's inferred type.
+* **Correlations & Descriptives**: Summary statistics, histograms, and top correlation matrices.
+* **Chronological Dataset Versioning**: Preview and history tabs track dataset versions directly in the sidebar (`Data (v1)`, `Data (v2)`, etc.), so you can revisit or compare against earlier states of the same source data.
+* **Direct Database Connectivity**: Connect to SQLite, MySQL, and PostgreSQL to pull datasets straight into Aura.
+* **Dataset Merging Engine**: Combine tables in-app using inner, outer, left, or right joins.
 
-### 2. Tabular, NLP, & Image Modeling
-* **Tabular ML**: Train and compare regression and classification leaderboards (e.g., Random Forest, XGBoost, Linear/Logistic Regression).
-* **Text / NLP Feature Extraction**: Auto-vectorizes text features with TF-IDF for direct document classification/regression.
-* **Image Classification**: Full support for `.npz` multi-dimensional array image datasets.
-* **SHAP Feature Importance**: Calculate and plot global feature impact using Tree-SHAP.
+### 2. Modeling Across Tabular, NLP, Image & Time Series
+* **Expanded Model Suites**: Trains and compares Random Forest, XGBoost, LightGBM, CatBoost, and Linear/Logistic Regression leaderboards for tabular, NLP, and computer vision datasets, with multi-metric sorting (F1, Accuracy, Precision, Recall, MSE, RMSE, MAE).
+* **Text / NLP**: TF-IDF vectorization for document classification/regression, plus multi-label classification (comma-separated tags auto-binarized and trained via `OneVsRestClassifier`).
+* **Image Classification & Segmentation**: Full support for `.npz` array datasets with PCA-compressed features for memory efficiency; paired image/mask loading, pixel-level Random Forest segmentation, and Dice/IoU precision metrics with overlay comparison grids.
+* **Time Series Forecasting**: ARIMA (with stepwise `pmdarima` parameter search) compared against ML predictors and live Holt-Winters exponential smoothing; multi-target switching, seasonal/trend filters, and a date-range picker for filtering before a run.
+* **Clustering & Deep Learning**: HDBSCAN clustering with automatic density detection and PCA visualization, plus PyTorch tabular neural networks.
+* **Explainability & Tuning**: Tree-SHAP global feature importance, and Optuna-driven hyperparameter tuning for Random Forest/XGBoost with strict run-time budgeting.
 
-### 3. Multi-Target Time Series Forecasting
-* **ARIMA Comparison**: Fits classical ARIMA alongside machine learning predictors.
-* **Multi-Target Switcher**: Select multiple targets simultaneously in the sidebar and toggle between their forecasted results dynamically.
-* **Seasonal & Trend Analysis**: Filter forecasts by specific years and explore calendar-seasonal cycles ("Month of Year", "Day of Month").
+### 3. Interactive Data Cleaning & Preprocessing
+* **Per-Column Imputation & Outlier Treatment**: Mean, median, mode, KNN, or MICE imputation; IQR capping/dropping or Isolation Forest outlier filters.
+* **Conditional Exclusions & Data Operations**: Filter rows dynamically via categorical checkboxes, numeric range bounds, or text-contains matching, with global row deduplication.
+* **Target Encoding**: Stateful, leakage-safe encoding for high-cardinality categorical variables.
+* **Column Renaming**: Live variable renaming inside the Data Cleaning panel.
+* **Custom Python Plugins**: Extend the cleaning pipeline by dropping your own transformation scripts into a local Plugins directory.
 
-### 4. Automated Semantic Image Segmentation
-* **Paired Image/Mask Loader**: Automatically detects paired image and mask directories.
-* **Pixel-Level Random Forest**: Train classifiers on pixel grids.
-* **Dice & IoU Metrics**: Calculates precision metrics and displays prediction overlay comparison grids.
+### 4. Live Inference
+* **Interactive Predictions**: Test the best-performing trained model on-the-fly, with input constraints (e.g. integer-only steps) inferred automatically from column profiling.
 
 ### 5. Local AI Analyst (Ollama)
-* **Secure Private LLM**: Connects to local models (e.g., `llama3.2`, `qwen2.5`) via Ollama. No data leaves your machine.
-* **Dynamic Title Generation**: Generates clean descriptive titles for your analysis history in the background.
-* **Markdown Report Export**: Compile full analyses, charts, and AI narrative reviews into clean Markdown files.
+* **Private, On-Device LLM**: Connects to local models (`llama3.2`, `qwen2.5`, etc.) — no data leaves your machine.
+* **Agentic REPL Loop**: Intercepts `<execute_python>` blocks generated by the AI, runs them in a sandboxed Python REPL, and feeds results back so the model can complete multi-step analysis tasks.
+* **Rich Dataset Context (RAG)**: Token-efficient column profiles, distributions, and row previews feed the model's system prompt automatically.
+* **Dynamic Title Generation**: Generates descriptive titles for your analysis history in the background.
 
-### 7. Interactive Preprocessing & AutoML (New in v0.2.0)
-* **Custom Imputation & Outlier Treatments**: Configure custom imputation (Mean, Median, Mode, KNN, MICE) and outlier filters (Cap IQR, Drop IQR, Isolation Forest) per column.
-* **Target Encoding**: Stateful target encoding for high-cardinality categorical variables without target leakage.
-* **Optuna Hyperparameter Tuning**: Auto-tuned RandomForest and XGBoost regressors and classifiers with strict run-time timeout budgeting.
+### 6. Reporting & Export
+* **Markdown & PDF Reports**: Compile analyses, charts, and AI narrative summaries into Markdown, or standardized PDF reports with contrast-optimized light-mode print layouts alongside premium dark-mode HTML exports.
+* **Jupyter Notebook Export**: Export a full modeling run as a standard `.ipynb` notebook for downstream use.
+* **Offline Chart Rendering**: Bundled `echarts.min.js`/`marked.min.js` — no CDN dependency for PDF exports.
 
-### 8. Enterprise Features & Live Inference (New in v0.3.0)
-* **Interactive Live Inference**: Test predictions on-the-fly inside the app using the best-performing trained model.
-* **Direct Database Connectivity**: Connect directly to SQLite, MySQL, and PostgreSQL to pull datasets into Aura.
-* **Periodical Analysis Scheduler**: Automate hourly, daily, or weekly data scans and auto-export HTML/PDF reports to a designated folder.
-* **Visual Run Comparison (Analysis Diff)**: Compare multiple runs of the same dataset side-by-side to track changes in metrics, feature importance, and performance.
-* **Dataset Merging Engine**: Combine and merge different tables directly in-app using inner, outer, left, and right joins.
-* **PDF Report Compiler**: Standardized PDF report generation, compiling data profiles, visualizations, and local AI summaries.
-* **Clustering & Deep Learning Pipelines**: Added K-Means/DBSCAN clustering pipelines with PCA visualization, plus PyTorch tabular Neural Networks.
+### 7. Automation & Enterprise Tools
+* **Analysis Scheduler**: Automate hourly, daily, or weekly scans with auto-exported HTML/PDF reports.
+* **Analysis Diff**: Compare multiple runs of the same dataset side-by-side across metrics, feature importance, and performance.
+* **Local Server Control**: A dedicated settings panel to monitor and manually start/stop/restart the backend (status, address, port, PID), with clean, synchronous process termination on quit.
 
-### 9. Hardening, Optimization & UI Polish (New in v0.3.1)
-* **HDBSCAN Clustering**: Replaced standard DBSCAN with `HDBSCAN` in [clustering.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/clustering.py) to automatically determine cluster densities and avoid manual threshold settings, integrated with column mappings in [ChartsListView.swift](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/Views/ChartsListView.swift) for interactive drill-downs.
-* **PCA Image Squashing**: Compresses wide image arrays into 100 components using scikit-learn `Pipeline` and `PCA` inside the CV loop in [image.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/image.py) to optimize memory usage.
-* **Stepwise `pmdarima` Selection**: Automatically finds optimal $p, d, q$ ARIMA configurations using stepwise search in [timeseries.py](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/pipelines/timeseries.py).
-* **Live Holt-Winters Forecasting**: Fully integrated Exponential Smoothing forecasting inside the interactive Live Inference prediction panel.
-* **Light Theme Report PDF**: Refactored HTML/PDF compiling engines in [ReportCompiler.swift](file:///Users/oleksiichumak/Developer/Xcode.projects/Aura/Aura/Services/ReportCompiler.swift) to dynamically render contrast-optimized light mode layouts for printed PDFs and premium dark mode interfaces for HTML exports.
-* **Interactive Chart Legend Selection**: Allows toggling and filtering data series dynamically in the SwiftUI SVD projection charts in real time.
-
-### 10. Local Microservice & Preview Enhancements (New in v0.4.0)
-* **Local FastAPI Backend**: Migrated the Swift-to-Python IPC from stdout parsing to a robust local FastAPI microservice process (`server.py`) running asynchronously on localhost.
-* **Real-Time Preview Streaming**: Refactored `/preview` and the Swift client code to use Server-Sent Events (SSE), enabling live progress reporting (e.g. download percentages for large remote Kaggle/HuggingFace datasets) to prevent the UI from freezing.
-* **YOLO Dataset Preview Optimization**: Implemented random file sampling for splits exceeding 1,000 images, keeping YOLO / object detection dataset previews near-instant.
-* **Dynamic Prediction Picker Constraints**: Enforces integer-only steps/inputs on prediction panels when column profiling detects only integer values.
-* **Manual Column Type Overrides**: Added interactive dropdown menus in the preview table headers to let users verify and override system-inferred column types before training.
-* **Automated ID/Identifier Exclusions**: Automatically deselects unique identifiers/IDs from training features, with an optional toggle to re-enable them.
-
-### 11. Local Server Control & Clean Termination (New in v0.4.1)
-* **Local Server Control Panel**: Added a dedicated **Local Server** settings tab to monitor status (Running/Stopped/Starting/Stopping), address, port, and process ID (PID) of the backend.
-* **Manual Lifecycle Controls**: Users can now manually **Start**, **Stop**, and **Restart** the API server directly from the settings panel.
-* **Synchronous Process Termination**: Integrates a thread-safe process manager connected synchronously to application exit. Quitting the application immediately and cleanly terminates all background Python server and child processes.
-
-### 12. Advanced Models, Data Prep & Fixes (New in v0.4.3)
-* **LightGBM & CatBoost Integration**: Automatically imports and trains LightGBM and CatBoost classifiers/regressors in AutoML, exporting the winning model cleanly.
-* **Multi-Metric Leaderboard Sorting**: Users can select custom sorting metrics (Weighted F1, Accuracy, Precision, Recall, MSE, RMSE, MAE) with smart-scaled charts.
-* **Column Renaming in Data Cleaning**: Added live variable renaming inside the interactive Data Cleaning metadata panel.
-* **Time Series Date Range Picker**: Integrated start/end date range controls for filtering datasets dynamically prior to ARIMA / ML model runs.
-* **Multi-Label NLP Classification**: Inferred multi-label string formats (comma-separated tags) auto-binarize using `MultiLabelBinarizer` and train via `OneVsRestClassifier` pipelines.
-* **Offline PDF Chart Polish**: Bundled local `echarts.min.js` and `marked.min.js` assets in-app to enable high-quality PDF exports without external CDN requirements. Solved chart overlaps via stacked printing grids.
-* **Model Saver Memory Polish**: Solved `SIGKILL` (-9) OOM crashes during model export by adding zlib `compress=3` to `joblib.dump()`.
-
-### 13. Agentic AI Analyst, REPL Sandbox & Jupyter Export (New in v0.7.0)
-* **Agentic REPL Loop**: Aura automatically intercepts Python execution blocks (`<execute_python>`) generated by the Ollama AI Analyst, executes them safely inside a Python REPL sandbox, and feeds the results back to the LLM to complete analysis tasks.
-* **Rich Dataset Context (RAG)**: Automatically generates token-efficient column profiles, statistical distributions, and row previews to feed into the local LLM's system prompt.
-* **Jupyter Notebook Export**: Export entire automated modeling runs directly into standard `.ipynb` notebooks for downstream execution.
-* **Custom Python Plugins**: Extend the Data Cleaning pipeline by dropping custom Python transformation scripts into the local Plugins directory.
-
-### 14. Advanced Variable Conditioning, Model Suite Expansion & Semantic Tokens (New in v0.8.0)
-* **Conditional Exclusions & Data Operations**: Clean and filter datasets dynamically via checkboxes for categorical values, range bounds (less/greater/equal) for numeric parameters, or text matching (contains). Global row deduplication is fully supported.
-* **Chronological Versioned Data**: Preview and history tabs now support full chronological dataset versioning directly from the sidebar as version lists (`Data (v1)`, `Data (v2)` etc.).
-* **Expanded Model Suites**: Trains and profiles advanced classifiers and regressors (XGBoost, RandomForest, CatBoost, LightGBM) for Tabular, NLP, and Computer Vision datasets.
-* **Unified Design System**: Standardized visual component layer using native Theme-based tokens (`Theme.Font`, `Theme.Color`, `Theme.Layout`) across the entire view hierarchy.
-
+### 8. Design System & Performance
+* **Unified Design System**: A standardized visual layer (`Theme.Font`, `Theme.Color`, `Theme.Layout`) applied consistently across the entire view hierarchy.
+* **Real-Time Progress Streaming**: Server-Sent Events keep previews and long-running jobs responsive instead of freezing the UI, with random-sampled previews for large (1,000+ image) YOLO/object-detection splits.
+* **Interactive Chart Legends**: Toggle and filter data series directly on SVD/projection charts.
+* **Memory-Safe Model Export**: `joblib` compression avoids out-of-memory crashes when saving larger models.
 ---
 
 ## 🧩 Writing Custom Plugins
