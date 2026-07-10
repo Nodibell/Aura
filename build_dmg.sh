@@ -37,4 +37,4 @@ rm -f Aura.dmg
 echo "=== 5. Cleaning Up Temp Files ==="
 rm -rf build/
 
-echo "=== DMG Release 0.7.2 Created Successfully: Aura.dmg ==="
+echo "=== DMG Release 0.8.0 Created Successfully: Aura.dmg ==="
