@@ -52,7 +52,7 @@ struct ChartCard: View {
                             .fontWeight(.medium)
                     }
                     .buttonStyle(.bordered)
-                    .tint(.purple)
+                    .tint(Theme.Color.primaryAction)
                 }
             }
 

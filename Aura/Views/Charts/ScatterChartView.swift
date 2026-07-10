@@ -226,7 +226,7 @@ struct ScatterChartView: View {
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(Theme.Color.primaryAction)
                 .padding(.top, 4)
                 .frame(maxWidth: .infinity, alignment: .center)
             }

@@ -84,6 +84,12 @@ A native, premium macOS application for **AI-Powered Automated Exploratory Data 
 * **Jupyter Notebook Export**: Export entire automated modeling runs directly into standard `.ipynb` notebooks for downstream execution.
 * **Custom Python Plugins**: Extend the Data Cleaning pipeline by dropping custom Python transformation scripts into the local Plugins directory.
 
+### 14. Advanced Variable Conditioning, Model Suite Expansion & Semantic Tokens (New in v0.8.0)
+* **Conditional Exclusions & Data Operations**: Clean and filter datasets dynamically via checkboxes for categorical values, range bounds (less/greater/equal) for numeric parameters, or text matching (contains). Global row deduplication is fully supported.
+* **Chronological Versioned Data**: Preview and history tabs now support full chronological dataset versioning directly from the sidebar as version lists (`Data (v1)`, `Data (v2)` etc.).
+* **Expanded Model Suites**: Trains and profiles advanced classifiers and regressors (XGBoost, RandomForest, CatBoost, LightGBM) for Tabular, NLP, and Computer Vision datasets.
+* **Unified Design System**: Standardized visual component layer using native Theme-based tokens (`Theme.Font`, `Theme.Color`, `Theme.Layout`) across the entire view hierarchy.
+
 ---
 
 ## 🧩 Writing Custom Plugins

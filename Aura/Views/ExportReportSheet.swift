@@ -495,7 +495,7 @@ private struct ToggleRow: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(label)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Theme.Font.controlLabel)
                 Text(description)
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)

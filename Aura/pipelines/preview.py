@@ -36,7 +36,7 @@ def _get_datetime_bounds(file_path, columns):
         sys.stderr.write(f"Warning: Failed to compute datetime bounds: {str(e)}\n")
         return {}
 
-def analyze_preview(file_path, dataset_type=None):
+def analyze_preview(file_path, dataset_type=None, cleaning_actions=None):
     try:
         print_progress(0.01, "Initializing dataset preview...")
         # Check if URL input
@@ -144,7 +144,26 @@ def analyze_preview(file_path, dataset_type=None):
                     total_rows = 15
             
             print_progress(0.60, "Loading preview rows...")
-            df = load_dataset(file_path, nrows=15)
+            if cleaning_actions:
+                df_to_clean = load_dataset(file_path, nrows=50000)
+                from utils.cleaning import StatefulCleaner
+                try:
+                    import json
+                    actions = json.loads(cleaning_actions)
+                    cleaner = StatefulCleaner(actions)
+                    cleaner.fit(df_to_clean)
+                    df_cleaned = cleaner.transform(df_to_clean, is_training=True)
+                    df = df_cleaned.head(15)
+                    if total_rows is not None and total_rows > 50000:
+                        ratio = len(df_cleaned) / 50000.0
+                        total_rows = int(total_rows * ratio)
+                    else:
+                        total_rows = len(df_cleaned)
+                except Exception as e_clean:
+                    sys.stderr.write(f"Warning: Failed to apply cleaning actions in preview: {e_clean}\n")
+                    df = load_dataset(file_path, nrows=15)
+            else:
+                df = load_dataset(file_path, nrows=15)
 
             columns = list(df.columns)
             # Stringify all values and replace NaN/None with empty string so the
@@ -172,6 +191,19 @@ def analyze_preview(file_path, dataset_type=None):
                 for col_name in columns:
                     column_types[col_name] = "categorical"
 
+            # Extract top unique category values for categorical columns (up to 30 values)
+            column_categories = {}
+            try:
+                df_sample = load_dataset(file_path, nrows=5000)
+                for col in columns:
+                    c_type = column_types.get(col, "categorical")
+                    if c_type in ["categorical", "text"] and col in df_sample.columns:
+                        u_vals = df_sample[col].dropna().unique()
+                        u_str_vals = [str(v) for v in u_vals if str(v).strip() != ""]
+                        column_categories[col] = sorted(u_str_vals[:30])
+            except Exception as e_cats:
+                sys.stderr.write(f"Warning: Failed to extract column categories: {e_cats}\n")
+
             res = {
                 "columns": columns,
                 "preview_rows": preview_rows,
@@ -179,6 +211,7 @@ def analyze_preview(file_path, dataset_type=None):
                 "local_path": file_path,
                 "total_rows": total_rows,
                 "column_types": column_types,
+                "column_categories": column_categories,
                 "datetime_range": _get_datetime_bounds(file_path, columns)
             }
             print_progress(0.95, "Finalizing tabular preview...")

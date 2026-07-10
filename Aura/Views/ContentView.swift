@@ -300,9 +300,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "house_prices.csv") } label: {
                                 HStack {
                                     Image(systemName: "house.fill").foregroundColor(.purple)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("House Prices")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -319,9 +319,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "iris.csv") } label: {
                                 HStack {
                                     Image(systemName: "leaf.fill").foregroundColor(.green)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("Iris Flowers")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -338,9 +338,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "airline_passengers.csv") } label: {
                                 HStack {
                                     Image(systemName: "chart.line.uptrend.xyaxis").foregroundColor(.blue)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("Airline Passengers")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -357,9 +357,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "movie_reviews.csv") } label: {
                                 HStack {
                                     Image(systemName: "text.bubble").foregroundColor(.green)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("Movie Reviews")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -376,9 +376,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "mnist_mini.npz") } label: {
                                 HStack {
                                     Image(systemName: "photo.stack").foregroundColor(.orange)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("MNIST Mini (NPZ)")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -395,9 +395,9 @@ struct ContentView: View {
                             Button { viewModel.loadSampleDataset(named: "drone_dataset") } label: {
                                 HStack {
                                     Image(systemName: "viewfinder.rectangular").foregroundColor(.red)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text("Drone Detection")
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Spacer()
                                     Image(systemName: "chevron.right")
                                         .font(.system(size: 8))
@@ -441,31 +441,31 @@ struct ContentView: View {
                                     
                                     DisclosureGroup(isExpanded: isExpanded) {
                                         VStack(spacing: 0) {
-                                            // 1. Shared Data View
-                                            Button {
-                                                if let latestRun = group.runs.first {
-                                                    viewModel.loadHistoryItem(latestRun, isPreview: true, isDataOnly: true)
+                                            // 1. Versioned Data Views
+                                            ForEach(group.runs) { item in
+                                                let groupItems = group.runs.sorted(by: { $0.timestamp < $1.timestamp })
+                                                let versionNum = (groupItems.firstIndex(where: { $0.id == item.id }) ?? 0) + 1
+                                                
+                                                Button {
+                                                    viewModel.loadHistoryItem(item, isPreview: true, isDataOnly: true)
+                                                } label: {
+                                                    HStack {
+                                                        Image(systemName: "grid")
+                                                            .foregroundColor(.secondary)
+                                                            .font(Theme.Font.caption)
+                                                        Text("Data (v\(versionNum))")
+                                                            .font(Theme.Font.caption)
+                                                            .foregroundColor(.primary)
+                                                        Spacer()
+                                                    }
+                                                    .padding(.vertical, 6)
+                                                    .padding(.horizontal, 8)
+                                                    .contentShape(Rectangle())
                                                 }
-                                            } label: {
-                                                HStack {
-                                                    Image(systemName: "grid")
-                                                        .foregroundColor(.secondary)
-                                                        .font(.system(size: 11))
-                                                    Text("Data")
-                                                        .font(.system(size: 11))
-                                                        .foregroundColor(.primary)
-                                                    Spacer()
-                                                    Text("shared")
-                                                        .font(.system(size: 9))
-                                                        .foregroundColor(.secondary.opacity(0.6))
-                                                }
-                                                .padding(.vertical, 6)
-                                                .padding(.horizontal, 8)
-                                                .contentShape(Rectangle())
+                                                .buttonStyle(.plain)
+                                                
+                                                Divider().background(Color.primary.opacity(0.04))
                                             }
-                                            .buttonStyle(.plain)
-                                            
-                                            Divider().background(Color.primary.opacity(0.04))
                                             
                                             // 2. Individual Runs
                                             ForEach(group.runs) { item in
@@ -536,9 +536,9 @@ struct ContentView: View {
                                         HStack {
                                             Image(systemName: "tablecells")
                                                 .foregroundColor(.purple)
-                                                .font(.system(size: 11))
+                                                .font(Theme.Font.caption)
                                             Text(group.name)
-                                                .font(.system(size: 11, weight: .semibold))
+                                                .font(Theme.Font.captionBold)
                                                 .foregroundColor(.primary)
                                                 .lineLimit(1)
                                             Spacer()
@@ -583,7 +583,7 @@ struct ContentView: View {
                         Text("Configure Settings...")
                         Spacer()
                     }
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 4)
@@ -600,7 +600,7 @@ struct ContentView: View {
                         Text("Manage Schedules...")
                         Spacer()
                     }
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 4)
@@ -646,42 +646,137 @@ struct ContentView: View {
                 )
             } else if let activePage = viewModel.activePage {
                 if let analysisResult = viewModel.result {
-                    VStack(spacing: 0) {
-                        // Tab bar
-                        HStack {
-                            CustomSegmentedPicker(
-                                selection: $viewModel.selectedTab,
-                                items: [
-                                    ("Summary", "Summary"),
-                                    ("Charts", "Charts"),
-                                    ("Correlations", "Correlations"),
-                                    ("Data", "Data"),
-                                    ("Cleaning", "Cleaning"),
-                                    ("Diff", "Diff")
-                                ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
-                            )
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                withAnimation {
-                                    viewModel.activePage?.result = nil
+                    if activePage.isDataOnly {
+                        VStack(spacing: 0) {
+                            // Data-only title/header
+                            HStack {
+                                Text(activePage.title)
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                Button(action: {
+                                    withAnimation {
+                                        viewModel.closePage(id: activePage.id)
+                                    }
+                                }) {
+                                    Image(systemName: "xmark.circle")
+                                        .foregroundColor(.secondary)
                                 }
-                            }) {
-                                Label("Reanalyze", systemImage: "arrow.counterclockwise")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.purple)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(Color.purple.opacity(0.08))
-                                    .cornerRadius(6)
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
-                            .padding(.trailing, 16)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(Color.primary.opacity(0.015))
+                            
+                            Divider().background(Color.primary.opacity(0.06))
+                            
+                            // Render table views (Train, Test, Validation if available)
+                            VStack(spacing: 0) {
+                                if analysisResult.testFullPreview != nil || analysisResult.valFullPreview != nil {
+                                    HStack {
+                                        Spacer()
+                                        let dataItems: [(String, String)] = {
+                                            var list = [("Train", "train")]
+                                            if analysisResult.testFullPreview != nil {
+                                                list.append(("Test", "test"))
+                                            }
+                                            if analysisResult.valFullPreview != nil {
+                                                list.append(("Validation", "val"))
+                                            }
+                                            return list
+                                        }()
+                                        CustomSegmentedPicker(
+                                            selection: $viewModel.selectedDataTab,
+                                            items: dataItems
+                                        )
+                                        .frame(width: 280)
+                                        .padding(.horizontal)
+                                        .padding(.vertical, 8)
+                                        Spacer()
+                                    }
+                                    Divider().background(Color.primary.opacity(0.06))
+                                }
+                                
+                                let activePreview: FullTablePreview? = {
+                                    if viewModel.selectedDataTab == "test", let testFp = analysisResult.testFullPreview {
+                                        return testFp
+                                    }
+                                    if viewModel.selectedDataTab == "val", let valFp = analysisResult.valFullPreview {
+                                        return valFp
+                                    }
+                                    return analysisResult.fullPreview
+                                }()
+                                
+                                if let fp = activePreview {
+                                    FullTableView(preview: fp)
+                                } else {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "tablecells")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(.secondary)
+                                        Text("Full table not available for this analysis.")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                }
+                            }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color.primary.opacity(0.015))
+                    } else {
+                        VStack(spacing: 0) {
+                            // Tab bar
+                            HStack {
+                                CustomSegmentedPicker(
+                                    selection: $viewModel.selectedTab,
+                                    items: [
+                                        ("Summary", "Summary"),
+                                        ("Charts", "Charts"),
+                                        ("Correlations", "Correlations"),
+                                        ("Cleaning", "Cleaning"),
+                                        ("Diff", "Diff")
+                                    ] + (viewModel.result?.taskType != "clustering" ? [("Predict", "Predict")] : [])
+                                )
+                                
+                                Spacer()
+                                
+                                if let historyItemId = activePage.currentHistoryItemId,
+                                   let historyItem = viewModel.historyService.items.first(where: { $0.id == historyItemId }) {
+                                    let groupItems = viewModel.historyService.items.filter { $0.datasetName == historyItem.datasetName }.sorted(by: { $0.timestamp < $1.timestamp })
+                                    let versionNum = (groupItems.firstIndex(where: { $0.id == historyItem.id }) ?? 0) + 1
+                                    
+                                    Button(action: {
+                                        viewModel.loadHistoryItem(historyItem, isPreview: true, isDataOnly: true)
+                                    }) {
+                                        Label("View Data (v\(versionNum))", systemImage: "grid")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(.purple)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 5)
+                                            .background(Color.purple.opacity(0.08))
+                                            .cornerRadius(6)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.trailing, 8)
+                                }
+                                
+                                Button(action: {
+                                    withAnimation {
+                                        viewModel.activePage?.result = nil
+                                    }
+                                }) {
+                                    Label("Reanalyze", systemImage: "arrow.counterclockwise")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .foregroundColor(.purple)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 5)
+                                        .background(Color.purple.opacity(0.08))
+                                        .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.trailing, 16)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Color.primary.opacity(0.015))
 
 
                         // Target Selector Pill Bar for Multi-Target Time Series
@@ -825,7 +920,8 @@ struct ContentView: View {
                             }
                         }
                     }
-                } else {
+                }
+            } else {
                     PendingAnalysisView(
                         page: activePage,
                         onRunAnalysis: {
@@ -857,7 +953,7 @@ struct ContentView: View {
             
             VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
                     .foregroundColor(.primary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -871,7 +967,7 @@ struct ContentView: View {
             Button(action: viewModel.clearSelection) {
                 Image(systemName: "xmark.circle.fill")
                     .foregroundColor(.secondary.opacity(0.8))
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
             }
             .buttonStyle(.plain)
             .help("Clear selection")
@@ -899,13 +995,13 @@ struct ContentView: View {
                 NativeProgressView(controlSize: .regular)
                     .padding(.bottom, 8)
             }
-            Text(title).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary)
-            Text(subtitle).font(.system(size: 11)).foregroundColor(.secondary)
+            Text(title).font(Theme.Font.sectionTitle).foregroundColor(.primary)
+            Text(subtitle).font(Theme.Font.caption).foregroundColor(.secondary)
             
             if !viewModel.completedStages.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Completed Stages:")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.Font.captionBold)
                         .foregroundColor(.primary)
                     
                     ScrollView {
@@ -914,9 +1010,9 @@ struct ContentView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text(stage.message)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                         .foregroundColor(.secondary)
                                     Spacer()
                                     Text(String(format: "%.1fs", stage.elapsed))
@@ -939,7 +1035,7 @@ struct ContentView: View {
                         Image(systemName: "xmark.circle.fill")
                         Text("Cancel Analysis")
                     }
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
                     .foregroundColor(.red)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
@@ -1018,19 +1114,6 @@ struct ContentView: View {
         viewModel.selectedFileURL == nil && viewModel.datasetURLInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func getTaskShortLabel(_ task: String) -> String {
-        switch task.lowercased() {
-        case "regression":        return "Regr"
-        case "classification":    return "Clsf"
-        case "clustering":        return "Clst"
-        case "forecast":          return "TSFC"
-        case "nlp":               return "NLP"
-        case "image":             return "Img"
-        case "object_detection":  return "ObDt"
-        default: return task
-        }
-    }
-
     private func getTaskColor(_ task: String) -> Color {
         switch task.lowercased() {
         case "regression":        return .purple
@@ -1104,7 +1187,7 @@ struct TabsHeaderView: View {
                         
                         HStack(spacing: 8) {
                             Image(systemName: page.analysisConfig.datasetType.icon)
-                                .font(.system(size: 11))
+                                .font(Theme.Font.caption)
                                 .foregroundColor(isActive ? Color.purple : Color.secondary)
                             
                             Group {

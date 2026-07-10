@@ -39,7 +39,7 @@ struct CorrelationMatrixView: View {
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
-                        .tint(.purple)
+                        .tint(Theme.Color.primaryAction)
                     }
 
                     // Heatmap Grid

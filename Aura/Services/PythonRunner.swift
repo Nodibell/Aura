@@ -618,16 +618,24 @@ actor PythonRunner: PythonRunning {
     
     func runPreview(
         csvPathOrURL: String,
+        datasetType: String? = nil,
+        cleaningActions: String? = nil,
         progress: @escaping @Sendable (Double, String) -> Void,
         completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
     ) {
-        logInfo("Starting runPreview via FastAPI. Path/URL: \(csvPathOrURL)")
+        logInfo("Starting runPreview via FastAPI. Path/URL: \(csvPathOrURL), datasetType: \(datasetType ?? "nil")")
         
         self.isCancelled = false
         
-        let bodyDict: [String: Any] = [
+        var bodyDict: [String: Any] = [
             "file_path": csvPathOrURL
         ]
+        if let datasetType = datasetType {
+            bodyDict["dataset_type"] = datasetType
+        }
+        if let cleaningActions = cleaningActions {
+            bodyDict["cleaning_actions"] = cleaningActions
+        }
         
         let progressHandler = progress
         let completionHandler = completion

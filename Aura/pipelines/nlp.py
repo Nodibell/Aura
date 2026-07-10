@@ -709,6 +709,71 @@ def analyze_nlp(df, target_col, task_type_override,
                 xgb_prec = float(precision_score(y_test, xgb_preds, average='weighted', zero_division=0))
                 xgb_rec = float(recall_score(y_test, xgb_preds, average='weighted', zero_division=0))
             
+            # Random Forest Classifier
+            rf_acc, rf_f1, rf_prec, rf_rec = 0.0, 0.0, 0.0, 0.0
+            rf = None
+            try:
+                from sklearn.ensemble import RandomForestClassifier
+                rf = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=2)
+                if is_multi_label:
+                    rf = OneVsRestClassifier(rf)
+                    rf.fit(X_train, y_train)
+                    rf_preds = rf.predict(X_test)
+                else:
+                    rf.fit(X_train, y_train_encoded)
+                    rf_preds_encoded = rf.predict(X_test)
+                    rf_preds = le.inverse_transform(rf_preds_encoded)
+                rf_acc = float(accuracy_score(y_test, rf_preds))
+                rf_f1 = float(f1_score(y_test, rf_preds, average='weighted', zero_division=0))
+                rf_prec = float(precision_score(y_test, rf_preds, average='weighted', zero_division=0))
+                rf_rec = float(recall_score(y_test, rf_preds, average='weighted', zero_division=0))
+            except Exception as rf_err:
+                sys.stderr.write(f"Warning: Random Forest failed: {rf_err}\n")
+
+            # LightGBM Classifier
+            lgb_acc, lgb_f1, lgb_prec, lgb_rec = 0.0, 0.0, 0.0, 0.0
+            lgb = None
+            try:
+                from lightgbm import LGBMClassifier
+                lgb = LGBMClassifier(n_estimators=100, random_state=42, n_jobs=2, verbosity=-1)
+                if is_multi_label:
+                    lgb = OneVsRestClassifier(lgb)
+                    lgb.fit(X_train, y_train)
+                    lgb_preds = lgb.predict(X_test)
+                else:
+                    lgb.fit(X_train, y_train_encoded)
+                    lgb_preds_encoded = lgb.predict(X_test)
+                    lgb_preds = le.inverse_transform(lgb_preds_encoded)
+                lgb_acc = float(accuracy_score(y_test, lgb_preds))
+                lgb_f1 = float(f1_score(y_test, lgb_preds, average='weighted', zero_division=0))
+                lgb_prec = float(precision_score(y_test, lgb_preds, average='weighted', zero_division=0))
+                lgb_rec = float(recall_score(y_test, lgb_preds, average='weighted', zero_division=0))
+            except Exception as lgb_err:
+                sys.stderr.write(f"Warning: LightGBM failed: {lgb_err}\n")
+
+            # CatBoost Classifier
+            cat_acc, cat_f1, cat_prec, cat_rec = 0.0, 0.0, 0.0, 0.0
+            cat = None
+            try:
+                from catboost import CatBoostClassifier
+                cat = CatBoostClassifier(iterations=100, random_seed=42, thread_count=2, verbose=0)
+                if is_multi_label:
+                    cat = OneVsRestClassifier(cat)
+                    cat.fit(X_train, y_train)
+                    cat_preds = cat.predict(X_test)
+                else:
+                    cat.fit(X_train, y_train_encoded)
+                    cat_preds_encoded = cat.predict(X_test)
+                    if hasattr(cat_preds_encoded, "ndim") and cat_preds_encoded.ndim > 1:
+                        cat_preds_encoded = cat_preds_encoded.ravel()
+                    cat_preds = le.inverse_transform(cat_preds_encoded)
+                cat_acc = float(accuracy_score(y_test, cat_preds))
+                cat_f1 = float(f1_score(y_test, cat_preds, average='weighted', zero_division=0))
+                cat_prec = float(precision_score(y_test, cat_preds, average='weighted', zero_division=0))
+                cat_rec = float(recall_score(y_test, cat_preds, average='weighted', zero_division=0))
+            except Exception as cat_err:
+                sys.stderr.write(f"Warning: CatBoost failed: {cat_err}\n")
+
             best_model = "Logistic Regression"
             best_score = lr_f1
             best_preds = lr_preds
@@ -743,6 +808,24 @@ def analyze_nlp(df, target_col, task_type_override,
                 best_score = xgb_f1
                 best_preds = xgb_preds
                 best_clf = xgb
+
+            if rf is not None and rf_f1 >= best_score:
+                best_model = "Random Forest Classifier"
+                best_score = rf_f1
+                best_preds = rf_preds
+                best_clf = rf
+
+            if lgb is not None and lgb_f1 >= best_score:
+                best_model = "LightGBM Classifier"
+                best_score = lgb_f1
+                best_preds = lgb_preds
+                best_clf = lgb
+
+            if cat is not None and cat_f1 >= best_score:
+                best_model = "CatBoost Classifier"
+                best_score = cat_f1
+                best_preds = cat_preds
+                best_clf = cat
                 
             from sklearn.metrics import classification_report
             if is_multi_label:
@@ -819,6 +902,16 @@ def analyze_nlp(df, target_col, task_type_override,
                 "SGD Classifier": sgd,
                 f"Tuned XGBoost Classifier (n={xgb_best_n}, d={xgb_best_d})": xgb
             }
+            
+            if rf is not None:
+                models_compared.append({"name": "Random Forest Classifier", "score": float(rf_acc), "metric": "Accuracy", "f1": float(rf_f1), "precision": float(rf_prec), "recall": float(rf_rec)})
+                trained_models["Random Forest Classifier"] = rf
+            if lgb is not None:
+                models_compared.append({"name": "LightGBM Classifier", "score": float(lgb_acc), "metric": "Accuracy", "f1": float(lgb_f1), "precision": float(lgb_prec), "recall": float(lgb_rec)})
+                trained_models["LightGBM Classifier"] = lgb
+            if cat is not None:
+                models_compared.append({"name": "CatBoost Classifier", "score": float(cat_acc), "metric": "Accuracy", "f1": float(cat_f1), "precision": float(cat_prec), "recall": float(cat_rec)})
+                trained_models["CatBoost Classifier"] = cat
             metrics = {
                 "model": best_model,
                 "score_type": "Accuracy",
@@ -843,16 +936,72 @@ def analyze_nlp(df, target_col, task_type_override,
             lr_preds = lr.predict(X_test)
             lr_r2 = r2_score(y_test, lr_preds)
             
-            if ridge_r2 >= lr_r2:
+            # Random Forest Regressor
+            rf_r2 = -999.0
+            rf_reg = None
+            try:
+                from sklearn.ensemble import RandomForestRegressor
+                rf_reg = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=2)
+                rf_reg.fit(X_train, y_train)
+                rf_preds = rf_reg.predict(X_test)
+                rf_r2 = float(r2_score(y_test, rf_preds))
+            except Exception as rf_err:
+                sys.stderr.write(f"Warning: RF Regressor failed: {rf_err}\n")
+
+            # LightGBM Regressor
+            lgb_r2 = -999.0
+            lgb_reg = None
+            try:
+                from lightgbm import LGBMRegressor
+                lgb_reg = LGBMRegressor(n_estimators=100, random_state=42, n_jobs=2, verbosity=-1)
+                lgb_reg.fit(X_train, y_train)
+                lgb_preds = lgb_reg.predict(X_test)
+                lgb_r2 = float(r2_score(y_test, lgb_preds))
+            except Exception as lgb_err:
+                sys.stderr.write(f"Warning: LightGBM Regressor failed: {lgb_err}\n")
+
+            # CatBoost Regressor
+            cat_r2 = -999.0
+            cat_reg = None
+            try:
+                from catboost import CatBoostRegressor
+                cat_reg = CatBoostRegressor(iterations=100, random_seed=42, thread_count=2, verbose=0)
+                cat_reg.fit(X_train, y_train)
+                cat_preds = cat_reg.predict(X_test)
+                if hasattr(cat_preds, "ndim") and cat_preds.ndim > 1:
+                    cat_preds = cat_preds.ravel()
+                cat_r2 = float(r2_score(y_test, cat_preds))
+            except Exception as cat_err:
+                sys.stderr.write(f"Warning: CatBoost Regressor failed: {cat_err}\n")
+
+            best_model = "Linear Regression"
+            best_score = lr_r2
+            best_preds = lr_preds
+            best_reg = lr
+            
+            if ridge_r2 >= best_score:
                 best_model = "Ridge Regression"
                 best_score = ridge_r2
                 best_preds = ridge_preds
                 best_reg = ridge
-            else:
-                best_model = "Linear Regression"
-                best_score = lr_r2
-                best_preds = lr_preds
-                best_reg = lr
+
+            if rf_reg is not None and rf_r2 >= best_score:
+                best_model = "Random Forest Regressor"
+                best_score = rf_r2
+                best_preds = rf_preds
+                best_reg = rf_reg
+                
+            if lgb_reg is not None and lgb_r2 >= best_score:
+                best_model = "LightGBM Regressor"
+                best_score = lgb_r2
+                best_preds = lgb_preds
+                best_reg = lgb_reg
+                
+            if cat_reg is not None and cat_r2 >= best_score:
+                best_model = "CatBoost Regressor"
+                best_score = cat_r2
+                best_preds = cat_preds
+                best_reg = cat_reg
                 
             test_rmse = np.sqrt(mean_squared_error(y_test, best_preds))
             
@@ -863,8 +1012,8 @@ def analyze_nlp(df, target_col, task_type_override,
             dummy_score = float(r2_score(y_test, dummy_preds))
             
             models_compared = [
-                {"name": "Linear Regression", "score": float(lr_r2), "metric": "R\u00b2 Score"},
-                {"name": "Ridge Regression", "score": float(ridge_r2), "metric": "R\u00b2 Score"}
+                {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score"},
+                {"name": "Ridge Regression", "score": float(ridge_r2), "metric": "R² Score"}
             ]
             
             trained_models = {
@@ -872,9 +1021,20 @@ def analyze_nlp(df, target_col, task_type_override,
                 "Ridge Regression": ridge,
                 "Dummy Baseline": dummy if 'dummy' in locals() else None
             }
+
+            if rf_reg is not None:
+                models_compared.append({"name": "Random Forest Regressor", "score": float(rf_r2), "metric": "R² Score"})
+                trained_models["Random Forest Regressor"] = rf_reg
+            if lgb_reg is not None:
+                models_compared.append({"name": "LightGBM Regressor", "score": float(lgb_r2), "metric": "R² Score"})
+                trained_models["LightGBM Regressor"] = lgb_reg
+            if cat_reg is not None:
+                models_compared.append({"name": "CatBoost Regressor", "score": float(cat_r2), "metric": "R² Score"})
+                trained_models["CatBoost Regressor"] = cat_reg
+            
             metrics = {
                 "model": best_model,
-                "score_type": "R\u00b2 Score",
+                "score_type": "R² Score",
                 "score": float(best_score),
                 "additional_metrics": {
                     "RMSE": float(test_rmse)

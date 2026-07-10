@@ -5,6 +5,8 @@ struct PendingAnalysisView: View {
     let onRunAnalysis: () -> Void
     let onCancel: () -> Void
     var onPreviewFileRequested: ((String) -> Void)? = nil
+    var onDatasetTypeChanged: (() -> Void)? = nil
+    var onRefreshPreview: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -25,6 +27,12 @@ struct PendingAnalysisView: View {
                 // 1. Control Bar at the top (unless it is a raw data-only preview)
                 if !page.isDataOnly {
                     controlBar
+                    Divider().background(Color.primary.opacity(0.06))
+                    
+                    datasetTypeSelector
+                    Divider().background(Color.primary.opacity(0.06))
+                    
+                    smartSamplingSection
                     Divider().background(Color.primary.opacity(0.06))
                 } else {
                     dataOnlyHeader
@@ -52,6 +60,9 @@ struct PendingAnalysisView: View {
                             onPreviewFileRequested: { path in
                                 onPreviewFileRequested?(path)
                             },
+                            onRefreshPreview: {
+                                onRefreshPreview?()
+                            },
                             isSidebar: false
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -76,12 +87,12 @@ struct PendingAnalysisView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.purple)
                     Text(page.title)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(Theme.Font.sectionTitle)
                         .foregroundColor(.primary)
                 }
                 
                 Text(dimensionsString)
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundColor(.secondary)
             }
             
@@ -90,7 +101,7 @@ struct PendingAnalysisView: View {
             // Target Column Picker
             HStack(spacing: 6) {
                 Text("Target:")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
                     .foregroundColor(.secondary)
                 
                 Menu {
@@ -116,7 +127,7 @@ struct PendingAnalysisView: View {
                     HStack(spacing: 4) {
                         let selectedLabel = page.analysisConfig.taskTypeOverride == .clustering ? "None (Clustering)" : (page.analysisConfig.targetColumn.isEmpty ? "Auto-detect target" : page.analysisConfig.targetColumn)
                         Text(selectedLabel)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(Theme.Font.controlLabel)
                         Image(systemName: "chevron.up.chevron.down")
                             .font(.system(size: 8))
                     }
@@ -124,8 +135,8 @@ struct PendingAnalysisView: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Color.primary.opacity(0.04))
-                    .cornerRadius(6)
-                    .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.primary.opacity(0.08), lineWidth: 1))
+                    .cornerRadius(Theme.Layout.controlCornerRadius)
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Layout.controlCornerRadius).stroke(Color.primary.opacity(0.08), lineWidth: 1))
                 }
                 .menuStyle(.borderlessButton)
             }
@@ -133,17 +144,25 @@ struct PendingAnalysisView: View {
             // Task Type Segmented Picker
             HStack(spacing: 6) {
                 Text("Type:")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
                     .foregroundColor(.secondary)
                 
                 Picker("", selection: Binding(
                     get: { page.analysisConfig.taskTypeOverride },
                     set: { page.analysisConfig.taskTypeOverride = $0 }
                 )) {
-                    Text("Auto").tag(TaskTypeOverride.auto)
-                    Text("Regr").tag(TaskTypeOverride.regression)
-                    Text("Clsf").tag(TaskTypeOverride.classification)
-                    Text("Clst").tag(TaskTypeOverride.clustering)
+                    Image(systemName: TaskTypeOverride.auto.icon)
+                        .tag(TaskTypeOverride.auto)
+                        .help(TaskTypeOverride.auto.shortLabel)
+                    Image(systemName: TaskTypeOverride.regression.icon)
+                        .tag(TaskTypeOverride.regression)
+                        .help(TaskTypeOverride.regression.shortLabel)
+                    Image(systemName: TaskTypeOverride.classification.icon)
+                        .tag(TaskTypeOverride.classification)
+                        .help(TaskTypeOverride.classification.shortLabel)
+                    Image(systemName: TaskTypeOverride.clustering.icon)
+                        .tag(TaskTypeOverride.clustering)
+                        .help(TaskTypeOverride.clustering.shortLabel)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 170)
@@ -155,7 +174,7 @@ struct PendingAnalysisView: View {
                 set: { page.analysisConfig.smartSample = $0 }
             )) {
                 Text("Sample")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
             }
             .toggleStyle(.checkbox)
             
@@ -175,7 +194,7 @@ struct PendingAnalysisView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(Theme.Color.primaryAction)
                 .controlSize(.regular)
             }
         }
@@ -188,16 +207,16 @@ struct PendingAnalysisView: View {
         HStack {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Image(systemName: "tablecells")
+                    Image(systemName: page.analysisConfig.datasetType.icon)
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(.blue)
+                        .foregroundColor(Theme.Color.primaryAction)
                     Text(page.title)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(Theme.Font.sectionTitle)
                         .foregroundColor(.primary)
                 }
                 
                 Text(dimensionsString)
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundColor(.secondary)
             }
             Spacer()
@@ -460,16 +479,16 @@ struct PendingAnalysisView: View {
             }
             
             Text(page.progressMessage.isEmpty ? "Running analysis pipeline…" : page.progressMessage)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .font(Theme.Font.sectionTitle)
                 .foregroundColor(.primary)
             Text("Fitting ML models and generating charts…")
-                .font(.system(size: 11))
+                .font(Theme.Font.caption)
                 .foregroundColor(.secondary)
             
             if !page.completedStages.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Completed Stages:")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.Font.captionBold)
                         .foregroundColor(.primary)
                     
                     ScrollView {
@@ -478,9 +497,9 @@ struct PendingAnalysisView: View {
                                 HStack(spacing: 8) {
                                     Image(systemName: "checkmark.circle.fill")
                                         .foregroundColor(.green)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                     Text(stage.message)
-                                        .font(.system(size: 11))
+                                        .font(Theme.Font.caption)
                                         .foregroundColor(.secondary)
                                     Spacer()
                                     Text(String(format: "%.1fs", stage.elapsed))
@@ -542,15 +561,15 @@ struct PendingAnalysisView: View {
                     .controlSize(.regular)
                     .padding(.bottom, 8)
             }
-            Text(title).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(.primary)
-            Text(subtitle).font(.system(size: 11)).foregroundColor(.secondary)
+            Text(title).font(Theme.Font.sectionTitle).foregroundColor(.primary)
+            Text(subtitle).font(Theme.Font.caption).foregroundColor(.secondary)
             
             Button(action: onCancel) {
                 HStack(spacing: 6) {
                     Image(systemName: "xmark.circle.fill")
                     Text("Cancel Preloading")
                 }
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.Font.captionBold)
                 .foregroundColor(.red)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 7)
@@ -614,5 +633,105 @@ struct PendingAnalysisView: View {
             return result.columns
         }
         return []
+    }
+    
+    private var datasetTypeSelector: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Dataset Type", systemImage: "square.stack.3d.up")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary.opacity(0.7))
+                .tracking(0.5)
+
+            HStack(spacing: 8) {
+                ForEach(DatasetType.allCases) { dtype in
+                    TypePill(
+                        type: dtype,
+                        isSelected: page.analysisConfig.datasetType == dtype
+                    ) {
+                        let oldType = page.analysisConfig.datasetType
+                        withAnimation(.easeInOut(duration: 0.18)) {
+                            page.analysisConfig.datasetType = dtype
+                        }
+                        if oldType != dtype {
+                            onDatasetTypeChanged?()
+                        }
+                    }
+                }
+            }
+
+            Text(page.analysisConfig.datasetType.description)
+                .font(.system(size: 11))
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+
+    private var smartSamplingSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label("Smart Sampling (Large Datasets)", systemImage: "sparkles.rectangle.stack")
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .foregroundColor(.secondary.opacity(0.7))
+                .tracking(0.5)
+            
+            HStack(spacing: 12) {
+                Toggle(isOn: Binding(
+                    get: { page.analysisConfig.smartSample },
+                    set: { page.analysisConfig.smartSample = $0 }
+                )) {
+                    Text("Enable Smart Sampling")
+                        .font(.system(size: 12, weight: .semibold))
+                }
+                .toggleStyle(.checkbox)
+                
+                Text("Automatically sample classification/regression datasets down to 100,000 rows to prevent memory limits and speed up fitting.")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 8)
+    }
+}
+
+private struct TypePill: View {
+    let type: DatasetType
+    let isSelected: Bool
+    let onTap: () -> Void
+
+    private var accentColor: Color {
+        switch type {
+        case .tabular:          return .purple
+        case .timeSeries:       return .blue
+        case .image:            return .orange
+        case .nlp:              return .green
+        case .objectDetection:  return .indigo
+        }
+    }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 5) {
+                Image(systemName: type.icon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(type.label)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+            }
+            .foregroundColor(isSelected ? .white : .secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                isSelected
+                    ? AnyShapeStyle(accentColor.gradient.opacity(0.9))
+                    : AnyShapeStyle(Color.primary.opacity(0.04))
+            )
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.clear : Color.primary.opacity(0.08), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }

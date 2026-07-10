@@ -149,7 +149,7 @@ struct FullTableView: View {
                     Button { searchText = "" } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.secondary)
-                            .font(.system(size: 11))
+                            .font(Theme.Font.caption)
                     }
                     .buttonStyle(.plain)
                 }
@@ -166,7 +166,7 @@ struct FullTableView: View {
             // Row count badge
             let showing = min(displayedCount, filteredRows.count)
             Text("Showing \(showing) of \(filteredRows.count) rows\(preview.totalRows > preview.rows.count ? " (full dataset: \(preview.totalRows))" : "")")
-                .font(.system(size: 11))
+                .font(Theme.Font.caption)
                 .foregroundColor(.secondary)
 
             // Reset sort
@@ -176,7 +176,7 @@ struct FullTableView: View {
                     sortAscending = true
                 } label: {
                     Label("Clear Sort", systemImage: "xmark.circle")
-                        .font(.system(size: 11))
+                        .font(Theme.Font.caption)
                         .foregroundColor(.orange)
                 }
                 .buttonStyle(.plain)

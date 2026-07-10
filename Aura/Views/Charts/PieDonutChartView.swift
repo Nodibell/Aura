@@ -68,7 +68,7 @@ struct PieDonutChartView: View {
                             .font(.system(size: 11, weight: .bold))
                             .lineLimit(1)
                         Text(formatValue(pt.y))
-                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .font(Theme.Font.sectionTitle)
                             .foregroundColor(.purple)
                         Text(String(format: "%.1f%%", total > 0 ? (pt.y / total) * 100 : 0))
                             .font(.system(size: 10))

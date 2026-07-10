@@ -4,6 +4,44 @@ import pandas as pd
 import base64
 from io import BytesIO
 
+# Try to import a shared dataset loader; provide a local fallback if unavailable
+try:
+    from data_loader import load_dataset  # adjust module name to where it's actually defined
+except Exception:
+    import os
+    import numpy as np
+    import pandas as pd
+
+    def load_dataset(file_path: str, nrows: int | None = None):
+        """Lightweight local loader supporting CSV/TSV/Parquet and a minimal NPZ case.
+        Returns a pandas DataFrame.
+        """
+        lower = file_path.lower()
+        if lower.endswith('.csv'):
+            return pd.read_csv(file_path, nrows=nrows)
+        if lower.endswith('.tsv'):
+            return pd.read_csv(file_path, sep='\t', nrows=nrows)
+        if lower.endswith('.parquet'):
+            # Parquet typically loads all rows; respect nrows if provided by slicing
+            df = pd.read_parquet(file_path)
+            return df.iloc[:nrows] if nrows is not None else df
+        if lower.endswith('.npz'):
+            data = np.load(file_path, allow_pickle=True)
+            keys = list(data.keys())
+            if not keys:
+                raise ValueError('NPZ file contains no arrays')
+            # Heuristic: choose the largest array by number of dims/size
+            chosen_key = max(keys, key=lambda k: (data[k].ndim, data[k].size))
+            arr = data[chosen_key]
+            # Convert to DataFrame
+            if arr.ndim == 1:
+                df = pd.DataFrame(arr, columns=[chosen_key])
+            else:
+                # Flatten trailing dims into columns
+                df = pd.DataFrame(arr.reshape(arr.shape[0], -1))
+            return df.iloc[:nrows] if nrows is not None else df
+        raise ValueError(f"Unsupported dataset format: {os.path.splitext(file_path)[1]}")
+
 def load_images_from_tabular(df, target_col=None):
     import numpy as np
     import pandas as pd
@@ -344,6 +382,7 @@ def generate_boxplots(df, numeric_cols, target_col=None):
             }
             scored_boxplots.append((boxplot_obj, outlier_pct))
         except Exception as box_err:
+            import sys
             sys.stderr.write(f"Boxplot error for {col}: {str(box_err)}\n")
             
     scored_boxplots.sort(key=lambda x: x[1], reverse=True)

@@ -41,7 +41,7 @@ if [ -f "requirements.txt" ]; then
     pip install -r requirements.txt
 else
     echo "Warning: requirements.txt not found. Installing base packages manually..."
-    pip install pandas numpy scikit-learn pyarrow kaggle huggingface_hub
+    pip install pandas numpy scikit-learn pyarrow kaggle huggingface_hub fastapi uvicorn pmdarima optuna shap xgboost lightgbm catboost ultralytics prophet sentence-transformers
 fi
 
 echo "=================================================="
@@ -65,21 +65,28 @@ print(f'MPS GPU training support available: {torch.backends.mps.is_available()}'
 
 # Test optional packages
 python -c "
-try:
-    import pyarrow
-    print('PyArrow - OK')
-except ImportError:
-    print('PyArrow - MISSING')
-try:
-    import kaggle
-    print('Kaggle API - OK')
-except ImportError:
-    print('Kaggle API - MISSING')
-try:
-    import huggingface_hub
-    print('Hugging Face Hub - OK')
-except ImportError:
-    print('Hugging Face Hub - MISSING')
+def check_import(name, import_name=None):
+    import_name = import_name or name
+    try:
+        __import__(import_name)
+        print(f'{name} - OK')
+    except ImportError:
+        print(f'{name} - MISSING')
+
+check_import('PyArrow', 'pyarrow')
+check_import('Kaggle API', 'kaggle')
+check_import('Hugging Face Hub', 'huggingface_hub')
+check_import('FastAPI', 'fastapi')
+check_import('Uvicorn', 'uvicorn')
+check_import('pmdarima')
+check_import('Optuna', 'optuna')
+check_import('SHAP', 'shap')
+check_import('XGBoost', 'xgboost')
+check_import('LightGBM', 'lightgbm')
+check_import('CatBoost', 'catboost')
+check_import('Ultralytics (YOLO)', 'ultralytics')
+check_import('Prophet', 'prophet')
+check_import('Sentence Transformers', 'sentence_transformers')
 "
 
 echo "=================================================="

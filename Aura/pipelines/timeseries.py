@@ -545,29 +545,52 @@ def build_timeseries_charts(df, time_col, target_col, is_classification, test_ma
     """
     charts = []
     
+    def _format_timestamps(series):
+        try:
+            has_time = any(series.dt.hour != 0) or any(series.dt.minute != 0) or any(series.dt.second != 0)
+        except Exception:
+            has_time = False
+        
+        if has_time:
+            return series.dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
+        else:
+            return series.dt.strftime('%Y-%m-%d').tolist()
+
+    def _get_epochs(series):
+        try:
+            return [float(t.timestamp()) for t in series]
+        except Exception:
+            return [0.0] * len(series)
+
     # 5. Forecast Chart
     if "__is_test" in df.columns:
-        time_test = df[time_col].loc[test_mask].dt.strftime('%Y-%m-%d').tolist()
+        test_datetimes = df[time_col].loc[test_mask]
     else:
         split_idx = len(df) - len(y_test)
-        time_test = df[time_col].iloc[split_idx:].dt.strftime('%Y-%m-%d').tolist()
+        test_datetimes = df[time_col].iloc[split_idx:]
+
+    time_test = _format_timestamps(test_datetimes)
+    test_epochs = _get_epochs(test_datetimes)
         
     historical_data = []
     if "__is_test" in df.columns:
         train_indices = np.where(train_mask)[0]
         recent_train_indices = train_indices[-200:] if len(train_indices) > 200 else train_indices
-        time_train = df[time_col].iloc[recent_train_indices].dt.strftime('%Y-%m-%d').tolist()
+        train_datetimes = df[time_col].iloc[recent_train_indices]
         y_train_plot = y[recent_train_indices]
     else:
         split_idx = len(df) - len(y_test)
         recent_train_len = min(200, split_idx)
-        time_train = df[time_col].iloc[split_idx - recent_train_len:split_idx].dt.strftime('%Y-%m-%d').tolist()
+        train_datetimes = df[time_col].iloc[split_idx - recent_train_len:split_idx]
         y_train_plot = y[split_idx - recent_train_len:split_idx]
+
+    time_train = _format_timestamps(train_datetimes)
+    train_epochs = _get_epochs(train_datetimes)
         
     for i in range(len(y_train_plot)):
         historical_data.append({
             "x_val": str(time_train[i]),
-            "x_num": None,
+            "x_num": float(train_epochs[i]),
             "y": float(y_train_plot[i]),
             "series": "Historical"
         })
@@ -577,15 +600,16 @@ def build_timeseries_charts(df, time_col, target_col, is_classification, test_ma
     
     for i in range(len(y_test)):
         time_str = str(time_test[i])
+        epoch_val = float(test_epochs[i])
         forecast_data.append({
             "x_val": time_str,
-            "x_num": None,
+            "x_num": epoch_val,
             "y": float(y_test[i]),
             "series": "Actual"
         })
         forecast_data.append({
             "x_val": time_str,
-            "x_num": None,
+            "x_num": epoch_val,
             "y": float(best_preds[i]),
             "series": "Forecast"
         })
@@ -614,7 +638,7 @@ def build_timeseries_charts(df, time_col, target_col, is_classification, test_ma
             })
         except Exception as feat_err:
             sys.stderr.write(f"Warning: Failed to compute feature importances: {str(feat_err)}\n")
-
+ 
     # Residuals Plot (for regression)
     if not is_classification:
         try:
@@ -623,7 +647,7 @@ def build_timeseries_charts(df, time_col, target_col, is_classification, test_ma
             for i in range(len(y_test)):
                 residuals_data.append({
                     "x_val": str(time_test[i]),
-                    "x_num": None,
+                    "x_num": float(test_epochs[i]),
                     "y": float(residuals[i])
                 })
             charts.append({
@@ -635,19 +659,21 @@ def build_timeseries_charts(df, time_col, target_col, is_classification, test_ma
             })
         except Exception as res_err:
             sys.stderr.write(f"Warning: Failed to generate residuals chart: {str(res_err)}\n")
-
+ 
     # Rolling Volatility Chart (for regression)
     if not is_classification:
         try:
             rolling_vol = pd.Series(y).rolling(window=7, min_periods=1).std().fillna(0).tolist()
-            vol_dates = df[time_col].dt.strftime('%Y-%m-%d').tolist()
+            vol_datetimes = df[time_col]
+            vol_dates = _format_timestamps(vol_datetimes)
+            vol_epochs = _get_epochs(vol_datetimes)
             vol_data = []
             
             step = max(1, len(rolling_vol) // 500)
             for i in range(0, len(rolling_vol), step):
                 vol_data.append({
                     "x_val": str(vol_dates[i]),
-                    "x_num": None,
+                    "x_num": float(vol_epochs[i]),
                     "y": float(rolling_vol[i])
                 })
             charts.append({

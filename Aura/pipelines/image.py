@@ -742,6 +742,7 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             }
         ]
         
+        fitted_pca = None
         print_progress(0.70, "Extracting CNN features (ResNet-18)...")
         # ── CNN feature extraction ─────────────────────────────────────────
         try:
@@ -756,124 +757,174 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
             from sklearn.decomposition import PCA as _PCA
             X_raw = X_images.reshape((N, int(np.prod(X_images.shape[1:]))))
             n_comps = min(100, N, X_raw.shape[1])
-            X_flat = _PCA(n_components=n_comps, random_state=42).fit_transform(X_raw)
+            pca_obj = _PCA(n_components=n_comps, random_state=42)
+            X_flat = pca_obj.fit_transform(X_raw)
+            fitted_pca = pca_obj
             extractor_name = "PCA"
 
         label_to_code = {label: i for i, label in enumerate(unique_classes)}
         y_encoded = np.array([label_to_code[lbl] for lbl in y_arr])
 
-        # ── Model stack: XGBoost → CatBoost → LogisticRegression ──────────
-        def _try_model(name, factory):
-            """Try to instantiate and return a model; return None on ImportError."""
-            try:
-                return factory(), name
-            except (ImportError, Exception):
-                return None, None
+        # Define classifiers dictionary
+        models_to_compare = {}
+        
+        # Logistic Regression
+        try:
+            from sklearn.linear_model import LogisticRegression
+            models_to_compare["LogisticRegression"] = LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')
+        except Exception:
+            pass
+            
+        # SGD Classifier
+        try:
+            from sklearn.linear_model import SGDClassifier
+            models_to_compare["SGDClassifier"] = SGDClassifier(max_iter=1000, random_state=42)
+        except Exception:
+            pass
+            
+        # Random Forest
+        try:
+            from sklearn.ensemble import RandomForestClassifier
+            models_to_compare["RandomForest"] = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=2)
+        except Exception:
+            pass
 
-        candidate_model, model_name = None, None
-        for _name, _factory in [
-            ("XGBoost",          lambda: __import__('xgboost', fromlist=['XGBClassifier']).XGBClassifier(
-                                     n_estimators=200, max_depth=5, learning_rate=0.1,
-                                     use_label_encoder=False, eval_metric='mlogloss',
-                                     random_state=42, verbosity=0, device='cpu',
-                                     n_jobs=1)),
-            ("CatBoost",         lambda: __import__('catboost', fromlist=['CatBoostClassifier']).CatBoostClassifier(
-                                     iterations=200, depth=6, learning_rate=0.05,
-                                     random_seed=42, verbose=0, thread_count=1, allow_writing_files=False)),
-            ("LogisticRegression", lambda: LogisticRegression(max_iter=500, random_state=42, solver='lbfgs')),
-        ]:
-            candidate_model, model_name = _try_model(_name, _factory)
-            if candidate_model is not None:
-                break
+        # XGBoost
+        try:
+            from xgboost import XGBClassifier
+            models_to_compare["XGBoost"] = XGBClassifier(
+                n_estimators=100, max_depth=5, learning_rate=0.1,
+                use_label_encoder=False, eval_metric='mlogloss',
+                random_state=42, verbosity=0, device='cpu', n_jobs=1
+            )
+        except Exception:
+            pass
 
-        model = candidate_model
-        clf_label = f"{extractor_name} + {model_name}"
+        # CatBoost
+        try:
+            from catboost import CatBoostClassifier
+            models_to_compare["CatBoost"] = CatBoostClassifier(
+                iterations=100, depth=6, learning_rate=0.05,
+                random_seed=42, verbose=0, thread_count=1, allow_writing_files=False
+            )
+        except Exception:
+            pass
 
+        # LightGBM
+        try:
+            from lightgbm import LGBMClassifier
+            models_to_compare["LightGBM"] = LGBMClassifier(
+                n_estimators=100, random_state=42, n_jobs=1, verbosity=-1
+            )
+        except Exception:
+            pass
+
+        # Prepare splits
+        cv_was_used = False
+        X_train_split, X_test_split, y_train_split, y_test_split = X_flat, X_flat, y_encoded, y_encoded
+        
         if N >= 10 and num_classes > 1:
-            min_class_size = min(class_counts.values())
-            n_splits = min(5, min_class_size)
-            if n_splits >= 2:
-                cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-                
-                dummy = DummyClassifier(strategy="most_frequent")
-                dummy.fit(X_flat, y_encoded)
-                dummy_score = accuracy_score(y_encoded, dummy.predict(X_flat))
-
-                print_progress(0.82, f"Cross-validating {clf_label}...")
-                cv_scores = cross_val_score(model, X_flat, y_encoded, cv=cv, scoring='accuracy')
-                cv_scores_list = [float(s) for s in cv_scores]
-                cv_mean = float(np.mean(cv_scores))
-                cv_std = float(np.std(cv_scores))
-                
-                cv_was_used = False
-                if X_test_images is not None:
-                    # Re-extract CNN features for the external test split
-                    try:
-                        from pipelines.cnn_extractor import extract_cnn_features
-                        X_test_flat, _ = extract_cnn_features(X_test_images, progress_start=0.83, progress_end=0.86)
-                    except Exception:
-                        X_test_flat = X_test_images.reshape(
-                            (len(X_test_images), int(np.prod(X_test_images.shape[1:])))
-                        )
-                    y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
-                    model.fit(X_flat, y_encoded)
-                    y_pred = model.predict(X_test_flat)
-                else:
-                    from sklearn.model_selection import train_test_split
-                    X_train, X_test, y_train, y_test = train_test_split(
-                        X_flat, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+            if X_test_images is not None:
+                try:
+                    from pipelines.cnn_extractor import extract_cnn_features
+                    X_test_flat, _ = extract_cnn_features(X_test_images, progress_start=0.83, progress_end=0.86)
+                except Exception:
+                    X_test_flat = X_test_images.reshape(
+                        (len(X_test_images), int(np.prod(X_test_images.shape[1:])))
                     )
-                    model.fit(X_train, y_train)
-                    y_pred = model.predict(X_test)
-                    cv_was_used = True
-                
-                overall_accuracy = float(accuracy_score(y_test, y_pred))
-                overall_f1 = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
-                overall_precision = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
-                overall_recall = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
-                
-                raw_cm = confusion_matrix(y_test, y_pred)
-                cm_data = {
-                    "labels": [str(c) for c in unique_classes],
-                    "values": [[int(val) for val in row] for row in raw_cm]
-                }
+                    if fitted_pca is not None:
+                        X_test_flat = fitted_pca.transform(X_test_flat)
+                y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
+                X_train_split, X_test_split, y_train_split, y_test_split = X_flat, X_test_flat, y_encoded, y_test
             else:
-                cv_was_used = False
-                # Low sample count — skip CV, just fit on all data
-                model.fit(X_flat, y_encoded)
-                if X_test_images is not None:
-                    try:
-                        from pipelines.cnn_extractor import extract_cnn_features
-                        X_test_flat, _ = extract_cnn_features(X_test_images, progress_start=0.83, progress_end=0.86)
-                    except Exception:
-                        X_test_flat = X_test_images.reshape(
-                            (len(X_test_images), int(np.prod(X_test_images.shape[1:])))
-                        )
-                    y_test = np.array([label_to_code[lbl] if lbl in label_to_code else 0 for lbl in y_test_arr])
-                    y_pred = model.predict(X_test_flat)
-                    overall_accuracy = float(accuracy_score(y_test, y_pred))
-                    overall_f1 = float(f1_score(y_test, y_pred, average='weighted', zero_division=0))
-                    overall_precision = float(precision_score(y_test, y_pred, average='weighted', zero_division=0))
-                    overall_recall = float(recall_score(y_test, y_pred, average='weighted', zero_division=0))
-                    raw_cm = confusion_matrix(y_test, y_pred)
-                else:
-                    y_pred = model.predict(X_flat)
-                    overall_accuracy = float(accuracy_score(y_encoded, y_pred))
-                    overall_f1 = float(f1_score(y_encoded, y_pred, average='weighted', zero_division=0))
-                    overall_precision = float(precision_score(y_encoded, y_pred, average='weighted', zero_division=0))
-                    overall_recall = float(recall_score(y_encoded, y_pred, average='weighted', zero_division=0))
-                    raw_cm = confusion_matrix(y_encoded, y_pred)
-                
-                dummy_score = 1.0 / num_classes
-                cv_scores_list = [overall_accuracy]
-                cv_mean = overall_accuracy
-                cv_std = 0.0
-                
-                cm_data = {
-                    "labels": [str(c) for c in unique_classes],
+                from sklearn.model_selection import train_test_split
+                X_train_split, X_test_split, y_train_split, y_test_split = train_test_split(
+                    X_flat, y_encoded, test_size=0.2, random_state=42, stratify=y_encoded
+                )
+                cv_was_used = True
 
-                    "values": [[int(val) for val in row] for row in raw_cm]
+            # Fit and evaluate all models
+            best_name = None
+            best_model_obj = None
+            best_score = -1.0
+            best_metrics = {}
+            best_preds = None
+            
+            all_evals = {}
+            for name, clf in models_to_compare.items():
+                try:
+                    clf.fit(X_train_split, y_train_split)
+                    preds = clf.predict(X_test_split)
+                    acc = accuracy_score(y_test_split, preds)
+                    f1 = f1_score(y_test_split, preds, average='weighted', zero_division=0)
+                    prec = precision_score(y_test_split, preds, average='weighted', zero_division=0)
+                    rec = recall_score(y_test_split, preds, average='weighted', zero_division=0)
+                    
+                    all_evals[name] = {
+                        "accuracy": float(acc),
+                        "f1": float(f1),
+                        "precision": float(prec),
+                        "recall": float(rec),
+                        "model_obj": clf
+                    }
+                    
+                    if acc > best_score:
+                        best_score = acc
+                        best_name = name
+                        best_model_obj = clf
+                        best_metrics = all_evals[name]
+                        best_preds = preds
+                except Exception as e_fit:
+                    sys.stderr.write(f"Warning: Failed to fit/evaluate model {name}: {e_fit}\n")
+                    
+            # If no models succeeded, use Dummy Baseline
+            if best_model_obj is None:
+                best_name = "Dummy Classifier"
+                best_model_obj = DummyClassifier(strategy="most_frequent")
+                best_model_obj.fit(X_train_split, y_train_split)
+                best_preds = best_model_obj.predict(X_test_split)
+                best_metrics = {
+                    "accuracy": float(accuracy_score(y_test_split, best_preds)),
+                    "f1": float(f1_score(y_test_split, best_preds, average='weighted', zero_division=0)),
+                    "precision": float(precision_score(y_test_split, best_preds, average='weighted', zero_division=0)),
+                    "recall": float(recall_score(y_test_split, best_preds, average='weighted', zero_division=0))
                 }
+
+            model = best_model_obj
+            clf_label = f"{extractor_name} + {best_name}"
+            
+            overall_accuracy = best_metrics["accuracy"]
+            overall_f1 = best_metrics["f1"]
+            overall_precision = best_metrics["precision"]
+            overall_recall = best_metrics["recall"]
+            
+            raw_cm = confusion_matrix(y_test_split, best_preds)
+            cm_data = {
+                "labels": [str(c) for c in unique_classes],
+                "values": [[int(val) for val in row] for row in raw_cm]
+            }
+            
+            # Cross validation scores for the best model if possible
+            cv_scores_list = [overall_accuracy]
+            cv_mean = overall_accuracy
+            cv_std = 0.0
+            
+            if N >= 10 and num_classes > 1 and cv_was_used:
+                try:
+                    min_class_size = min(class_counts.values())
+                    n_splits = min(5, min_class_size)
+                    if n_splits >= 2:
+                        cv = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
+                        print_progress(0.82, f"Cross-validating best model {clf_label}...")
+                        cv_scores = cross_val_score(model, X_flat, y_encoded, cv=cv, scoring='accuracy')
+                        cv_scores_list = [float(s) for s in cv_scores]
+                        cv_mean = float(np.mean(cv_scores))
+                        cv_std = float(np.std(cv_scores))
+                except Exception:
+                    pass
+            
+            y_test = y_test_split
+            y_pred = best_preds
             
             # Compute actual dummy baseline metrics
             from sklearn.dummy import DummyClassifier
@@ -964,11 +1015,29 @@ def analyze_image(file_path, task_type_override="auto", target_col=None, test_fi
                 "total_rows": len(X_test_images)
             }
         
-        clf_label_safe = clf_label if 'clf_label' in dir() else "Classifier"
         models_compared = [
-            {"name": "Dummy Baseline", "score": float(dummy_acc), "metric": "Accuracy", "f1": float(dummy_f1), "precision": float(dummy_prec), "recall": float(dummy_rec)},
-            {"name": clf_label_safe, "score": float(overall_accuracy), "metric": "Accuracy", "f1": float(overall_f1), "precision": float(overall_precision), "recall": float(overall_recall)}
+            {"name": "Dummy Baseline", "score": float(dummy_acc), "metric": "Accuracy", "f1": float(dummy_f1), "precision": float(dummy_prec), "recall": float(dummy_rec)}
         ]
+        if 'all_evals' in locals() and all_evals:
+            for name, ev in all_evals.items():
+                models_compared.append({
+                    "name": f"{extractor_name} + {name}",
+                    "score": ev["accuracy"],
+                    "metric": "Accuracy",
+                    "f1": ev["f1"],
+                    "precision": ev["precision"],
+                    "recall": ev["recall"]
+                })
+        else:
+            clf_label_safe = clf_label if 'clf_label' in dir() else "Classifier"
+            models_compared.append({
+                "name": clf_label_safe,
+                "score": float(overall_accuracy),
+                "metric": "Accuracy",
+                "f1": float(overall_f1),
+                "precision": float(overall_precision),
+                "recall": float(overall_recall)
+            })
         
         # Phase 1: Model & Code Export
         if model_export_path or code_export_path:

@@ -56,3 +56,8 @@ yolov8n.pt
 mempalace.yaml
 entities.json
 
+# Cache, coverage and testing
+.ruff_cache/
+.coverage
+htmlcov/
+Aura.app/

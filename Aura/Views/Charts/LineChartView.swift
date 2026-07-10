@@ -7,13 +7,24 @@ struct LineChartView: View {
     
     private static let formatters: [DateFormatter] = {
         let formats = [
-            "yyyy-MM-dd",
-            "M/d/yyyy",
-            "d/M/yyyy",
-            "dd-mm-yyyy HH:mm:ss",
-            "dd.mm.yyyy HH:mm:ss",
-            "dd.dd.yyyy HH:mm:ss",
             "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm",
+            "yyyy-MM-dd",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd HH:mm",
+            "yyyy/MM/dd",
+            "dd-MM-yyyy HH:mm:ss",
+            "dd-MM-yyyy HH:mm",
+            "dd-MM-yyyy",
+            "dd.MM.yyyy HH:mm:ss",
+            "dd.MM.yyyy HH:mm",
+            "dd.MM.yyyy",
+            "MM/dd/yyyy HH:mm:ss",
+            "MM/dd/yyyy HH:mm",
+            "MM/dd/yyyy",
+            "dd/MM/yyyy HH:mm:ss",
+            "dd/MM/yyyy HH:mm",
+            "dd/MM/yyyy",
             "yyyy-MM-dd'T'HH:mm:ssZ",
             "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
             "yyyy"
@@ -519,7 +530,7 @@ struct LineChartView: View {
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(Theme.Color.primaryAction)
                 .padding(.bottom, 8)
             }
         }

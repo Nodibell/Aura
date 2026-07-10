@@ -133,7 +133,7 @@ struct BarChartView: View {
                         .font(.system(size: 11, weight: .bold))
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(.purple)
+                .tint(Theme.Color.primaryAction)
                 .padding(.bottom, 4)
             }
         }

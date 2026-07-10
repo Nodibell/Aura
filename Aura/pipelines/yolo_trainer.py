@@ -143,20 +143,26 @@ def train_yolo_and_evaluate(
     except Exception:
         pass
 
-    # ── Load base model ────────────────────────────────────────────────────
+    # ── Load base models ───────────────────────────────────────────────────
     print_progress(0.10, "Loading YOLOv8n base model...")
     try:
-        model = YOLO("yolov8n.pt")
+        model_n = YOLO("yolov8n.pt")
     except Exception as e:
         return {"error": f"Failed to load YOLOv8n weights: {e}"}
 
-    # ── Training ───────────────────────────────────────────────────────────
-    print_progress(0.15, f"Fine-tuning YOLOv8n for {epochs} epochs on {device_str}...")
-
-    train_results = None
+    print_progress(0.12, "Loading YOLOv8s base model...")
+    model_s = None
     try:
-        # workers=0: avoids multiprocessing fork issues in Xcode sandbox
-        train_results = model.train(
+        model_s = YOLO("yolov8s.pt")
+    except Exception as e:
+        sys.stderr.write(f"Warning: Failed to load YOLOv8s weights: {e}\n")
+
+    # ── Training YOLOv8n ───────────────────────────────────────────────────
+    print_progress(0.15, f"Fine-tuning YOLOv8n for {epochs} epochs on {device_str}...")
+    map50_n = 0.0
+    map50_95_n = 0.0
+    try:
+        model_n.train(
             data=yaml_path,
             epochs=epochs,
             imgsz=imgsz,
@@ -164,27 +170,56 @@ def train_yolo_and_evaluate(
             verbose=False,
             workers=0,
             exist_ok=True,
+            project="runs/detect",
+            name="yolov8n_train"
         )
+        val_metrics_n = model_n.val(device=device_str, verbose=False, workers=0)
+        map50_n = float(val_metrics_n.box.map50)
+        map50_95_n = float(val_metrics_n.box.map)
     except Exception as e:
-        return {"error": f"YOLO training failed: {e}"}
+        return {"error": f"YOLOv8n training failed: {e}"}
 
-    print_progress(0.70, "Running validation (mAP evaluation)...")
+    # ── Training YOLOv8s ───────────────────────────────────────────────────
+    map50_s = 0.0
+    map50_95_s = 0.0
+    if model_s is not None:
+        print_progress(0.45, f"Fine-tuning YOLOv8s for {epochs} epochs on {device_str}...")
+        try:
+            model_s.train(
+                data=yaml_path,
+                epochs=epochs,
+                imgsz=imgsz,
+                device=device_str,
+                verbose=False,
+                workers=0,
+                exist_ok=True,
+                project="runs/detect",
+                name="yolov8s_train"
+            )
+            val_metrics_s = model_s.val(device=device_str, verbose=False, workers=0)
+            map50_s = float(val_metrics_s.box.map50)
+            map50_95_s = float(val_metrics_s.box.map)
+        except Exception as e:
+            sys.stderr.write(f"Warning: YOLOv8s training/validation failed: {e}\n")
+            model_s = None
 
-    # ── Validation metrics ─────────────────────────────────────────────────
-    map50    = 0.0
-    map50_95 = 0.0
-    try:
-        val_metrics = model.val(device=device_str, verbose=False, workers=0)
-        map50    = float(val_metrics.box.map50)
-        map50_95 = float(val_metrics.box.map)
-    except Exception as e:
-        sys.stderr.write(f"[yolo_trainer] val() failed: {e}\n")
+    # ── Compare models ─────────────────────────────────────────────────────
+    print_progress(0.75, "Comparing YOLOv8n vs YOLOv8s metrics...")
+    if model_s is not None and map50_s > map50_n:
+        best_model_name = "YOLOv8s (fine-tuned)"
+        model = model_s
+        map50 = map50_s
+        map50_95 = map50_95_s
+    else:
+        best_model_name = "YOLOv8n (fine-tuned)"
+        model = model_n
+        map50 = map50_n
+        map50_95 = map50_95_n
 
     # ── Export model ───────────────────────────────────────────────────────
     if model_export_path:
         try:
             model.export(format="torchscript") if model_export_path.endswith(".pt") else None
-            # Save the ultralytics best.pt to the requested path
             import shutil
             best_pt = os.path.join(str(model.trainer.save_dir), "weights", "best.pt")
             if os.path.exists(best_pt):
@@ -253,7 +288,7 @@ def train_yolo_and_evaluate(
 
     # ── Build result dict (compatible with object_detection result structure) ──
     summary = (
-        f"### 🎯 YOLOv8n Fine-Tuning Complete\n"
+        f"### 🎯 Fine-Tuning Complete (Best Model: {best_model_name})\n"
         f"- **Epochs:** {epochs}\n"
         f"- **Image size:** {imgsz}×{imgsz}\n"
         f"- **Device:** {device_str.upper()}\n"
@@ -267,7 +302,7 @@ def train_yolo_and_evaluate(
     if overlay_images:
         charts.append({
             "type": "image_grid",
-            "title": "YOLOv8n Validation — Bounding Box Detections",
+            "title": f"{best_model_name} Validation — Bounding Box Detections",
             "x_label": "",
             "y_label": "",
             "data": [],
@@ -306,13 +341,14 @@ def train_yolo_and_evaluate(
         "correlations": [],
         "charts": charts,
         "metrics": {
-            "model": "YOLOv8n (fine-tuned)",
+            "model": best_model_name,
             "score_type": "mAP@0.5",
             "score": map50,
             "additional_metrics": {"mAP@0.5:0.95": map50_95},
         },
         "models_compared": [
-            {"name": "YOLOv8n (fine-tuned)", "score": map50, "metric": "mAP@0.5"},
+            {"name": "YOLOv8n (fine-tuned)", "score": map50_n, "metric": "mAP@0.5"},
+            {"name": "YOLOv8s (fine-tuned)", "score": map50_s, "metric": "mAP@0.5"} if model_s is not None else {"name": "YOLOv8s (fine-tuned)", "score": 0.0, "metric": "mAP@0.5"},
         ],
         "target_column": "class",
         "dummy_baseline_score": 0.0,

@@ -219,7 +219,7 @@ struct PredictionTabView: View {
                                             Text("Run Inference")
                                         }
                                         .buttonStyle(.borderedProminent)
-                                        .tint(.purple)
+                                        .tint(Theme.Color.primaryAction)
                                         .padding(.top, 8)
                                         Spacer()
                                     }
@@ -247,7 +247,7 @@ struct PredictionTabView: View {
                                     Text("Run Inference")
                                 }
                                 .buttonStyle(.borderedProminent)
-                                .tint(.purple)
+                                .tint(Theme.Color.primaryAction)
                                 .padding(.top, 8)
                             }
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -350,7 +350,7 @@ struct PredictionTabView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .tint(.purple)
+                        .tint(Theme.Color.primaryAction)
                         .controlSize(.large)
                         .disabled(selectedBatchFile == nil || isRunningBatch)
                     }

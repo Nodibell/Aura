@@ -76,6 +76,8 @@ struct DashboardViewModelTests {
         
         func runPreview(
             csvPathOrURL: String,
+            datasetType: String?,
+            cleaningActions: String?,
             progress: @escaping @Sendable (Double, String) -> Void,
             completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
         ) async {
@@ -138,7 +140,8 @@ struct DashboardViewModelTests {
             result: AnalysisResult,
             datasetPath: String,
             targetColumn: String?,
-            originalSource: String?
+            originalSource: String?,
+            cleaningActionsJson: String?
         ) -> HistoryItem? {
             saveAnalysisCalled = true
             return nil

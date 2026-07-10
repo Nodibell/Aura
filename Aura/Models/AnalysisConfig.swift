@@ -128,6 +128,26 @@ enum TaskTypeOverride: String, Codable, CaseIterable, Identifiable {
         case .clustering:       return "None (Clustering)"
         }
     }
+
+    var icon: String {
+        switch self {
+        case .auto: return "wand.and.stars"
+        case .regression: return "chart.line.uptrend.xyaxis"
+        case .classification: return "tag"
+        case .forecast: return "chart.xyaxis.line"
+        case .clustering: return "circle.grid.3x3"
+        }
+    }
+
+    var shortLabel: String {
+        switch self {
+        case .auto: return "Auto"
+        case .regression: return "Regression"
+        case .classification: return "Classification"
+        case .forecast: return "Forecast"
+        case .clustering: return "Clustering"
+        }
+    }
 }
 
 // MARK: - Cleaning Action

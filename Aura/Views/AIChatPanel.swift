@@ -695,7 +695,7 @@ struct MarkdownMessageView: View {
                             ForEach(0..<headers.count, id: \.self) { colIndex in
                                 let text = colIndex < row.count ? row[colIndex] : ""
                                 Text(parseInlineMathAndMarkdown(text))
-                                    .font(.system(size: 11))
+                                    .font(Theme.Font.caption)
                                     .foregroundColor(.primary)
                             }
                         }

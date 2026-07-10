@@ -1400,7 +1400,7 @@ if __name__ == "__main__":
 
     if args.preview:
         from pipelines.preview import analyze_preview
-        analysis = analyze_preview(args.file, dataset_type=args.dataset_type)
+        analysis = analyze_preview(args.file, dataset_type=args.dataset_type, cleaning_actions=args.cleaning_actions)
     else:
         column_type_overrides = {}
         if args.column_type_overrides:

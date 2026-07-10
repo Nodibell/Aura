@@ -338,8 +338,22 @@ class DashboardViewModel {
             page.progressFraction = 0.0
             page.progressMessage = "Preparing preview..."
         }
+        
+        var cleaningActionsJson: String? = nil
+        if !page.analysisConfig.cleaningActions.isEmpty {
+            let actionsArray = Array(page.analysisConfig.cleaningActions)
+            if let encodedData = try? JSONEncoder().encode(actionsArray),
+               let jsonString = String(data: encodedData, encoding: .utf8) {
+                cleaningActionsJson = jsonString
+            }
+        }
+        
         Task {
-            await pythonRunner.runPreview(csvPathOrURL: pathOrURL, progress: { frac, msg in
+            await pythonRunner.runPreview(
+                csvPathOrURL: pathOrURL,
+                datasetType: page.analysisConfig.datasetType.rawValue,
+                cleaningActions: cleaningActionsJson,
+                progress: { frac, msg in
                 Task { @MainActor in
                     page.progressFraction = frac
                     page.progressMessage = msg
@@ -558,7 +572,7 @@ class DashboardViewModel {
                                     cleaningActionsJson = jsonString
                                 }
                             }
-                            let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource)
+                            let savedItem = self.historyService.saveAnalysis(result: data, datasetPath: csvPath, targetColumn: targetParam, originalSource: originalSource, cleaningActionsJson: cleaningActionsJson)
                             page.currentHistoryItemId = savedItem?.id
                             page.title = savedItem?.datasetName ?? page.title
                             page.chatViewModel.injectContext(data, datasetURL: savedItem?.datasetURL, cleaningActions: cleaningActionsJson, otherRunsSummary: self.buildOtherRunsSummary(for: savedItem?.datasetName ?? page.title, excludingItemWithId: savedItem?.id))
@@ -581,7 +595,10 @@ class DashboardViewModel {
             return
         }
         
-        let title = isDataOnly ? "\(item.datasetName) • Data" : item.datasetName
+        let groupItems = historyService.items.filter { $0.datasetName == item.datasetName }.sorted(by: { $0.timestamp < $1.timestamp })
+        let versionNum = (groupItems.firstIndex(where: { $0.id == item.id }) ?? 0) + 1
+        
+        let title = isDataOnly ? "\(item.datasetName) • Data (v\(versionNum))" : "\(item.datasetName) (v\(versionNum))"
         let page = openNewPage(title: title, historyItemId: item.id, isPreview: isPreview, isDataOnly: isDataOnly)
         
         withAnimation {
@@ -595,6 +612,12 @@ class DashboardViewModel {
         // Reconstruct the base configuration for this history item
         var newConfig = AnalysisConfig()
         newConfig.trainFilePath = item.datasetPath
+        
+        if let jsonStr = item.cleaningActionsJson,
+           let jsonData = jsonStr.data(using: .utf8),
+           let actions = try? JSONDecoder().decode([CleaningAction].self, from: jsonData) {
+            newConfig.cleaningActions = Set(actions)
+        }
 
         if let datasetURL = item.datasetURL, !datasetURL.isEmpty {
             page.datasetURLInput = datasetURL
@@ -626,7 +649,7 @@ class DashboardViewModel {
                 page.result = loadedResult
                 page.activeModelName = item.bestModel ?? loadedResult.metrics.model
                 page.trainColumns = loadedResult.columns
-                page.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL, otherRunsSummary: self.buildOtherRunsSummary(for: item.datasetName, excludingItemWithId: item.id))
+                page.chatViewModel.injectContext(loadedResult, datasetURL: item.datasetURL, cleaningActions: item.cleaningActionsJson, otherRunsSummary: self.buildOtherRunsSummary(for: item.datasetName, excludingItemWithId: item.id))
 
                 if let targetsMap = loadedResult.targets, !targetsMap.isEmpty {
                     page.selectedTargetName = targetsMap.keys.sorted().first ?? loadedResult.targetColumn
@@ -666,6 +689,9 @@ class DashboardViewModel {
                 }
 
                 page.analysisConfig = newConfig
+                if isDataOnly {
+                    self.fetchPreview(for: item.datasetPath, page: page)
+                }
                 if self.ollamaStatus.isAvailable { self.showAIPanel = true }
                 page.selectedTab = "Summary"
             } else {

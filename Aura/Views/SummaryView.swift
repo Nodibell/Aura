@@ -31,7 +31,9 @@ struct SummaryView: View {
                     return [
                         CleaningAction(column: col, actionType: "drop"),
                         CleaningAction(column: col, actionType: "impute_median"),
-                        CleaningAction(column: col, actionType: "impute_mean")
+                        CleaningAction(column: col, actionType: "impute_mean"),
+                        CleaningAction(column: col, actionType: "impute_knn"),
+                        CleaningAction(column: col, actionType: "impute_mice")
                     ]
                 } else {
                     return [
@@ -44,6 +46,8 @@ struct SummaryView: View {
                     return [
                         CleaningAction(column: col, actionType: "impute_median"),
                         CleaningAction(column: col, actionType: "impute_mean"),
+                        CleaningAction(column: col, actionType: "impute_knn"),
+                        CleaningAction(column: col, actionType: "impute_mice"),
                         CleaningAction(column: col, actionType: "drop")
                     ]
                 } else {
@@ -55,7 +59,9 @@ struct SummaryView: View {
             }
         } else if issueLower.contains("outlier") {
             return [
-                CleaningAction(column: col, actionType: "clip_outliers")
+                CleaningAction(column: col, actionType: "clip_outliers"),
+                CleaningAction(column: col, actionType: "drop_outliers"),
+                CleaningAction(column: col, actionType: "isolation_forest")
             ]
         } else if issueLower.contains("constant") || issueLower.contains("cardinality") {
             return [
@@ -74,7 +80,11 @@ struct SummaryView: View {
         case "impute_mean": return "Impute Mean"
         case "impute_median": return "Impute Median"
         case "impute_mode": return "Impute Mode"
-        case "clip_outliers": return "Clip Outliers"
+        case "impute_knn": return "Impute KNN"
+        case "impute_mice": return "Impute MICE"
+        case "clip_outliers": return "Cap/Floor IQR"
+        case "drop_outliers": return "Drop Outliers (IQR)"
+        case "isolation_forest": return "Isolation Forest"
         default: return actionType.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }
@@ -87,7 +97,16 @@ struct SummaryView: View {
         if isApplied(action) {
             config.cleaningActions.remove(action)
         } else {
-            config.cleaningActions = config.cleaningActions.filter { $0.column != action.column }
+            let imputes = ["impute_mean", "impute_median", "impute_mode", "impute_knn", "impute_mice"]
+            let outliers = ["clip_outliers", "drop_outliers", "isolation_forest"]
+            
+            if imputes.contains(action.actionType) {
+                config.cleaningActions = config.cleaningActions.filter { !($0.column == action.column && (imputes.contains($0.actionType) || $0.actionType == "drop")) }
+            } else if outliers.contains(action.actionType) {
+                config.cleaningActions = config.cleaningActions.filter { !($0.column == action.column && outliers.contains($0.actionType)) }
+            } else if action.actionType == "drop" {
+                config.cleaningActions = config.cleaningActions.filter { $0.column != action.column }
+            }
             config.cleaningActions.insert(action)
         }
     }
@@ -283,7 +302,7 @@ struct SummaryView: View {
                     ForEach(warnings, id: \.self) { warning in
                         HStack(alignment: .top, spacing: 6) {
                             Image(systemName: "arrow.right.circle.fill")
-                                .font(.system(size: 11))
+                                .font(Theme.Font.caption)
                                 .foregroundColor(.red.opacity(0.8))
                                 .padding(.top, 3)
                             Text(warning)
@@ -483,7 +502,7 @@ struct SummaryView: View {
             
             HStack {
                 Text("Sort By Metric:")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
                     .foregroundColor(.secondary)
                 
                 Picker("", selection: $selectedLeaderboardSortMetric) {
@@ -1166,7 +1185,7 @@ struct AnchorButton: View {
                         .font(.system(size: 10, weight: .bold))
                 }
                 Text(title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Theme.Font.captionBold)
             }
             .foregroundColor(isHovered ? .white : .secondary)
             .padding(.horizontal, 12)

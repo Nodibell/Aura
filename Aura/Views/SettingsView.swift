@@ -655,7 +655,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.green)
+                    .tint(Theme.Color.success)
                     .disabled(serverStatus == .running || serverStatus == .starting || serverStatus == .stopping || isPerformingServerAction)
                     
                     // Stop Button
@@ -664,7 +664,7 @@ struct SettingsView: View {
                             .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .tint(.red)
+                    .tint(Theme.Color.destructive)
                     .disabled(serverStatus == .stopped || serverStatus == .starting || serverStatus == .stopping || isPerformingServerAction)
                     
                     // Restart Button

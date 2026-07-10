@@ -444,6 +444,7 @@ struct DatasetPreview: Codable, Sendable {
     let availableFiles: [String]?
     let totalRows: Int?
     let columnTypes: [String: String]?
+    let columnCategories: [String: [String]]?
     let datetimeRange: [String: DatetimeBounds]?
     let previewImages: [PreviewImage]?
 
@@ -456,6 +457,7 @@ struct DatasetPreview: Codable, Sendable {
         availableFiles: [String]? = nil,
         totalRows: Int? = nil,
         columnTypes: [String: String]? = nil,
+        columnCategories: [String: [String]]? = nil,
         datetimeRange: [String: DatetimeBounds]? = nil,
         previewImages: [PreviewImage]? = nil
     ) {
@@ -467,6 +469,7 @@ struct DatasetPreview: Codable, Sendable {
         self.availableFiles = availableFiles
         self.totalRows = totalRows
         self.columnTypes = columnTypes
+        self.columnCategories = columnCategories
         self.datetimeRange = datetimeRange
         self.previewImages = previewImages
     }
@@ -480,6 +483,7 @@ struct DatasetPreview: Codable, Sendable {
         case availableFiles = "available_files"
         case totalRows = "total_rows"
         case columnTypes = "column_types"
+        case columnCategories = "column_categories"
         case datetimeRange = "datetime_range"
         case previewImages = "preview_images"
     }

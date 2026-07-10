@@ -57,6 +57,7 @@ class AnalyzeRequest(BaseModel):
 class PreviewRequest(BaseModel):
     file_path: str
     dataset_type: str = "tabular"
+    cleaning_actions: Optional[str] = None
 
 class PredictRequest(BaseModel):
     model_path: str
@@ -319,6 +320,8 @@ async def run_subprocess_simple(args):
 async def preview_endpoint(req: PreviewRequest):
     python_exe = sys.executable
     args = [python_exe, ANALYZE_PY, req.file_path, "--dataset-type", req.dataset_type, "--preview"]
+    if req.cleaning_actions:
+        args += ["--cleaning-actions", req.cleaning_actions]
     return StreamingResponse(run_subprocess_stream(args), media_type="text/event-stream")
 
 @app.post("/predict")

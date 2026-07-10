@@ -20,6 +20,7 @@ class HistoryItem: Identifiable, Equatable {
     var colCount: Int?
     var datasetURL: String?
     var isPinned: Bool? = false
+    var cleaningActionsJson: String?
 
     init(
         id: UUID = UUID(),
@@ -35,7 +36,8 @@ class HistoryItem: Identifiable, Equatable {
         rowCount: Int? = nil,
         colCount: Int? = nil,
         datasetURL: String? = nil,
-        isPinned: Bool? = false
+        isPinned: Bool? = false,
+        cleaningActionsJson: String? = nil
     ) {
         self.id = id
         self.datasetName = datasetName
@@ -51,6 +53,7 @@ class HistoryItem: Identifiable, Equatable {
         self.colCount = colCount
         self.datasetURL = datasetURL
         self.isPinned = isPinned
+        self.cleaningActionsJson = cleaningActionsJson
     }
     
     static func == (lhs: HistoryItem, rhs: HistoryItem) -> Bool {

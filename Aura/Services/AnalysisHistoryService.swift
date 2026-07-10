@@ -184,7 +184,7 @@ class AnalysisHistoryService: AnalysisHistoryServiceProtocol {
     }
     
     @discardableResult
-    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String? = nil) -> HistoryItem? {
+    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String? = nil, cleaningActionsJson: String? = nil) -> HistoryItem? {
         let sourceForName = originalSource ?? datasetPath
         let datasetName = generateDisplayName(source: sourceForName, result: result)
         let resultId = UUID()
@@ -211,7 +211,8 @@ class AnalysisHistoryService: AnalysisHistoryServiceProtocol {
                 scoreType: result.metrics.scoreType,
                 rowCount: result.rowCount,
                 colCount: result.colCount,
-                datasetURL: finalURL
+                datasetURL: finalURL,
+                cleaningActionsJson: cleaningActionsJson
             )
             
             context.insert(newItem)

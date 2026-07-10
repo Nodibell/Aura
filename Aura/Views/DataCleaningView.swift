@@ -41,7 +41,7 @@ struct DataCleaningView: View {
                                 }
                                 .disabled(isRollingBack)
                                 .buttonStyle(.bordered)
-                                .tint(.orange)
+                                .tint(Theme.Color.caution)
                                 .keyboardShortcut("z", modifiers: [.command])
                                 .help("Roll back to the previous cleaning state (⌘Z)")
                             }
@@ -57,7 +57,7 @@ struct DataCleaningView: View {
                                 }
                                 .disabled(isRollingBack)
                                 .buttonStyle(.bordered)
-                                .tint(.green)
+                                .tint(Theme.Color.success)
                                 .keyboardShortcut("z", modifiers: [.command, .shift])
                                 .help("Restore the next cleaning state (⇧⌘Z)")
                             }
@@ -554,7 +554,7 @@ struct DataCleaningView: View {
                                         }
                                         .buttonStyle(.bordered)
                                         .font(.caption)
-                                        .tint(.orange)
+                                        .tint(Theme.Color.caution)
                                         .disabled(isRollingBack)
                                         .padding(.top, 4)
                                     }
@@ -695,7 +695,7 @@ struct DataCleaningView: View {
                                         applyPlugin(plugin)
                                     }
                                     .buttonStyle(.borderedProminent)
-                                    .tint(.blue)
+                                    .tint(Theme.Color.info)
                                     .disabled(isRunningPlugin)
                                 }
                                 

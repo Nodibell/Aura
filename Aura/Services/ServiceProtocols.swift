@@ -25,6 +25,8 @@ protocol PythonRunning: Sendable {
     
     func runPreview(
         csvPathOrURL: String,
+        datasetType: String?,
+        cleaningActions: String?,
         progress: @escaping @Sendable (Double, String) -> Void,
         completion: @escaping @Sendable (Result<DatasetPreview, Error>) -> Void
     ) async
@@ -82,7 +84,7 @@ protocol AnalysisHistoryServiceProtocol: AnyObject {
     func loadMetadata()
     func renameItem(_ item: HistoryItem, to newName: String)
     func togglePinItem(_ item: HistoryItem)
-    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String?) -> HistoryItem?
+    func saveAnalysis(result: AnalysisResult, datasetPath: String, targetColumn: String?, originalSource: String?, cleaningActionsJson: String?) -> HistoryItem?
     func loadAnalysisResult(item: HistoryItem) async -> AnalysisResult?
     func deleteItem(_ item: HistoryItem)
     func clearHistory()

@@ -242,9 +242,58 @@ class StatefulCleaner:
                     for sub_act in self.actions:
                         if sub_act.get("column") == col:
                             sub_act["column"] = new_name
-                            
+        # Row removals and duplicate filtering
+        # Global remove duplicate rows
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType", "")
+            if col == "all" and act_type == "remove_duplicates":
+                df_out = df_out.drop_duplicates()
+        
+        # Condition-based row removals
+        for act in self.actions:
+            col = act.get("column")
+            act_type = act.get("actionType", "")
+            if col not in df_out.columns or col == "all":
+                continue
+            
+            if act_type.startswith("exclude_categories:"):
+                try:
+                    vals_str = act_type.split(":", 1)[1]
+                    vals_to_exclude = [v.strip() for v in vals_str.split("|") if v.strip()]
+                    if vals_to_exclude:
+                        df_out = df_out[~df_out[col].astype(str).isin(vals_to_exclude)]
+                except Exception as e_exc:
+                    sys.stderr.write(f"Warning: exclude_categories failed for {col}: {e_exc}\n")
+            elif act_type.startswith("remove_less_than:"):
+                try:
+                    val = float(act_type.split(":", 1)[1])
+                    df_out = df_out[pd.to_numeric(df_out[col], errors='coerce') >= val]
+                except Exception as e_lt:
+                    sys.stderr.write(f"Warning: remove_less_than failed for {col}: {e_lt}\n")
+            elif act_type.startswith("remove_greater_than:"):
+                try:
+                    val = float(act_type.split(":", 1)[1])
+                    df_out = df_out[pd.to_numeric(df_out[col], errors='coerce') <= val]
+                except Exception as e_gt:
+                    sys.stderr.write(f"Warning: remove_greater_than failed for {col}: {e_gt}\n")
+            elif act_type.startswith("remove_equals:"):
+                try:
+                    val = float(act_type.split(":", 1)[1])
+                    df_out = df_out[pd.to_numeric(df_out[col], errors='coerce') != val]
+                except Exception as e_eq:
+                    sys.stderr.write(f"Warning: remove_equals failed for {col}: {e_eq}\n")
+            elif act_type.startswith("remove_contains:"):
+                try:
+                    substr = act_type.split(":", 1)[1]
+                    if substr:
+                        df_out = df_out[~df_out[col].astype(str).str.contains(substr, case=False, na=False)]
+                except Exception as e_cont:
+                    sys.stderr.write(f"Warning: remove_contains failed for {col}: {e_cont}\n")
+
         # 1. Drop actions
         drop_cols = [act.get("column") for act in self.actions if act.get("actionType") == "drop" and act.get("column") in df_out.columns]
+
         if drop_cols:
             df_out = df_out.drop(columns=drop_cols)
             

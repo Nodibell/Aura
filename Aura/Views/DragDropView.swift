@@ -444,7 +444,7 @@ struct DragDropView: View {
                     } else {
                         Image(systemName: "clock.arrow.circlepath")
                             .foregroundColor(.purple)
-                            .font(.system(size: 11))
+                            .font(Theme.Font.caption)
                     }
                     Spacer()
                     Text(item.timestamp, style: .date)

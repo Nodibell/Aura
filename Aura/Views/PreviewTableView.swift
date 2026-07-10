@@ -1,16 +1,24 @@
 import SwiftUI
+import WebKit
 
 // MARK: - Preview Table with Type Selector + Column Selection
+
+struct FilterColumnWrapper: Identifiable {
+    var id: String { name }
+    let name: String
+}
 
 struct PreviewTableView: View {
     let preview: DatasetPreview
 
     @Binding var config: AnalysisConfig
     var onPreviewFileRequested: ((String) -> Void)? = nil
+    var onRefreshPreview: (() -> Void)? = nil
     var isSidebar: Bool = false
 
     @State private var isShowingStartCalendar = false
     @State private var isShowingEndCalendar = false
+    @State private var filteringColumn: FilterColumnWrapper? = nil
 
     private let colWidth: CGFloat = 148
 
@@ -116,26 +124,6 @@ struct PreviewTableView: View {
 
                 Divider().background(Color.primary.opacity(0.06))
 
-                // ── Dataset Type Selector ──────────────────────────────────────
-                datasetTypeSelector
-                    .padding(.horizontal, isSidebar ? 12 : 20)
-                    .padding(.vertical, isSidebar ? 8 : 12)
-
-                Divider().background(Color.primary.opacity(0.06))
-
-                // ── Smart Sampling Toggle ──────────────────────────────────────
-                smartSamplingSection
-                    .padding(.horizontal, isSidebar ? 12 : 20)
-                    .padding(.vertical, isSidebar ? 8 : 12)
-
-                if let available = preview.availableFiles, available.count > 1 {
-                    Divider().background(Color.primary.opacity(0.06))
-                    
-                    availableFilesPicker(available)
-                        .padding(.horizontal, isSidebar ? 12 : 20)
-                        .padding(.vertical, isSidebar ? 8 : 12)
-                }
-
                 // Optional: time-column picker for Time Series
                 if config.datasetType == .timeSeries {
                     Divider().background(Color.primary.opacity(0.06))
@@ -180,6 +168,9 @@ struct PreviewTableView: View {
                 .padding(.bottom, 32)
             }
         }
+        .popover(item: $filteringColumn) { colWrapper in
+            filterPopoverView(for: colWrapper.name)
+        }
     }
 
     // MARK: - Header Section
@@ -202,14 +193,38 @@ struct PreviewTableView: View {
 
             Spacer()
 
-            if !isSidebar && !preview.localPath.isEmpty {
-                Label("Cached Locally", systemImage: "checkmark.circle.fill")
-                    .font(.caption2.bold())
-                    .foregroundColor(.green)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(20)
+            if !isSidebar {
+                HStack(spacing: 8) {
+                    Button(action: {
+                        let isDeduplicated = config.cleaningActions.contains(where: { $0.column == "all" && $0.actionType == "remove_duplicates" })
+                        if isDeduplicated {
+                            config.cleaningActions = config.cleaningActions.filter { !($0.column == "all" && $0.actionType == "remove_duplicates") }
+                        } else {
+                            config.cleaningActions.insert(CleaningAction(column: "all", actionType: "remove_duplicates"))
+                        }
+                        onRefreshPreview?()
+                    }) {
+                        let isDeduplicated = config.cleaningActions.contains(where: { $0.column == "all" && $0.actionType == "remove_duplicates" })
+                        Label("Remove Duplicate Rows", systemImage: isDeduplicated ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(isDeduplicated ? .purple : .secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(isDeduplicated ? Color.purple.opacity(0.12) : Color.primary.opacity(0.04))
+                            .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                    
+                    if !preview.localPath.isEmpty {
+                        Label("Cached Locally", systemImage: "checkmark.circle.fill")
+                            .font(.caption2.bold())
+                            .foregroundColor(.green)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.green.opacity(0.1))
+                            .cornerRadius(20)
+                    }
+                }
             }
         }
     }
@@ -609,9 +624,9 @@ struct PreviewTableView: View {
         HStack(spacing: 8) {
             Image(systemName: "eye.slash.fill")
                 .foregroundColor(.orange)
-                .font(.system(size: 11))
+                .font(Theme.Font.caption)
             Text("\(config.excludedColumns.count) column\(config.excludedColumns.count == 1 ? "" : "s") excluded from analysis")
-                .font(.system(size: 11, weight: .semibold))
+                .font(Theme.Font.captionBold)
                 .foregroundColor(.orange)
             Spacer()
             Button("Clear All") {
@@ -691,7 +706,7 @@ struct PreviewTableView: View {
                                 }
                             } label: {
                                 Image(systemName: isExcluded ? "square" : "checkmark.square.fill")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(Theme.Font.controlLabel)
                                     .foregroundColor(isExcluded ? .secondary.opacity(0.4) : .blue)
                                     .frame(width: 20, height: 20, alignment: .leading)
                                     .contentShape(Rectangle())
@@ -724,10 +739,25 @@ struct PreviewTableView: View {
                         }
                     }
                     
-                    Text(col)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundColor(isExcluded ? .secondary.opacity(0.5) : .primary)
-                        .lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(col)
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(isExcluded ? .secondary.opacity(0.5) : .primary)
+                            .lineLimit(1)
+                        
+                        if !isExcluded && !isTarget {
+                            Spacer()
+                            Button {
+                                filteringColumn = FilterColumnWrapper(name: col)
+                            } label: {
+                                let hasFilter = config.cleaningActions.contains(where: { $0.column == col })
+                                Image(systemName: hasFilter ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(hasFilter ? .purple : .secondary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
                 }
                 .padding(.horizontal, 10)
                 .frame(width: colWidth, height: 56, alignment: .leading)
@@ -1025,6 +1055,247 @@ struct PreviewCellView: View {
         case .number:  return Color(hue: 0.6, saturation: 0.6, brightness: 0.9)
         case .boolean: return .purple
         case .null:    return .gray.opacity(0.4)
+        }
+    }
+}
+
+// MARK: - Filter Popover Views
+
+extension PreviewTableView {
+    @ViewBuilder
+    private func filterPopoverView(for col: String) -> some View {
+        let colType = preview.columnTypes?[col] ?? "categorical"
+        let categories = preview.columnCategories?[col] ?? []
+        
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Filter Column: \(col)")
+                .font(.headline)
+            if colType == "numeric" {
+                NumericFilterView(
+                    column: col,
+                    config: $config,
+                    onApply: {
+                        filteringColumn = nil
+                        onRefreshPreview?()
+                    }
+                )
+            } else if colType == "text" {
+                TextFilterView(
+                    column: col,
+                    config: $config,
+                    onApply: {
+                        filteringColumn = nil
+                        onRefreshPreview?()
+                    }
+                )
+            } else {
+                CategoryFilterView(
+                    column: col,
+                    categories: categories,
+                    config: $config,
+                    onApply: {
+                        filteringColumn = nil
+                        onRefreshPreview?()
+                    }
+                )
+            }
+        }
+        .padding()
+        .frame(width: 280)
+    }
+}
+
+struct NumericFilterView: View {
+    let column: String
+    @Binding var config: AnalysisConfig
+    let onApply: () -> Void
+    
+    @State private var selectedOp: String = "less_than"
+    @State private var thresholdStr: String = ""
+    
+    init(column: String, config: Binding<AnalysisConfig>, onApply: @escaping () -> Void) {
+        self.column = column
+        self._config = config
+        self.onApply = onApply
+        
+        // Find existing numeric filter
+        if let act = config.wrappedValue.cleaningActions.first(where: { $0.column == column && ($0.actionType.hasPrefix("remove_less_than:") || $0.actionType.hasPrefix("remove_greater_than:") || $0.actionType.hasPrefix("remove_equals:")) }) {
+            if act.actionType.hasPrefix("remove_less_than:") {
+                _selectedOp = State(initialValue: "less_than")
+                _thresholdStr = State(initialValue: String(act.actionType.dropFirst("remove_less_than:".count)))
+            } else if act.actionType.hasPrefix("remove_greater_than:") {
+                _selectedOp = State(initialValue: "greater_than")
+                _thresholdStr = State(initialValue: String(act.actionType.dropFirst("remove_greater_than:".count)))
+            } else if act.actionType.hasPrefix("remove_equals:") {
+                _selectedOp = State(initialValue: "equals")
+                _thresholdStr = State(initialValue: String(act.actionType.dropFirst("remove_equals:".count)))
+            }
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Picker("Remove rows where value is:", selection: $selectedOp) {
+                Text("Less than (<)").tag("less_than")
+                Text("Greater than (>)").tag("greater_than")
+                Text("Equals (=)").tag("equals")
+            }
+            .pickerStyle(.radioGroup)
+            
+            TextField("Value", text: $thresholdStr)
+                .textFieldStyle(.roundedBorder)
+            
+            HStack {
+                Button("Clear Filter") {
+                    config.cleaningActions = config.cleaningActions.filter { !($0.column == column && ($0.actionType.hasPrefix("remove_less_than:") || $0.actionType.hasPrefix("remove_greater_than:") || $0.actionType.hasPrefix("remove_equals:"))) }
+                    onApply()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button("Apply") {
+                    if let val = Double(thresholdStr) {
+                        config.cleaningActions = config.cleaningActions.filter { !($0.column == column && ($0.actionType.hasPrefix("remove_less_than:") || $0.actionType.hasPrefix("remove_greater_than:") || $0.actionType.hasPrefix("remove_equals:"))) }
+                        let actType = "remove_\(selectedOp):\(val)"
+                        config.cleaningActions.insert(CleaningAction(column: column, actionType: actType))
+                        onApply()
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(Double(thresholdStr) == nil)
+            }
+            .padding(.top, 8)
+        }
+    }
+}
+
+struct TextFilterView: View {
+    let column: String
+    @Binding var config: AnalysisConfig
+    let onApply: () -> Void
+    
+    @State private var containsStr: String = ""
+    
+    init(column: String, config: Binding<AnalysisConfig>, onApply: @escaping () -> Void) {
+        self.column = column
+        self._config = config
+        self.onApply = onApply
+        
+        // Find existing text filter
+        if let act = config.wrappedValue.cleaningActions.first(where: { $0.column == column && $0.actionType.hasPrefix("remove_contains:") }) {
+            _containsStr = State(initialValue: String(act.actionType.dropFirst("remove_contains:".count)))
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Remove rows where text contains substring:")
+                .font(.caption)
+            
+            TextField("Substring", text: $containsStr)
+                .textFieldStyle(.roundedBorder)
+            
+            HStack {
+                Button("Clear Filter") {
+                    config.cleaningActions = config.cleaningActions.filter { !($0.column == column && $0.actionType.hasPrefix("remove_contains:")) }
+                    onApply()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button("Apply") {
+                    config.cleaningActions = config.cleaningActions.filter { !($0.column == column && $0.actionType.hasPrefix("remove_contains:")) }
+                    if !containsStr.isEmpty {
+                        config.cleaningActions.insert(CleaningAction(column: column, actionType: "remove_contains:\(containsStr)"))
+                    }
+                    onApply()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.top, 8)
+        }
+    }
+}
+
+struct CategoryFilterView: View {
+    let column: String
+    let categories: [String]
+    @Binding var config: AnalysisConfig
+    let onApply: () -> Void
+    
+    @State private var excluded: Set<String> = []
+    
+    init(column: String, categories: [String], config: Binding<AnalysisConfig>, onApply: @escaping () -> Void) {
+        self.column = column
+        self.categories = categories
+        self._config = config
+        self.onApply = onApply
+        
+        // Find existing category filter
+        if let act = config.wrappedValue.cleaningActions.first(where: { $0.column == column && $0.actionType.hasPrefix("exclude_categories:") }) {
+            let valsStr = act.actionType.dropFirst("exclude_categories:".count)
+            let excludedList = valsStr.split(separator: "|").map(String.init)
+            _excluded = State(initialValue: Set(excludedList))
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Exclude selected categories:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            
+            if categories.isEmpty {
+                Text("No category options loaded.")
+                    .italic()
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(categories, id: \.self) { cat in
+                            Toggle(isOn: Binding(
+                                get: { excluded.contains(cat) },
+                                set: { val in
+                                    if val {
+                                        excluded.insert(cat)
+                                    } else {
+                                        excluded.remove(cat)
+                                    }
+                                }
+                            )) {
+                                Text(cat)
+                                    .font(.system(size: 11))
+                            }
+                            .toggleStyle(.checkbox)
+                        }
+                    }
+                }
+                .frame(maxHeight: 180)
+            }
+            
+            HStack {
+                Button("Clear Filter") {
+                    config.cleaningActions = config.cleaningActions.filter { !($0.column == column && $0.actionType.hasPrefix("exclude_categories:")) }
+                    onApply()
+                }
+                .buttonStyle(.bordered)
+                
+                Spacer()
+                
+                Button("Apply") {
+                    config.cleaningActions = config.cleaningActions.filter { !($0.column == column && $0.actionType.hasPrefix("exclude_categories:")) }
+                    if !excluded.isEmpty {
+                        let valStr = excluded.joined(separator: "|")
+                        config.cleaningActions.insert(CleaningAction(column: column, actionType: "exclude_categories:\(valStr)"))
+                    }
+                    onApply()
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            .padding(.top, 8)
         }
     }
 }
