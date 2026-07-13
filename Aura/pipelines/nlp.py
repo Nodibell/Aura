@@ -735,7 +735,7 @@ def analyze_nlp(df, target_col, task_type_override,
             lgb = None
             try:
                 from lightgbm import LGBMClassifier
-                lgb = LGBMClassifier(n_estimators=100, random_state=42, n_jobs=2, verbosity=-1)
+                lgb = LGBMClassifier(n_estimators=100, random_state=42, n_jobs=1, verbosity=-1)
                 if is_multi_label:
                     lgb = OneVsRestClassifier(lgb)
                     lgb.fit(X_train, y_train)
@@ -756,7 +756,7 @@ def analyze_nlp(df, target_col, task_type_override,
             cat = None
             try:
                 from catboost import CatBoostClassifier
-                cat = CatBoostClassifier(iterations=100, random_seed=42, thread_count=2, verbose=0)
+                cat = CatBoostClassifier(iterations=100, random_seed=42, thread_count=2, verbose=0, allow_writing_files=False)
                 if is_multi_label:
                     cat = OneVsRestClassifier(cat)
                     cat.fit(X_train, y_train)
@@ -953,7 +953,7 @@ def analyze_nlp(df, target_col, task_type_override,
             lgb_reg = None
             try:
                 from lightgbm import LGBMRegressor
-                lgb_reg = LGBMRegressor(n_estimators=100, random_state=42, n_jobs=2, verbosity=-1)
+                lgb_reg = LGBMRegressor(n_estimators=100, random_state=42, n_jobs=1, verbosity=-1)
                 lgb_reg.fit(X_train, y_train)
                 lgb_preds = lgb_reg.predict(X_test)
                 lgb_r2 = float(r2_score(y_test, lgb_preds))
@@ -965,7 +965,7 @@ def analyze_nlp(df, target_col, task_type_override,
             cat_reg = None
             try:
                 from catboost import CatBoostRegressor
-                cat_reg = CatBoostRegressor(iterations=100, random_seed=42, thread_count=2, verbose=0)
+                cat_reg = CatBoostRegressor(iterations=100, random_seed=42, thread_count=2, verbose=0, allow_writing_files=False)
                 cat_reg.fit(X_train, y_train)
                 cat_preds = cat_reg.predict(X_test)
                 if hasattr(cat_preds, "ndim") and cat_preds.ndim > 1:
@@ -1194,7 +1194,7 @@ def analyze_nlp(df, target_col, task_type_override,
             if is_classification:
                 if is_multi_label:
                     export_le = mlb
-                elif model_name_to_save == "Tuned XGBoost Classifier" or model_name_to_save.startswith("Tuned XGBoost"):
+                elif model_name_to_save in ["Tuned XGBoost Classifier", "Random Forest Classifier", "LightGBM Classifier", "CatBoost Classifier"] or model_name_to_save.startswith("Tuned XGBoost") or model_name_to_save.startswith("Random Forest") or model_name_to_save.startswith("LightGBM") or model_name_to_save.startswith("CatBoost"):
                     export_le = le
             _export_model_and_code(
                 model_to_save, model_export_path, code_export_path,
@@ -1224,7 +1224,7 @@ def analyze_nlp(df, target_col, task_type_override,
                         if is_classification:
                             if is_multi_label:
                                 sub_export_le = mlb
-                            elif m_name.startswith("Tuned XGBoost"):
+                            elif m_name.startswith("Tuned XGBoost") or m_name.startswith("Random Forest") or m_name.startswith("LightGBM") or m_name.startswith("CatBoost"):
                                 sub_export_le = le
                                 
                         _export_model_and_code(

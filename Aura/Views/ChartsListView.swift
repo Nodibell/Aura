@@ -123,7 +123,7 @@ struct ChartsListView: View {
                 Divider()
                 
                 ScrollView {
-                    LazyVStack(spacing: 28) {
+                    VStack(spacing: 28) {
                         Color.clear
                             .frame(height: 1)
                             .id("top")

@@ -67,7 +67,7 @@ struct BarChartView: View {
                     AxisMarks(values: .automatic) { value in
                         AxisGridLine()
                         AxisTick()
-                        AxisValueLabel(anchor: .topTrailing) {
+                        AxisValueLabel(anchor: .top) {
                             if let val = value.as(String.self) {
                                 Text(val)
                                     .font(.system(size: 9))

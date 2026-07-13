@@ -439,8 +439,17 @@ def build_charts(best_model_name, best_model_obj, X_train, y_train, X_test, y_te
         if len(X_test) > 5:
             # D2: Permutation Importance
             from sklearn.inspection import permutation_importance
+            from sklearn.metrics import accuracy_score, r2_score
+
+            def _pi_scorer(estimator, X_s, y_s):
+                preds = estimator.predict(X_s)
+                if hasattr(preds, "ndim") and preds.ndim > 1:
+                    preds = preds.ravel()
+                return accuracy_score(y_s, preds) if is_classification else r2_score(y_s, preds)
+
             pi_result = permutation_importance(
-                best_model_obj, X_test, y_test, n_repeats=5, random_state=42
+                best_model_obj, X_test, y_test, n_repeats=5, random_state=42,
+                scoring=_pi_scorer
             )
             pi_importances = pi_result.importances_mean
             pi_features = X_train.columns.tolist()

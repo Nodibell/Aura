@@ -1064,6 +1064,8 @@ def run_predict(model_path, input_data_json):
         try:
             preds = model.predict(X_input)
             preds_array = np.asarray(preds)
+            if preds_array.ndim > 1 and preds_array.shape[-1] == 1:
+                preds_array = preds_array.reshape(-1)
             if len(df) > 1:
                 res["prediction"] = preds_array.tolist()
             else:

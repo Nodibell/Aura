@@ -753,6 +753,7 @@ struct ContentView: View {
                                             .padding(.vertical, 5)
                                             .background(Color.purple.opacity(0.08))
                                             .cornerRadius(6)
+                                            .fixedSize()
                                     }
                                     .buttonStyle(.plain)
                                     .padding(.trailing, 8)
@@ -770,6 +771,7 @@ struct ContentView: View {
                                         .padding(.vertical, 5)
                                         .background(Color.purple.opacity(0.08))
                                         .cornerRadius(6)
+                                        .fixedSize()
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.trailing, 16)
@@ -1251,4 +1253,3 @@ struct TabsHeaderView: View {
         }
     }
 }
-
