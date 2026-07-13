@@ -413,6 +413,8 @@ struct ModelComparison: Codable, Identifiable {
     let f1: Double?
     let precision: Double?
     let recall: Double?
+    
+    let params: [String: String]?
 }
 
 

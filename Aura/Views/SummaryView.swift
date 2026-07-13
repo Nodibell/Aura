@@ -11,6 +11,7 @@ struct SummaryView: View {
     let onScheduleAnalysis: () -> Void
 
     @State private var selectedLeaderboardSortMetric: String = "default"
+    @State private var showInspector: Bool = true
 
     // MARK: - Helper Methods for interactive cleaning actions
     
@@ -146,6 +147,23 @@ struct SummaryView: View {
                     }
                     
                     Spacer()
+                    
+                    // Collapsible Inspector Toggle
+                    Button {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showInspector.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: "sidebar.right")
+                                .foregroundColor(showInspector ? .purple : .secondary)
+                            Text("Inspector")
+                                .font(.caption)
+                                .foregroundColor(showInspector ? .purple : .secondary)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .help(showInspector ? "Hide Model Inspector" : "Show Model Inspector")
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 12)
@@ -153,68 +171,95 @@ struct SummaryView: View {
                 
                 Divider()
                 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 24) {
-                        // MARK: — Hero Banner
-                        heroBanner
-                            .id("overview")
+                HStack(spacing: 0) {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {
+                            // MARK: — Hero Banner
+                            heroBanner
+                                .id("overview")
 
-                        // MARK: - Data Leakage Warnings (D7)
-                        dataLeakageBanner
-                            .id("warnings")
+                            // MARK: - Data Leakage Warnings (D7)
+                            dataLeakageBanner
+                                .id("warnings")
 
-                        // MARK: - Auto-Cleaning Recommendations (D8)
-                        cleaningRecommendationsSection
+                            // MARK: - Auto-Cleaning Recommendations (D8)
+                            cleaningRecommendationsSection
 
-                        // MARK: — Stat Cards
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 14) {
-                            let rowSubtitle: String? = {
-                                if let orig = result.originalRowCount, let sampled = result.sampledRowCount, orig > sampled {
-                                    return "Sampled from \(formatNumber(orig)) (Smart)"
-                                }
-                                return nil
-                            }()
-                            StatCard(title: "Rows", value: formatNumber(result.rowCount),
-                                     subtitle: rowSubtitle, iconName: "tablecells", color: .blue)
-                            StatCard(title: "Columns", value: "\(result.colCount)",
-                                     subtitle: "\(result.numericColCount) numeric · \(result.categoricalColCount) categorical\(result.textColCount > 0 ? " · \(result.textColCount) text" : "")",
-                                     iconName: "square.split.2x2", color: .purple)
-                            StatCard(title: "Missing Cells", value: "\(totalMissingCells())",
-                                     subtitle: totalMissingCells() == 0 ? "Clean dataset ✓" : "across \(columnsMissingCount()) columns",
-                                     iconName: "questionmark.folder.fill", color: .orange)
-                            StatCard(title: "Best Score", value: String(format: "%.3f", result.metrics.score),
-                                     subtitle: "\(result.metrics.scoreType)",
-                                     iconName: "bolt.fill", color: .green)
-                            if let valMetrics = result.valMetrics {
-                                StatCard(title: "Validation Score", value: String(format: "%.3f", valMetrics.score),
-                                         subtitle: "\(valMetrics.scoreType)",
-                                         iconName: "checkmark.seal.fill", color: .blue)
+                            // MARK: — Stat Cards
+                            LazyVGrid(columns: [GridItem(.adaptive(minimum: 150))], spacing: 14) {
+                                let rowSubtitle: String? = {
+                                    if let orig = result.originalRowCount, let sampled = result.sampledRowCount, orig > sampled {
+                                        return "Sampled from \(formatNumber(orig)) (Smart)"
+                                    }
+                                    return nil
+                                }()
+                                StatCard(title: "Rows", value: formatNumber(result.rowCount),
+                                         subtitle: rowSubtitle, iconName: "tablecells", color: .blue)
+                                StatCard(title: "Columns", value: "\(result.colCount)",
+                                         subtitle: "\(result.numericColCount) numeric · \(result.categoricalColCount) categorical\(result.textColCount > 0 ? " · \(result.textColCount) text" : "")",
+                                         iconName: "square.split.2x2", color: .purple)
+                                StatCard(title: "Missing Cells", value: "\(totalMissingCells())",
+                                         subtitle: totalMissingCells() == 0 ? "Clean dataset ✓" : "across \(columnsMissingCount()) columns",
+                                         iconName: "questionmark.folder.fill", color: .orange)
                             }
-                        }
+                            
+                            // Visual Scorecard Block (Gauges)
+                            HStack(spacing: 14) {
+                                GaugeScorecard(
+                                    title: "Best Model Score",
+                                    value: result.metrics.score,
+                                    label: result.metrics.scoreType,
+                                    color: .green
+                                )
+                                .frame(maxWidth: .infinity)
+                                
+                                if let valMetrics = result.valMetrics {
+                                    GaugeScorecard(
+                                        title: "Validation Score",
+                                        value: valMetrics.score,
+                                        label: valMetrics.scoreType,
+                                        color: .blue
+                                    )
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                            
+                            // MARK: — Model Leaderboard
+                            modelLeaderboard
+                                .id("leaderboard")
 
-                        // MARK: — Model Leaderboard
-                        modelLeaderboard
-                            .id("leaderboard")
+                            // MARK: - Validation Heatmap (Confusion Matrix)
+                            if let cm = result.confusionMatrix {
+                                ConfusionMatrixView(matrix: cm, title: "Confusion Matrix (Test Set)")
+                            }
+                            if let valCm = result.valConfusionMatrix {
+                                ConfusionMatrixView(matrix: valCm, title: "Confusion Matrix (Validation Set)")
+                            }
 
-                        // MARK: - Validation Heatmap (Confusion Matrix)
-                        if let cm = result.confusionMatrix {
-                            ConfusionMatrixView(matrix: cm, title: "Confusion Matrix (Test Set)")
-                        }
-                        if let valCm = result.valConfusionMatrix {
-                            ConfusionMatrixView(matrix: valCm, title: "Confusion Matrix (Validation Set)")
-                        }
+                            // MARK: - Data Profiling
+                            if let profiling = result.profiling {
+                                DataProfilingSection(profiling: profiling)
+                                    .id("profiling")
+                            }
 
-                        // MARK: - Data Profiling
-                        if let profiling = result.profiling {
-                            DataProfilingSection(profiling: profiling)
-                                .id("profiling")
+                            // MARK: — Missing Values
+                            missingValuesSection
+                                .id("missing")
                         }
-
-                        // MARK: — Missing Values
-                        missingValuesSection
-                            .id("missing")
+                        .padding(12)
                     }
-                    .padding(12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    
+                    if showInspector {
+                        Divider()
+                        ModelInspectorSidebar(
+                            result: result,
+                            activeModelName: $activeModelName,
+                            showInspector: $showInspector
+                        )
+                        .frame(width: 300)
+                        .transition(.move(edge: .trailing))
+                    }
                 }
             }
         }
@@ -1205,5 +1250,265 @@ struct AnchorButton: View {
                 isHovered = hovering
             }
         }
+    }
+}
+
+
+// MARK: - Gauge Scorecard
+
+struct GaugeScorecard: View {
+    let title: String
+    let value: Double
+    let label: String
+    let color: Color
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(title)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.secondary)
+                Spacer()
+                Image(systemName: "gauge")
+                    .font(.caption)
+                    .foregroundColor(color)
+            }
+            
+            HStack(spacing: 12) {
+                let displayVal = max(0, min(value, 1.0))
+                
+                Gauge(value: displayVal, in: 0...1) {
+                    Text("")
+                } currentValueLabel: {
+                    Text(String(format: "%.3f", value))
+                        .font(.system(.title3, design: .rounded))
+                        .fontWeight(.bold)
+                        .foregroundColor(color)
+                }
+                .gaugeStyle(.accessoryCircular)
+                .tint(color.gradient)
+                .frame(width: 50, height: 50)
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(format: "%.1f%%", displayVal * 100))
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    Text(label)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(14)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .cornerRadius(12)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.primary.opacity(0.06), lineWidth: 1))
+    }
+}
+
+
+// MARK: - Model Inspector Sidebar
+
+struct ModelInspectorSidebar: View {
+    let result: AnalysisResult
+    @Binding var activeModelName: String?
+    @Binding var showInspector: Bool
+    
+    var body: some View {
+        let isRegression = result.taskType.lowercased().contains("regress")
+        let activeName = activeModelName ?? result.metrics.model
+        let activeModel = result.modelsCompared.first(where: { $0.name == activeName })
+        
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "sidebar.right")
+                    .foregroundColor(.purple)
+                Text("Model Inspector")
+                    .font(.headline)
+                Spacer()
+                Button {
+                    withAnimation { showInspector = false }
+                } label: {
+                    Image(systemName: "xmark")
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.primary.opacity(0.02))
+            
+            Divider()
+            
+            if let model = activeModel {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(model.name)
+                                .font(.title3)
+                                .fontWeight(.bold)
+                                .foregroundColor(.purple)
+                            
+                            Text(model.name == result.metrics.model ? "Optimal Pipeline Winner" : "Candidate Model")
+                                .font(.caption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(model.name == result.metrics.model ? .green : .secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(model.name == result.metrics.model ? Color.green.opacity(0.15) : Color.primary.opacity(0.05))
+                                .cornerRadius(4)
+                        }
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Validation Metrics")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            let isLowerBetter = ["mse", "rmse", "mae"].contains(model.metric.lowercased())
+                            let metricVal = model.score
+                            
+                            VStack(spacing: 8) {
+                                HStack {
+                                    Text(model.metric)
+                                        .font(.subheadline)
+                                        .fontWeight(.bold)
+                                    Spacer()
+                                    Text(String(format: "%.4f", metricVal))
+                                        .font(.system(.body, design: .monospaced))
+                                        .fontWeight(.bold)
+                                }
+                                
+                                if !isLowerBetter {
+                                    Gauge(value: max(0, min(metricVal, 1.0)), in: 0...1) {
+                                        Text("")
+                                    }
+                                    .tint(Color.blue.gradient)
+                                } else {
+                                    ProgressView(value: 1.0)
+                                        .tint(.red)
+                                }
+                            }
+                            .padding(10)
+                            .background(Color.primary.opacity(0.02))
+                            .cornerRadius(8)
+                            
+                            if isRegression {
+                                if let mse = model.mse { MetricRow(label: "MSE", value: mse) }
+                                if let rmse = model.rmse { MetricRow(label: "RMSE", value: rmse) }
+                                if let mae = model.mae { MetricRow(label: "MAE", value: mae) }
+                            } else {
+                                if let f1 = model.f1 { MetricRow(label: "F1 Score", value: f1) }
+                                if let prec = model.precision { MetricRow(label: "Precision", value: prec) }
+                                if let recall = model.recall { MetricRow(label: "Recall", value: recall) }
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Optimal Parameters")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            if let params = model.params, !params.isEmpty {
+                                ForEach(params.keys.sorted(), id: \.self) { key in
+                                    HStack {
+                                        Text(key)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        Spacer()
+                                        Text(params[key] ?? "")
+                                            .font(.system(.caption, design: .monospaced))
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            } else {
+                                Text("Standard baseline parameters used.")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .italic()
+                            }
+                        }
+                        
+                        Divider()
+                        
+                        if activeModelName != model.name && model.name != result.metrics.model {
+                            Button {
+                                activeModelName = model.name
+                            } label: {
+                                HStack {
+                                    Image(systemName: "checkmark.circle")
+                                    Text("Set as Active Pipeline Model")
+                                        .fontWeight(.bold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(Color.blue)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 10)
+                        } else if model.name == result.metrics.model && activeModelName != nil {
+                            Button {
+                                activeModelName = nil
+                            } label: {
+                                HStack {
+                                    Image(systemName: "arrow.counterclockwise")
+                                    Text("Reset to Baseline Winner")
+                                        .fontWeight(.bold)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 8)
+                                .background(Color.primary.opacity(0.05))
+                                .foregroundColor(.primary)
+                                .cornerRadius(8)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.top, 10)
+                        }
+                    }
+                    .padding(16)
+                }
+            } else {
+                VStack {
+                    Spacer()
+                    Text("Select a model in the leaderboard to inspect details.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(20)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+}
+
+struct MetricRow: View {
+    let label: String
+    let value: Double
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(String(format: "%.4f", value))
+                .font(.system(.caption, design: .monospaced))
+                .fontWeight(.bold)
+        }
+        .padding(.vertical, 1)
     }
 }

@@ -6,6 +6,7 @@ struct ContentView: View {
     @State private var showHistoryBrowser = false
     @State private var showCommandPalette = false
     @State private var expandedDatasets: Set<String> = []
+    @State private var isDraggingOver = false
     @AppStorage("Aura_hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("Aura_Appearance") private var appearanceMode = "System"
     
@@ -112,6 +113,48 @@ struct ContentView: View {
                 .transition(.scale(scale: 0.95).combined(with: .opacity))
                 .zIndex(100)
             }
+            
+            if isDraggingOver {
+                Color.black.opacity(0.35)
+                    .edgesIgnoringSafeArea(.all)
+                    .transition(.opacity)
+                
+                VStack(spacing: 16) {
+                    Image(systemName: "arrow.down.doc.fill")
+                        .font(.system(size: 56))
+                        .foregroundColor(.blue)
+                    
+                    Text("Drop to Ingest Dataset")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                    
+                    Text("CSV, Parquet, JSON, TSV, or Excel")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                .padding(40)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.black.opacity(0.6))
+                        .background(.ultraThinMaterial)
+                )
+                .cornerRadius(20)
+                .shadow(radius: 15)
+                .transition(.scale)
+            }
+        }
+        .blur(radius: isDraggingOver ? 6 : 0)
+        .animation(.easeInOut(duration: 0.2), value: isDraggingOver)
+        .onDrop(of: [UTType.fileURL], isTargeted: $isDraggingOver) { providers in
+            guard let provider = providers.first else { return false }
+            _ = provider.loadObject(ofClass: URL.self) { url, error in
+                if let url = url {
+                    DispatchQueue.main.async {
+                        viewModel.handleDroppedFiles([url])
+                    }
+                }
+            }
+            return true
         }
         .preferredColorScheme(appearanceMode == "Dark" ? .dark : (appearanceMode == "Light" ? .light : nil))
         .background {

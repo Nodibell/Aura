@@ -8,6 +8,8 @@ struct PendingAnalysisView: View {
     var onDatasetTypeChanged: (() -> Void)? = nil
     var onRefreshPreview: (() -> Void)? = nil
 
+    @State private var showChecklist = true
+
     var body: some View {
         VStack(spacing: 0) {
             if page.isAnalyzing {
@@ -51,21 +53,37 @@ struct PendingAnalysisView: View {
                         imageGridView
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
-                        PreviewTableView(
-                            preview: preview,
-                            config: Binding(
-                                get: { page.analysisConfig },
-                                set: { page.analysisConfig = $0 }
-                            ),
-                            onPreviewFileRequested: { path in
-                                onPreviewFileRequested?(path)
-                            },
-                            onRefreshPreview: {
-                                onRefreshPreview?()
-                            },
-                            isSidebar: false
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        HStack(spacing: 0) {
+                            PreviewTableView(
+                                preview: preview,
+                                config: Binding(
+                                    get: { page.analysisConfig },
+                                    set: { page.analysisConfig = $0 }
+                                ),
+                                onPreviewFileRequested: { path in
+                                    onPreviewFileRequested?(path)
+                                },
+                                onRefreshPreview: {
+                                    onRefreshPreview?()
+                                },
+                                isSidebar: false
+                            )
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            
+                            if showChecklist {
+                                Divider()
+                                SchemaChecklistSidebar(
+                                    preview: preview,
+                                    config: Binding(
+                                        get: { page.analysisConfig },
+                                        set: { page.analysisConfig = $0 }
+                                    ),
+                                    onRunAnalysis: onRunAnalysis
+                                )
+                                .frame(width: 280)
+                                .transition(.move(edge: .trailing))
+                            }
+                        }
                     }
                 } else {
                     noPreviewPlaceholder
@@ -177,6 +195,19 @@ struct PendingAnalysisView: View {
                     .font(Theme.Font.captionBold)
             }
             .toggleStyle(.checkbox)
+            
+            // Schema Checklist Toggle
+            Button {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    showChecklist.toggle()
+                }
+            } label: {
+                Image(systemName: showChecklist ? "checklist.checked" : "checklist")
+                    .font(.system(size: 14))
+                    .foregroundColor(showChecklist ? .purple : .secondary)
+            }
+            .buttonStyle(.plain)
+            .help(showChecklist ? "Hide Schema Checklist" : "Show Schema Checklist")
             
             Divider().frame(height: 18)
             
@@ -733,5 +764,247 @@ private struct TypePill: View {
             )
         }
         .buttonStyle(.plain)
+    }
+}
+
+
+// MARK: - Schema Checklist Sidebar View
+
+struct SchemaChecklistSidebar: View {
+    let preview: DatasetPreview
+    @Binding var config: AnalysisConfig
+    let onRunAnalysis: () -> Void
+    
+    struct ChecklistItem: Identifiable {
+        let id = UUID()
+        let column: String
+        let severity: Severity
+        let title: String
+        let description: String
+        let suggestion: String
+        let actions: [ChecklistAction]
+        
+        enum Severity {
+            case info, warning, critical
+            var color: Color {
+                switch self {
+                case .info: return .blue
+                case .warning: return .orange
+                case .critical: return .red
+                }
+            }
+            var icon: String {
+                switch self {
+                case .info: return "info.circle.fill"
+                case .warning: return "exclamationmark.triangle.fill"
+                case .critical: return "xmark.octagon.fill"
+                }
+            }
+        }
+        
+        enum ChecklistAction: Hashable {
+            case exclude, imputeMedian, imputeMode, imputeMean
+            var label: String {
+                switch self {
+                case .exclude: return "Exclude"
+                case .imputeMedian: return "Impute Median"
+                case .imputeMode: return "Impute Mode"
+                case .imputeMean: return "Impute Mean"
+                }
+            }
+        }
+    }
+    
+    private var checklistItems: [ChecklistItem] {
+        var items = [ChecklistItem]()
+        
+        for colIndex in 0..<preview.columns.count {
+            let col = preview.columns[colIndex]
+            if config.excludedColumns.contains(col) || config.targetColumn == col {
+                continue
+            }
+            
+            let values = preview.previewRows.map { rowIndex in
+                colIndex < rowIndex.count ? rowIndex[colIndex] : .null
+            }
+            
+            // 1. Check for Missing Values
+            let nullCount = values.filter { val in
+                switch val {
+                case .null: return true
+                case .string(let s): return s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                default: return false
+                }
+            }.count
+            
+            let total = values.count
+            if nullCount > 0 && total > 0 {
+                let isNumeric = preview.columnTypes?[col]?.lowercased() == "numeric"
+                let pct = Int(Double(nullCount) / Double(total) * 100)
+                
+                items.append(ChecklistItem(
+                    column: col,
+                    severity: pct > 40 ? .critical : .warning,
+                    title: "Missing values detected",
+                    description: "\(pct)% of sample values in column '\(col)' are missing.",
+                    suggestion: isNumeric ? "Suggest median imputation or dropping if non-essential." : "Suggest mode imputation.",
+                    actions: isNumeric ? [.imputeMedian, .exclude] : [.imputeMode, .exclude]
+                ))
+            }
+            
+            // 2. Check for Constant Column
+            let nonNullValues = values.filter { val in
+                switch val {
+                case .null: return false
+                default: return true
+                }
+            }
+            if nonNullValues.count > 1 {
+                let firstVal = nonNullValues.first
+                let isConstant = nonNullValues.allSatisfy { $0 == firstVal }
+                if isConstant {
+                    items.append(ChecklistItem(
+                        column: col,
+                        severity: .critical,
+                        title: "Constant column",
+                        description: "Column '\(col)' has only one unique value.",
+                        suggestion: "Constant columns have zero variance and should be excluded.",
+                        actions: [.exclude]
+                    ))
+                }
+            }
+            
+            // 3. Check for Identifier name/type
+            let colLower = col.lowercased()
+            let isIdType = preview.columnTypes?[col]?.lowercased() == "identifier" ||
+                           colLower == "id" || colLower.endsWith("_id") || colLower == "row" || colLower == "index"
+            
+            if isIdType {
+                items.append(ChecklistItem(
+                    column: col,
+                    severity: .info,
+                    title: "Potential identifier column",
+                    description: "Column '\(col)' looks like an ID or Row index.",
+                    suggestion: "Identifiers can lead to model overfitting and should be excluded.",
+                    actions: [.exclude]
+                ))
+            }
+        }
+        
+        return items
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "checklist")
+                    .foregroundColor(.purple)
+                    .font(.headline)
+                Text("Schema Checklist")
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                Spacer()
+                
+                if !checklistItems.isEmpty {
+                    Text("\(checklistItems.count) issues")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.orange))
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color.primary.opacity(0.02))
+            
+            Divider()
+            
+            if checklistItems.isEmpty {
+                VStack(spacing: 12) {
+                    Spacer()
+                    Image(systemName: "checkmark.seal.fill")
+                        .font(.system(size: 36))
+                        .foregroundColor(.green.opacity(0.8))
+                    Text("Schema looks solid!")
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                    Text("No missing values or redundant columns detected in the sample.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(checklistItems) { item in
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: item.severity.icon)
+                                        .foregroundColor(item.severity.color)
+                                        .font(.system(size: 12))
+                                    Text(item.title)
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text(item.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Text(item.suggestion)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(.primary.opacity(0.8))
+                                
+                                HStack(spacing: 6) {
+                                    ForEach(item.actions, id: \.self) { act in
+                                        Button {
+                                            applyAction(act, for: item.column)
+                                        } label: {
+                                            Text(act.label)
+                                                .font(.system(size: 10, weight: .semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(Color.blue.opacity(0.1))
+                                                .foregroundColor(.blue)
+                                                .cornerRadius(4)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .padding(.top, 2)
+                            }
+                            .padding(12)
+                            .background(Color.primary.opacity(0.02))
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+                            )
+                        }
+                    }
+                    .padding(16)
+                }
+            }
+        }
+        .background(Color(NSColor.controlBackgroundColor))
+    }
+    
+    private func applyAction(_ act: ChecklistItem.ChecklistAction, for column: String) {
+        withAnimation {
+            switch act {
+            case .exclude:
+                config.excludedColumns.insert(column)
+            case .imputeMedian:
+                config.cleaningActions.insert(CleaningAction(column: column, actionType: "impute_median"))
+            case .imputeMode:
+                config.cleaningActions.insert(CleaningAction(column: column, actionType: "impute_mode"))
+            case .imputeMean:
+                config.cleaningActions.insert(CleaningAction(column: column, actionType: "impute_mean"))
+            }
+        }
     }
 }

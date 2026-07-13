@@ -234,14 +234,14 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             best_clf = cat_clf
             
         models_compared = [
-            {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy", "f1": float(lr_f1), "precision": float(lr_prec), "recall": float(lr_rec)},
-            {"name": "Tuned Random Forest", "score": float(rf_acc_rf), "metric": "Accuracy", "f1": float(rf_f1), "precision": float(rf_prec), "recall": float(rf_rec)},
-            {"name": "Tuned XGBoost", "score": float(xgb_acc), "metric": "Accuracy", "f1": float(xgb_f1), "precision": float(xgb_prec), "recall": float(xgb_rec)}
+            {"name": "Logistic Regression", "score": float(lr_acc), "metric": "Accuracy", "f1": float(lr_f1), "precision": float(lr_prec), "recall": float(lr_rec), "params": {"max_iter": "1000", "solver": "lbfgs"}},
+            {"name": "Tuned Random Forest", "score": float(rf_acc_rf), "metric": "Accuracy", "f1": float(rf_f1), "precision": float(rf_prec), "recall": float(rf_rec), "params": {"n_estimators": str(rf_best_n), "max_depth": str(rf_best_d)}},
+            {"name": "Tuned XGBoost", "score": float(xgb_acc), "metric": "Accuracy", "f1": float(xgb_f1), "precision": float(xgb_prec), "recall": float(xgb_rec), "params": {"n_estimators": str(xgb_best_n), "max_depth": str(xgb_best_d), "learning_rate": f"{xgb_best_lr:.4f}"}}
         ]
         if lgb_clf is not None:
-            models_compared.append({"name": "LightGBM", "score": float(lgb_acc), "metric": "Accuracy", "f1": float(lgb_f1), "precision": float(lgb_prec), "recall": float(lgb_rec)})
+            models_compared.append({"name": "LightGBM", "score": float(lgb_acc), "metric": "Accuracy", "f1": float(lgb_f1), "precision": float(lgb_prec), "recall": float(lgb_rec), "params": {"n_estimators": "100", "learning_rate": "0.1", "num_leaves": "31"}})
         if cat_clf is not None:
-            models_compared.append({"name": "CatBoost", "score": float(cat_acc), "metric": "Accuracy", "f1": float(cat_f1), "precision": float(cat_prec), "recall": float(cat_rec)})
+            models_compared.append({"name": "CatBoost", "score": float(cat_acc), "metric": "Accuracy", "f1": float(cat_f1), "precision": float(cat_prec), "recall": float(cat_rec), "params": {"iterations": "1000", "depth": "6", "learning_rate": "0.03"}})
         
         try:
             publish_progress(0.82, "Training Tabular Deep Learning (CPU)...")
@@ -252,7 +252,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             dl_f1 = f1_score(y_test, dl_preds, average='weighted', zero_division=0)
             dl_prec = precision_score(y_test, dl_preds, average='weighted', zero_division=0)
             dl_rec = recall_score(y_test, dl_preds, average='weighted', zero_division=0)
-            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "Accuracy", "f1": float(dl_f1), "precision": float(dl_prec), "recall": float(dl_rec)})
+            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "Accuracy", "f1": float(dl_f1), "precision": float(dl_prec), "recall": float(dl_rec), "params": {"epochs": "15", "batch_size": "128", "layers": "64 -> 32"}})
             if dl_score >= best_score:
                 best_model = "Tabular Deep Learning"
                 best_score = dl_score
@@ -404,14 +404,14 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             best_reg = cat_reg
             
         models_compared = [
-            {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score", "mse": float(lr_mse), "rmse": float(lr_rmse), "mae": float(lr_mae)},
-            {"name": "Tuned Random Forest", "score": float(rf_r2_rf), "metric": "R² Score", "mse": float(rf_mse), "rmse": float(rf_rmse), "mae": float(rf_mae)},
-            {"name": "Tuned XGBoost", "score": float(xgb_r2), "metric": "R² Score", "mse": float(xgb_mse), "rmse": float(xgb_rmse), "mae": float(xgb_mae)}
+            {"name": "Linear Regression", "score": float(lr_r2), "metric": "R² Score", "mse": float(lr_mse), "rmse": float(lr_rmse), "mae": float(lr_mae), "params": {"fit_intercept": "True"}},
+            {"name": "Tuned Random Forest", "score": float(rf_r2_rf), "metric": "R² Score", "mse": float(rf_mse), "rmse": float(rf_rmse), "mae": float(rf_mae), "params": {"n_estimators": str(rf_best_n), "max_depth": str(rf_best_d)}},
+            {"name": "Tuned XGBoost", "score": float(xgb_r2), "metric": "R² Score", "mse": float(xgb_mse), "rmse": float(xgb_rmse), "mae": float(xgb_mae), "params": {"n_estimators": str(xgb_best_n), "max_depth": str(xgb_best_d), "learning_rate": f"{xgb_best_lr:.4f}"}}
         ]
         if lgb_reg is not None:
-            models_compared.append({"name": "LightGBM", "score": float(lgb_r2), "metric": "R² Score", "mse": float(lgb_mse), "rmse": float(lgb_rmse), "mae": float(lgb_mae)})
+            models_compared.append({"name": "LightGBM", "score": float(lgb_r2), "metric": "R² Score", "mse": float(lgb_mse), "rmse": float(lgb_rmse), "mae": float(lgb_mae), "params": {"n_estimators": "100", "learning_rate": "0.1", "num_leaves": "31"}})
         if cat_reg is not None:
-            models_compared.append({"name": "CatBoost", "score": float(cat_r2), "metric": "R² Score", "mse": float(cat_mse), "rmse": float(cat_rmse), "mae": float(cat_mae)})
+            models_compared.append({"name": "CatBoost", "score": float(cat_r2), "metric": "R² Score", "mse": float(cat_mse), "rmse": float(cat_rmse), "mae": float(cat_mae), "params": {"iterations": "1000", "depth": "6", "learning_rate": "0.03"}})
         
         try:
             publish_progress(0.82, "Training Tabular Deep Learning (CPU)...")
@@ -422,7 +422,7 @@ def train_tabular_models(X_train, y_train, X_test, y_test, is_classification):
             dl_mse = mean_squared_error(y_test, dl_preds)
             dl_rmse = np.sqrt(dl_mse)
             dl_mae = mean_absolute_error(y_test, dl_preds)
-            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "R² Score", "mse": float(dl_mse), "rmse": float(dl_rmse), "mae": float(dl_mae)})
+            models_compared.append({"name": "Tabular Deep Learning (CPU)", "score": float(dl_score), "metric": "R² Score", "mse": float(dl_mse), "rmse": float(dl_rmse), "mae": float(dl_mae), "params": {"epochs": "15", "batch_size": "128", "layers": "64 -> 32"}})
             if dl_score >= best_score:
                 best_model = "Tabular Deep Learning"
                 best_score = dl_score

@@ -681,9 +681,16 @@ struct PreviewTableView: View {
 
     private var tableHeader: some View {
         HStack(spacing: 0) {
-            ForEach(preview.columns, id: \.self) { col in
+            ForEach(0..<preview.columns.count, id: \.self) { colIndex in
+                let col = preview.columns[colIndex]
                 let isExcluded = config.excludedColumns.contains(col)
                 let isTarget = isColumnTarget(col)
+                let columnValues: [PreviewValue] = preview.previewRows.map { rowIndex in
+                    if colIndex < rowIndex.count {
+                        return rowIndex[colIndex]
+                    }
+                    return .null
+                }
                 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
@@ -758,9 +765,15 @@ struct PreviewTableView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                    
+                    if !isExcluded {
+                        Spacer(minLength: 2)
+                        SparklineView(values: columnValues, isExcluded: isExcluded)
+                    }
                 }
                 .padding(.horizontal, 10)
-                .frame(width: colWidth, height: 56, alignment: .leading)
+                .padding(.vertical, 6)
+                .frame(width: colWidth, height: 80, alignment: .leading)
                 .background(isExcluded ? Color.primary.opacity(0.02) : Color.primary.opacity(0.04))
                 .border(Color.primary.opacity(0.07), width: 0.5)
             }
@@ -1297,5 +1310,80 @@ struct CategoryFilterView: View {
             }
             .padding(.top, 8)
         }
+    }
+}
+
+
+// MARK: - Smart Sparkline Distribution View
+
+struct SparklineView: View {
+    let values: [PreviewValue]
+    let isExcluded: Bool
+    
+    var body: some View {
+        let numericValues: [Double] = values.compactMap { val in
+            switch val {
+            case .number(let d): return d
+            case .string(let s): return Double(s)
+            default: return nil
+            }
+        }
+        
+        HStack(spacing: 1.5) {
+            if !numericValues.isEmpty {
+                let minVal = numericValues.min() ?? 0.0
+                let maxVal = numericValues.max() ?? 1.0
+                let range = maxVal - minVal
+                
+                let binCount = 10
+                let bins: [Int] = {
+                    var counts = Array(repeating: 0, count: binCount)
+                    for val in numericValues {
+                        let pct = range > 0 ? (val - minVal) / range : 0.5
+                        let index = min(max(Int(pct * Double(binCount)), 0), binCount - 1)
+                        counts[index] += 1
+                    }
+                    return counts
+                }()
+                
+                let maxCount = bins.max() ?? 1
+                
+                ForEach(0..<binCount, id: \.self) { i in
+                    let heightFactor = maxCount > 0 ? CGFloat(bins[i]) / CGFloat(maxCount) : 0.0
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(isExcluded ? Color.secondary.opacity(0.2) : Color.blue.opacity(0.6))
+                        .frame(width: 4, height: max(2, 16 * heightFactor))
+                }
+            } else {
+                let stringValues: [String] = values.compactMap { val in
+                    switch val {
+                    case .string(let s): return s.trimmingCharacters(in: .whitespacesAndNewlines)
+                    case .number(let d): return String(d)
+                    case .boolean(let b): return String(b)
+                    case .null: return ""
+                    }
+                }.filter { !$0.isEmpty }
+                
+                let frequencies: [String: Int] = {
+                    var counts = [String: Int]()
+                    for val in stringValues {
+                        counts[val, default: 0] += 1
+                    }
+                    return counts
+                }()
+                
+                let sortedFreqs = frequencies.values.sorted(by: >).prefix(10)
+                let maxFreq = sortedFreqs.max() ?? 1
+                
+                ForEach(0..<10, id: \.self) { i in
+                    let freq = i < sortedFreqs.count ? sortedFreqs[i] : 0
+                    let heightFactor = maxFreq > 0 ? CGFloat(freq) / CGFloat(maxFreq) : 0.0
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(isExcluded ? Color.secondary.opacity(0.2) : Color.purple.opacity(0.5))
+                        .frame(width: 4, height: max(2, 16 * heightFactor))
+                }
+            }
+        }
+        .frame(height: 18)
     }
 }
