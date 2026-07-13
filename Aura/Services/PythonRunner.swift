@@ -205,7 +205,7 @@ actor PythonRunner: PythonRunning {
     nonisolated func verifyPythonEnvironment(at pythonPath: String) -> Bool {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: pythonPath)
-        process.arguments = ["-c", "import pandas, sklearn, numpy, torch, fastapi, uvicorn; import sys; sys.exit(0)"]
+        process.arguments = ["-c", "import pandas, sklearn, numpy, torch, fastapi, uvicorn, polars; import sys; sys.exit(0)"]
         
         do {
             try process.run()

@@ -47,18 +47,38 @@ else:
 import argparse
 import pyarrow as pa
 import pandas as pd
-from utils.loader import load_dataset
-
-
+import polars as pl
 
 def to_arrow(input_path: str, output_path: str) -> None:
-    """Read a dataset from any supported format and serialize to an Arrow IPC stream."""
-    df = load_dataset(input_path)
+    """Read a dataset using Polars and serialize to an Arrow IPC stream."""
+    ext = os.path.splitext(input_path)[1].lower()
+    if ext == ".parquet":
+        df = pl.read_parquet(input_path)
+    elif ext in [".xlsx", ".xls"]:
+        try:
+            df = pl.read_excel(input_path)
+        except Exception:
+            # Fallback to pandas
+            df = pl.from_pandas(pd.read_excel(input_path))
+    elif ext == ".json":
+        df = pl.read_json(input_path)
+    elif ext == ".jsonl":
+        df = pl.read_ndjson(input_path)
+    elif ext == ".tsv":
+        df = pl.read_csv(input_path, separator="\t")
+    else:
+        # Default to CSV
+        try:
+            df = pl.read_csv(input_path)
+        except Exception:
+            # Fallback to pandas
+            df = pl.from_pandas(pd.read_csv(input_path))
+            
+    # Clean column names to be strictly string typed for Arrow
+    df = df.rename({col: str(col) for col in df.columns})
     
-    # Ensure column names are strictly string typed for Arrow
-    df.columns = df.columns.astype(str)
-    
-    table = pa.Table.from_pandas(df)
+    # Convert Polars DataFrame to pyarrow Table
+    table = df.to_arrow()
     with pa.OSFile(output_path, "wb") as f:
         with pa.ipc.new_stream(f, table.schema) as writer:
             writer.write_table(table)

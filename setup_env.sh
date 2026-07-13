@@ -19,10 +19,28 @@ fi
 PYTHON_VERSION=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 echo "Found python3 (Version $PYTHON_VERSION) at $(command -v python3)"
 
+# Check if uv is available
+if ! command -v uv &> /dev/null; then
+    if [ -f "$HOME/.local/bin/uv" ]; then
+        export PATH="$HOME/.local/bin:$PATH"
+    else
+        echo "uv package manager not found. Installing uv..."
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+fi
+
+if ! command -v uv &> /dev/null; then
+    echo "Error: Failed to install or locate uv."
+    exit 1
+fi
+
+echo "Found uv version: $(uv --version)"
+
 # Create virtual environment if it doesn't exist
 if [ ! -d ".venv" ]; then
-    echo "Creating virtual environment in $(pwd)/.venv..."
-    python3 -m venv .venv
+    echo "Creating virtual environment in $(pwd)/.venv using uv..."
+    uv venv .venv
 else
     echo "Virtual environment (.venv) already exists."
 fi
@@ -31,17 +49,13 @@ fi
 echo "Activating virtual environment..."
 source .venv/bin/activate
 
-# Upgrade pip
-echo "Upgrading pip..."
-pip install --upgrade pip
-
-# Install dependencies
+# Install dependencies using uv pip
 if [ -f "requirements.txt" ]; then
-    echo "Installing dependencies from requirements.txt..."
-    pip install -r requirements.txt
+    echo "Installing dependencies from requirements.txt using uv..."
+    uv pip install -r requirements.txt
 else
-    echo "Warning: requirements.txt not found. Installing base packages manually..."
-    pip install pandas numpy scikit-learn pyarrow kaggle huggingface_hub fastapi uvicorn pmdarima optuna shap xgboost lightgbm catboost ultralytics prophet sentence-transformers
+    echo "Warning: requirements.txt not found. Installing base packages manually using uv..."
+    uv pip install pandas numpy scikit-learn pyarrow kaggle huggingface_hub fastapi uvicorn pmdarima optuna shap xgboost lightgbm catboost ultralytics prophet sentence-transformers polars
 fi
 
 echo "=================================================="
@@ -53,11 +67,13 @@ python -c "
 import sys
 import pandas as pd
 import numpy as np
+import polars as pl
 import sklearn
 import torch
 print(f'Python path: {sys.executable}')
 print(f'Pandas version: {pd.__version__} - OK')
 print(f'NumPy version: {np.__version__} - OK')
+print(f'Polars version: {pl.__version__} - OK')
 print(f'Scikit-learn version: {sklearn.__version__} - OK')
 print(f'PyTorch version: {torch.__version__} - OK')
 print(f'MPS GPU training support available: {torch.backends.mps.is_available()}')
@@ -87,6 +103,7 @@ check_import('CatBoost', 'catboost')
 check_import('Ultralytics (YOLO)', 'ultralytics')
 check_import('Prophet', 'prophet')
 check_import('Sentence Transformers', 'sentence_transformers')
+check_import('Polars', 'polars')
 "
 
 echo "=================================================="
